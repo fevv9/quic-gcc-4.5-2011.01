@@ -1,0 +1,40 @@
+#!/bin/bash
+##################################################################
+# Copyright (c) $Date$ Qualcomm Innovation Center, Inc..
+# All Rights Reserved.
+# Modified by Qualcomm Innovation Center, Inc. on $Date$
+##################################################################
+
+# set value for --prefix option
+if [ "$1" != "" ]; then
+  PREFIX=$1
+else
+  PLATFORM=`uname`
+  if [ "${PLATFORM}" = "CYGWIN_NT-5.1" ]; then
+    PREFIX=/usr/local/qdsp6
+  else
+  	if [ "${PLATFORM}" = "MINGW32_NT-5.1" ]; then
+   	 PREFIX=/usr/local/qdsp6
+  	else
+   	 if [ "${PLATFORM}" = "Linux" ]; then
+   	   PREFIX=${HOME}/qdsp6
+   	 else
+   	   echo platform ${PLATFORM} not supported
+   	   exit 1
+		 fi
+    fi
+  fi
+fi
+
+bash `dirname $0`/configure \
+  --prefix=${PREFIX} \
+  --target=qdsp6 \
+  --program-prefix=qdsp6- \
+  --program-suffix=44 \
+  --enable-checking=assert,misc,tree,gc,rtlflag,runtime,df \
+  --enable-languages=c,c++ \
+  --without-fp \
+  --disable-sjlj-exceptions \
+  --disable-nls \
+  --disable-libssp \
+  --with-dinkumware

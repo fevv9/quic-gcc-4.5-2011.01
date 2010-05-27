@@ -1,0 +1,52 @@
+#!/bin/bash
+
+##################################################################
+# Copyright (c) \$Date\$ Qualcomm Innovation Center, Inc..
+# All Rights Reserved.
+# Modified by Qualcomm Innovation Center, Inc. on \$Date\$
+##################################################################
+
+GCC_DIR=`dirname $0`
+
+# set value for --prefix option
+if [ "$1" != "" ]; then
+  PREFIX=$1
+else
+  PLATFORM=`uname`
+  if [ "${PLATFORM}" = "CYGWIN_NT-5.1" ]; then
+    PREFIX=/usr/local/qdsp6
+  fi
+  if  [ "${PLATFORM}" = "MINGW32_NT-5.1" ]; then
+    PREFIX=/usr/local/qdsp6-mingw
+  else
+    if [ "${PLATFORM}" = "Linux" ]; then
+      PREFIX=${HOME}/qdsp6/gnu
+    else
+      echo platform ${PLATFORM} not supported
+      exit 1
+    fi
+  fi
+fi
+
+
+AS_FOR_TARGET=qdsp6-as \
+LD_FOR_TARGET=qdsp6-ld \
+NM_FOR_TARGET=qdsp6-nm \
+AR_FOR_TARGET=qdsp6-ar \
+CC=/pkg/qct/software/hexagon/windows-cross/gcc-3.4.5-cross/bin/i386-pc-mingw32-gcc \
+CC_FOR_BUILD=gcc \
+`dirname $0`/configure \
+  --prefix=${PREFIX} \
+  --target=qdsp6 \
+  --host=i386-pc-mingw32 \
+  --build=i686-pc-linux-gnu \
+  --program-prefix=qdsp6- \
+  --enable-checking=assert,misc,tree,gc,rtlflag,runtime,df \
+  --enable-languages=c,c++ \
+  --disable-sjlj-exceptions \
+  --without-fp \
+  --disable-nls \
+  --disable-libssp \
+  ${EXP_FLAGS} \
+  --with-dinkumware
+
