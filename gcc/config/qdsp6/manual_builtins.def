@@ -1,0 +1,3 @@
+BUILTIN_INFO(SI_to_SXTHI_asrh,SI_ftype_SI,1)
+BUILTIN_INFO(val_for_valignb,QI_ftype_MEM,1)
+

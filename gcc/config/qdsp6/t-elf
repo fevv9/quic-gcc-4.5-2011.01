@@ -1,0 +1,10 @@
+# Assemble startup files.
+$(T)crti.o: $(srcdir)/config/qdsp6/crti.asm $(GCC_PASSES)
+	$(GCC_FOR_TARGET) $(GCC_CFLAGS) $(MULTILIB_CFLAGS) $(INCLUDES) \
+	-c -o $(T)crti.o -x assembler $(srcdir)/config/qdsp6/crti.asm
+
+$(T)crtn.o: $(srcdir)/config/qdsp6/crtn.asm $(GCC_PASSES)
+	$(GCC_FOR_TARGET) $(GCC_CFLAGS) $(MULTILIB_CFLAGS) $(INCLUDES) \
+	-c -o $(T)crtn.o -x assembler $(srcdir)/config/qdsp6/crtn.asm
+
+EXTRA_MULTILIB_PARTS = crti.o crtn.o crtbegin.o crtend.o

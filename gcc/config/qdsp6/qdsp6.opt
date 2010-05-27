@@ -1,0 +1,145 @@
+##################################################################
+# Copyright (c) $Date$ Qualcomm Innovation Center, Inc..
+# All Rights Reserved.
+# Modified by Qualcomm Innovation Center, Inc. on $Date$
+##################################################################
+
+march=
+Target Report RejectNegative Joined
+Generate code for a given architecture (default qdsp6v2)
+
+mv1
+Target RejectNegative
+alias for -march=qdsp6v1
+
+mv2
+Target RejectNegative
+alias for -march=qdsp6v2
+
+mv3
+Target RejectNegative
+alias for -march=qdsp6v3
+
+mv4
+Target RejectNegative
+alias for -march=qdsp6v4
+
+mcpu=
+Target Report RejectNegative Joined
+currently an alias for march
+
+mclassic
+Target Report RejectNegative InversMask(COMPRESSED)
+Generate Hexagon Classic code (default)
+
+mcompressed
+Target Report RejectNegative Mask(COMPRESSED)
+Generate Hexagon Compressed code
+
+mabi=
+Target Report Undocumented RejectNegative Joined
+Adhere to the specified ABI (default abi1 for V2, abi2 otherwise)
+
+moslib=
+Target Report RejectNegative Joined
+Add the specified OS library to the link command in such a way that it can resolve symbols referenced by the C library
+
+mG0lib
+Target Report Mask(G0_LIB)
+Link with standard libraries compiled with -G 0
+
+mbuilding-multilib
+Target Report Undocumented Mask(BUILDING_MULTILIB)
+Indicates that GCC is currently building a multilib
+
+mlong-calls
+Target Report Mask(LONG_CALLS)
+Make all calls indirect except those where the target is known to be close
+
+msort-sda
+Target Report Mask(SECTION_SORTING)
+Disable small data sections sorting
+
+msort-sda-code-support
+Target Report Mask(SECTION_SORTING_CODE_SUPPORT)
+Disable small data sections sorting code support
+
+mextended-crossjumping
+Target Report Mask(EXTENDED_CROSSJUMPING)
+Allow Reordering instructions to facilitate crossjumping
+
+mdisable-deep-phi-match
+Target Report Mask(DISABLE_DEEP_PHI_MATCH)
+Disable advanced PHI chain matching
+
+mno-falign
+Target Report RejectNegative
+Do not use the falign directive (default with -O0 or -Os)
+
+mfalign-loops
+Target Report RejectNegative
+Use the falign directive before loops (default with -O and not -Os)
+
+mfalign-labels
+Target Report RejectNegative
+Use the falign directive before all labels (default with -O3 and not -Os)
+
+mliteral-pool
+Target Report Mask(LITERAL_POOL)
+Enable placing literal values into .sdata (default)
+
+mliteral-pool-addresses
+Target Report Mask(LITERAL_POOL_ADDRESSES)
+Enable placing literal address values into .sdata (default)
+
+mhardware-loops
+Target Report Mask(HARDWARE_LOOPS)
+Enable hardware loops (default)
+
+mdot-new
+Target Report Mask(DOT_NEW)
+Enable .new instructions (default)
+
+mpackets
+Target Report Mask(PACKETS)
+Form packets of instructions for parallel execution (default at -O2)
+
+mpullup
+Target Report Mask(PULLUP)
+Pull up instructions across basic block boundaries (default at -O2)
+
+mbase-plus-index
+Target Report Mask(BASE_PLUS_INDEX)
+Enable base+index addressing if supported by the architecture (default)
+
+mmemops
+Target Report Mask(MEMOPS)
+Enable load-op-store instructions if supported by the architecture (default)
+
+mliteral-intrinsics
+Target Report Mask(LITERAL_INTRINSICS)
+Force intrinsics to mean the corresponding instruction, not just the corresponding operation
+
+mv1-v2-uncached-data
+Target Report Undocumented Mask(UNCACHED_DATA)
+Limit the number of memory accesses in a packet to one
+
+mlocal-combine
+Target Report Undocumented Mask(LOCAL_COMBINE)
+Run local combine pass
+
+mresolve-restrict-aliasing
+Common Target Var(flag_resolve_restrict_aliasing) Optimization
+Perform MIDI specific optimizations.
+
+mpred-mux
+Target Report Undocumented Mask(PRED_MUX)
+Convert mux's to predicated transfers where possible
+
+moptimize-memset
+Common Target Var(flag_optimize_memset) Optimization
+Optimize memset routine in the backend
+
+menable-subreg1
+Common Target Var(flag_enable_subreg1) Optimization
+Enable subreg pass 1 (default)
