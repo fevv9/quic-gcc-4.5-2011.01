@@ -3719,7 +3719,6 @@
                                                        pc_rtx)));
     DONE;
   }
-  [(set_attr "type" "multiple")]
 )
 
 
