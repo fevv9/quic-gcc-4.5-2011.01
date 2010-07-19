@@ -3233,7 +3233,7 @@
   ""
   {
     rtx reg;
-    operands[1] = qdsp6_expand_compare(GET_CODE (operands[1]));
+    operands[1] = qdsp6_expand_compare2(GET_CODE (operands[1]), XEXP (operands[1], 0), XEXP (operands[1], 1));
     if(!TARGET_V2_FEATURES && !reload_completed){
       reg = gen_reg_rtx(SImode);
       emit_move_insn(reg, operands[2]);
@@ -3683,7 +3683,7 @@
 ;; cbranch{mode}4 ;;
 ;;----------------;;
 
-(define_insn "cbranchsi4"
+(define_expand "cbranchsi4"
   [(set (pc)
         (if_then_else (match_operator:SI 0 "comparison_operator"
                         [(match_operand:SI 1 "nonmemory_operand" "Rg,Rg")
@@ -3691,136 +3691,33 @@
                       (label_ref (match_operand 3 "" ""))
                       (pc)))
    (clobber (match_scratch:BI 4 "=Rp,Rp"))]
-  "TARGET_COMPRESSED"
+  ""
   {
-    rtx op0 = operands[1];
-    rtx op1 = operands[2];
-    enum rtx_code code = GET_CODE (operands[0]), compare_code, jump_code;
-    int offset = 0;
-    bool swap = false;
+    rtx cmp_rtx = qdsp6_expand_compare2 (GET_CODE(operands[0]), operands[1], operands[2]);
+    emit_jump_insn (gen_rtx_SET (VOIDmode, pc_rtx,
+                                 gen_rtx_IF_THEN_ELSE (VOIDmode, cmp_rtx,
+                                                       gen_rtx_LABEL_REF (VOIDmode, operands[3]),
+                                                       pc_rtx)));
+    DONE;
+  }
+)
 
-    if(REG_P (op1) || GET_CODE (op1) == SUBREG){
-      switch(code){
-        case EQ:
-          compare_code = EQ; jump_code = NE; break;
-        case NE:
-          compare_code = EQ; jump_code = EQ; break;
-
-        /* Signed compares */
-        case LT:
-          compare_code = GT; jump_code = NE; swap = true; break;
-        case LE:
-          compare_code = GT; jump_code = EQ; break;
-        case GT:
-          compare_code = GT; jump_code = NE; break;
-        case GE:
-          compare_code = GT; jump_code = EQ; swap = true; break;
-
-        /* Unsigned compares */
-        case LTU:
-          compare_code = GTU; jump_code = NE; swap = true; break;
-        case LEU:
-          compare_code = GTU; jump_code = EQ; break;
-        case GTU:
-          compare_code = GTU; jump_code = NE; break;
-        case GEU:
-          compare_code = GTU; jump_code = EQ; swap = true; break;
-
-        default:
-          gcc_unreachable();
-      }
-
-      if(swap){
-        op0 = operands[2];
-        op1 = operands[1];
-      }
-    }
-    else {
-      switch(code){
-        case EQ:
-          compare_code = EQ; jump_code = NE; break;
-        case NE:
-          compare_code = EQ; jump_code = EQ; break;
-
-        /* Signed compares */
-        case LT:
-          compare_code = GT; jump_code = EQ; offset = -1; break;
-        case LE:
-          compare_code = GT; jump_code = EQ; break;
-        case GT:
-          compare_code = GT; jump_code = NE; break;
-        case GE:
-          compare_code = GT; jump_code = NE; offset = -1; break;
-
-        /* Unsigned compares */
-        case LTU:
-          compare_code = GTU; jump_code = EQ; offset = -1; break;
-        case LEU:
-          compare_code = GTU; jump_code = EQ; break;
-        case GTU:
-          compare_code = GTU; jump_code = NE; break;
-        case GEU:
-          compare_code = GTU; jump_code = NE; offset = -1; break;
-
-        default:
-          gcc_unreachable();
-      }
-
-      if(offset != 0){
-        op1 = plus_constant(op1, offset);
-      }
-    }
-
-    operands[1] = op0;
-    operands[2] = op1;
-
-    if(GET_CODE (op1) == CONST_INT
-       && INTVAL (op1) >= (compare_code == GTU ? 0 : -512)
-       && INTVAL (op1) <= 511){
-      switch(compare_code){
-        case EQ:
-          return jump_code == NE ? "{ %4 = cmp.eq(%1,#%2); if (%4.new) jump:nt %l3 }"
-                                 : "{ %4 = cmp.eq(%1,#%2); if (!%4.new) jump:nt %l3 }";
-        case GT:
-          return jump_code == NE ? "{ %4 = cmp.gt(%1,#%2); if (%4.new) jump:nt %l3 }"
-                                 : "{ %4 = cmp.gt(%1,#%2); if (!%4.new) jump:nt %l3 }";
-        case GTU:
-          return jump_code == NE ? "{ %4 = cmp.gtu(%1,#%2); if (%4.new) jump:nt %l3 }"
-                                 : "{ %4 = cmp.gtu(%1,#%2); if (!%4.new) jump:nt %l3 }";
-        default:
-          gcc_unreachable();
-      }
-    }
-    else if(CONSTANT_P (op1)){
-      switch(compare_code){
-        case EQ:
-          return jump_code == NE ? "{ %4 = cmp.eq(%1,##%2); if (%4.new) jump:nt %l3 }"
-                                 : "{ %4 = cmp.eq(%1,##%2); if (!%4.new) jump:nt %l3 }";
-        case GT:
-          return jump_code == NE ? "{ %4 = cmp.gt(%1,##%2); if (%4.new) jump:nt %l3 }"
-                                 : "{ %4 = cmp.gt(%1,##%2); if (!%4.new) jump:nt %l3 }";
-        case GTU:
-          return jump_code == NE ? "{ %4 = cmp.gtu(%1,##%2); if (%4.new) jump:nt %l3 }"
-                                 : "{ %4 = cmp.gtu(%1,##%2); if (!%4.new) jump:nt %l3 }";
-        default:
-          gcc_unreachable();
-      }
-    }
-    else {
-      switch(compare_code){
-        case EQ:
-          return jump_code == NE ? "{ %4 = cmp.eq(%1,%2); if (%4.new) jump:nt %l3 }"
-                                 : "{ %4 = cmp.eq(%1,%2); if (!%4.new) jump:nt %l3 }";
-        case GT:
-          return jump_code == NE ? "{ %4 = cmp.gt(%1,%2); if (%4.new) jump:nt %l3 }"
-                                 : "{ %4 = cmp.gt(%1,%2); if (!%4.new) jump:nt %l3 }";
-        case GTU:
-          return jump_code == NE ? "{ %4 = cmp.gtu(%1,%2); if (%4.new) jump:nt %l3 }"
-                                 : "{ %4 = cmp.gtu(%1,%2); if (!%4.new) jump:nt %l3 }";
-        default:
-          gcc_unreachable();
-      }
-    }
+(define_expand "cbranchdi4"
+  [(set (pc)
+        (if_then_else (match_operator:SI 0 "comparison_operator"
+                        [(match_operand:DI 1 "nonmemory_operand" "Rg,Rg")
+                         (match_operand:DI 2 "nonmemory_operand"  "i,Rg")])
+                      (label_ref (match_operand 3 "" ""))
+                      (pc)))
+   (clobber (match_scratch:BI 4 "=Rp,Rp"))]
+  ""
+  {
+    rtx cmp_rtx = qdsp6_expand_compare2 (GET_CODE(operands[0]), operands[1], operands[2]);
+    emit_jump_insn (gen_rtx_SET (VOIDmode, pc_rtx,
+                                 gen_rtx_IF_THEN_ELSE (VOIDmode, cmp_rtx,
+                                                       gen_rtx_LABEL_REF (VOIDmode, operands[3]),
+                                                       pc_rtx)));
+    DONE;
   }
   [(set_attr "type" "multiple")]
 )

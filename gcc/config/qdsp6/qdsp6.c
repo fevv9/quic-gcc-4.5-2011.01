@@ -200,6 +200,9 @@ static void qdsp6_machine_dependent_reorg(void);
 static void qdsp6_local_combine_pass(void);
 
 static void qdsp6_init_builtins(void);
+
+static tree qdsp6_builtin_decl (unsigned code, bool initialize_p ATTRIBUTE_UNUSED);
+
 static rtx expand_one_builtin(
              enum insn_code icode,
              rtx target,
@@ -455,6 +458,9 @@ Miscellaneous Parameters
 
 #undef TARGET_INIT_BUILTINS
 #define TARGET_INIT_BUILTINS  qdsp6_init_builtins
+
+#undef TARGET_BUILTIN_DECL
+#define TARGET_BUILTIN_DECL qdsp6_builtin_decl
 
 #undef TARGET_EXPAND_BUILTIN
 #define TARGET_EXPAND_BUILTIN qdsp6_expand_builtin
@@ -4562,7 +4568,7 @@ qdsp6_machine_dependent_reorg(void)
 
 }
 
-
+static GTY(()) tree qdsp6_builtins[(int) CODE_FOR_nothing];
 
 
 #if GCC_3_4_6
@@ -4577,6 +4583,7 @@ qdsp6_machine_dependent_reorg(void)
                              BUILT_IN_MD, NULL, \
                              tree_cons(get_identifier("const"), \
                                        NULL_TREE, NULL_TREE));  \
+    qdsp6_builtins[(int) END_BUILTINS + 1 + CODE] = t; \
     if (CODE == QDSP6_BUILTIN_val_for_valignb) { \
       qdsp6_builtin_mask_for_load = t; \
     } \
@@ -4875,6 +4882,14 @@ qdsp6_init_builtins(void)
 #endif /* !GCC_3_4_6 */
 }
 
+static tree
+qdsp6_builtin_decl (unsigned code, bool initialize_p ATTRIBUTE_UNUSED)
+{
+  if (code >= CODE_FOR_nothing)
+    return error_mark_node;
+
+  return qdsp6_builtins[code];
+}
 
 
 
@@ -6760,8 +6775,9 @@ qdsp6_expand_epilogue(bool sibcall)
 
 
 #define SET_CODES(CC, JC) compare_code = (CC); jump_code = (JC)
-#define SWAP_OPERANDS op0 = cfun->machine->compare_op1; \
-                      op1 = cfun->machine->compare_op0
+#define SWAP_OPERANDS {rtx swap_rtx = op0; \
+                       op0 = op1; \
+                       op1 = swap_rtx;}
 
 rtx
 qdsp6_expand_compare(enum rtx_code code)
@@ -6859,6 +6875,115 @@ qdsp6_expand_compare(enum rtx_code code)
 
   /* return (eq/ne:BI (reg:BI p_reg) (const_int 0)) */
   return gen_rtx_fmt_ee(jump_code, BImode, p_reg, const0_rtx);
+}
+
+
+rtx
+qdsp6_expand_compare2(enum rtx_code code, rtx op0, rtx op1)
+{
+  enum rtx_code compare_code, jump_code;
+  rtx p_reg, const_reg;
+  int offset = 0;
+
+  if(GET_MODE (op0) == BImode){
+    gcc_assert(REG_P (op0) && (code == NE || code == EQ) && op1 == const0_rtx);
+    return gen_rtx_fmt_ee(code, BImode, op0, op1);
+  }
+
+  if(REG_P (op1) || GET_CODE (op1) == SUBREG){
+    switch(code) {
+      /* Equality compares */
+      case EQ:
+        SET_CODES (EQ, NE); break;
+      case NE:
+        SET_CODES (EQ, EQ); break;
+
+      /* Signed compares */
+      case LT:
+        SET_CODES (GT, NE); SWAP_OPERANDS; break;
+      case LE:
+        SET_CODES (GT, EQ); break;
+      case GT:
+        SET_CODES (GT, NE); break;
+      case GE:
+        SET_CODES (GT, EQ); SWAP_OPERANDS; break;
+
+      /* Unsigned compares */
+      case LTU:
+        SET_CODES (GTU, NE); SWAP_OPERANDS; break;
+      case LEU:
+        SET_CODES (GTU, EQ); break;
+      case GTU:
+        SET_CODES (GTU, NE); break;
+      case GEU:
+        SET_CODES (GTU, EQ); SWAP_OPERANDS; break;
+
+      default:
+        gcc_unreachable();
+    }
+  }
+  else {
+    /*gcc_assert(GET_MODE (op0) != DImode && GET_MODE (op1) != DImode);*/
+
+    switch(code) {
+      /* Equality compares */
+      case EQ:
+        SET_CODES (EQ, NE); break;
+      case NE:
+        SET_CODES (EQ, EQ); break;
+
+      /* Signed compares */
+      case LT:
+        SET_CODES (GT, EQ); offset = -1; break;
+      case LE:
+        SET_CODES (GT, EQ); break;
+      case GT:
+        SET_CODES (GT, NE); break;
+      case GE:
+        SET_CODES (GT, NE); offset = -1; break;
+
+      /* Unsigned compares */
+      case LTU:
+        SET_CODES (GTU, EQ); offset = -1; break;
+      case LEU:
+        SET_CODES (GTU, EQ); break;
+      case GTU:
+        SET_CODES (GTU, NE); break;
+      case GEU:
+        SET_CODES (GTU, NE); offset = -1; break;
+
+      default:
+        gcc_unreachable();
+    }
+
+    op1 = plus_constant(op1, offset);
+
+
+    if(GET_CODE (op1) == CONST_INT && GET_MODE(op0) == DImode) {
+      op1 = force_reg(DImode, op1);
+    }
+    else if(GET_CODE (op1) != CONST_INT
+       || !IN_RANGE (INTVAL (op1), compare_code == GTU ? 0 : -512, 511)){
+      op1 = force_reg(SImode, op1);
+    }
+  }
+
+  p_reg = gen_reg_rtx (BImode);
+
+  /* emit (set (reg:BI p_reg) (compare_code:BI op0 op1)) */
+  emit_insn(gen_rtx_SET (VOIDmode, p_reg,
+                         gen_rtx_fmt_ee(compare_code, BImode, op0, op1)));
+
+  /* return (eq/ne:BI (reg:BI p_reg) (const_int 0)) */
+  rtx cmp_rtx = gen_rtx_fmt_ee(jump_code, BImode, p_reg, const0_rtx);
+  return cmp_rtx;
+
+  /*
+  emit_jump_insn (gen_rtx_SET (VOIDmode, pc_rtx,
+                               gen_rtx_IF_THEN_ELSE (VOIDmode, cmp_rtx,
+                                                     gen_rtx_LABEL_REF (VOIDmode, label),
+                                                     pc_rtx)));
+  */
 }
 
 

@@ -31,6 +31,7 @@ bash `dirname $0`/configure \
   --program-prefix=qdsp6- \
   --enable-checking=assert,misc,tree,gc,rtlflag,runtime,df \
   --enable-languages=c,c++ \
+  --enable-lto \
   --without-fp \
   --disable-sjlj-exceptions \
   --disable-nls \

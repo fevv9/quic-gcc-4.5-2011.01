@@ -81,6 +81,7 @@ extern bool qdsp6_expand_clrstr(rtx[]);
 extern bool qdsp6_expand_strlen(rtx[]);
 extern bool qdsp6_expand_cmpstr(rtx[]);
 extern rtx  qdsp6_expand_compare(enum rtx_code);
+extern rtx  qdsp6_expand_compare2(enum rtx_code code, rtx op0, rtx op1);
 extern int  qdsp6_GP_or_reg_operand_c(rtx, enum machine_mode);
 extern int  qdsp6_nonimmediate_operand_with_GP_c(rtx, enum machine_mode);
 extern int  qdsp6_instructions_dependent(rtx, rtx);
