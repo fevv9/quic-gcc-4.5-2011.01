@@ -1,8 +1,3 @@
-##################################################################
-# Copyright (c) $Date$ Qualcomm Innovation Center, Inc..
-# All Rights Reserved.
-# Modified by Qualcomm Innovation Center, Inc. on $Date$
-##################################################################
 
 march=
 Target Report RejectNegative Joined
@@ -28,14 +23,6 @@ mcpu=
 Target Report RejectNegative Joined
 currently an alias for march
 
-mclassic
-Target Report RejectNegative InversMask(COMPRESSED)
-Generate Hexagon Classic code (default)
-
-mcompressed
-Target Report RejectNegative Mask(COMPRESSED)
-Generate Hexagon Compressed code
-
 mabi=
 Target Report Undocumented RejectNegative Joined
 Adhere to the specified ABI (default abi1 for V2, abi2 otherwise)
@@ -58,31 +45,35 @@ Make all calls indirect except those where the target is known to be close
 
 msort-sda
 Target Report Mask(SECTION_SORTING)
-Disable small data sections sorting
+Disable small data sections sorting (default)
 
 msort-sda-code-support
 Target Report Mask(SECTION_SORTING_CODE_SUPPORT)
-Disable small data sections sorting code support
+Disable small data sections sorting code support (default)
 
 mextended-crossjumping
-Target Report Mask(EXTENDED_CROSSJUMPING)
-Allow Reordering instructions to facilitate crossjumping
+Target Report Mask(EXTENDED_CROSSJUMPING) Optimization
+Allow Reordering instructions to facilitate crossjumping (default at -Os)
 
-mdisable-deep-phi-match
-Target Report Mask(DISABLE_DEEP_PHI_MATCH)
-Disable advanced PHI chain matching
+mdeep-phi-match
+Target Report Mask(DEEP_PHI_MATCH) Optimization
+Enable advanced PHI chain matching (default)
 
 mno-falign
-Target Report RejectNegative
+Target Report RejectNegative Optimization
 Do not use the falign directive (default with -O0 or -Os)
 
 mfalign-loops
-Target Report RejectNegative
-Use the falign directive before loops (default with -O and not -Os)
+Target Report RejectNegative Optimization
+Use the falign directive before loops (default with -O or -O2)
 
 mfalign-labels
-Target Report RejectNegative
-Use the falign directive before all labels (default with -O3 and not -Os)
+Target Report RejectNegative Optimization
+Use the falign directive before all labels
+
+mfalign-all
+Target Report RejectNegative Optimization
+Use the falign directive before all labels and after packets containing calls (default with -O3)
 
 mliteral-pool
 Target Report Mask(LITERAL_POOL)
@@ -96,16 +87,20 @@ mhardware-loops
 Target Report Mask(HARDWARE_LOOPS)
 Enable hardware loops (default)
 
-mdot-new
-Target Report Mask(DOT_NEW)
-Enable .new instructions (default)
+mnew-predicates
+Target Report Mask(NEW_PREDICATES)
+Enable .new-predicates (default)
+
+mnew-value-stores
+Target Report Mask(NEW_VALUE_STORES)
+Enable .new-value stores (default)
 
 mpackets
 Target Report Mask(PACKETS)
 Form packets of instructions for parallel execution (default at -O2)
 
 mpullup
-Target Report Mask(PULLUP)
+Target Report Mask(PULLUP) Optimization
 Pull up instructions across basic block boundaries (default at -O2)
 
 mbase-plus-index
@@ -125,21 +120,33 @@ Target Report Undocumented Mask(UNCACHED_DATA)
 Limit the number of memory accesses in a packet to one
 
 mlocal-combine
-Target Report Undocumented Mask(LOCAL_COMBINE)
-Run local combine pass
+Target Report Mask(LOCAL_COMBINE) Optimization
+Run local combine pass (default at -Os)
 
 mresolve-restrict-aliasing
-Common Target Var(flag_resolve_restrict_aliasing) Optimization
-Perform MIDI specific optimizations.
-
-mpred-mux
-Target Report Undocumented Mask(PRED_MUX)
-Convert mux's to predicated transfers where possible
-
-moptimize-memset
-Common Target Var(flag_optimize_memset) Optimization
-Optimize memset routine in the backend
+Target Report Mask(RESOLVE_RESTRICT_ALIASING) Optimization
+Perform MIDI specific optimizations
 
 menable-subreg1
-Common Target Var(flag_enable_subreg1) Optimization
-Enable subreg pass 1 (default)
+Target Report Mask(ENABLE_SUBREG1) Optimization
+Enable the subreg1 pass
+
+maggregate-access
+Target Report Mask(AGGREGATE_ACCESS) Optimization
+Optimize large struct member accesses (default at -O2)
+
+mduplex-scheduling
+Target Report Mask(DUPLEX_SCHEDULING) Optimization
+Enable duplex scheduling (default at -Os)
+
+mannotate_duplex
+Target Undocumented Mask(ANNOTATE_DUPLEX)
+Duplex debugging
+
+mpacketize-volatiles
+Target Report Mask(PACKETIZE_VOLATILES)
+Allow two volatile memory accesses in a packet
+
+mnew-value-jump
+Target Report Mask(NEW_VALUE_JUMP)
+Enable new value jump (default)

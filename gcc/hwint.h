@@ -1,8 +1,3 @@
-/*****************************************************************
-# Copyright (c) $Date$ Qualcomm Innovation Center, Inc..
-# All Rights Reserved.
-# Modified by Qualcomm Innovation Center, Inc. on $Date$
-*****************************************************************/
 /* HOST_WIDE_INT definitions for the GNU compiler.
    Copyright (C) 1998, 2002, 2004, 2008, 2009 Free Software Foundation, Inc.
 

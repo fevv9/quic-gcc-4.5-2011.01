@@ -1,8 +1,3 @@
-/*****************************************************************
-# Copyright (c) $Date$ Qualcomm Innovation Center, Inc..
-# All Rights Reserved.
-# Modified by Qualcomm Innovation Center, Inc. on $Date$
-*****************************************************************/
 /* Register Transfer Language (RTL) definitions for GCC
    Copyright (C) 1987, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
    2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010
@@ -1652,7 +1647,7 @@ struct function;
 extern rtx get_pool_constant (rtx);
 extern rtx get_pool_constant_mark (rtx, bool *);
 extern enum machine_mode get_pool_mode (const_rtx);
-extern rtx simplify_subtraction (rtx);
+extern rtx simplify_subtraction (const_rtx);
 
 /* In function.c  */
 extern rtx assign_stack_local (enum machine_mode, HOST_WIDE_INT, int);
@@ -1954,7 +1949,7 @@ extern void init_subregs_of_mode (void);
 extern void finish_subregs_of_mode (void);
 
 /* recog.c */
-extern rtx extract_asm_operands (rtx);
+extern rtx extract_asm_operands (const_rtx);
 extern int asm_noperands (const_rtx);
 extern const char *decode_asm_operands (rtx, rtx *, rtx **, const char **,
 					enum machine_mode *, location_t *);

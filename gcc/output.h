@@ -111,7 +111,7 @@ extern void output_address (rtx);
 /* Print an integer constant expression in assembler syntax.
    Addition and subtraction are the only arithmetic
    that may appear in these expressions.  */
-extern void output_addr_const (FILE *, rtx);
+extern void output_addr_const (FILE *, const_rtx);
 
 /* Output a string of assembler code, substituting numbers, strings
    and fixed syntactic prefixes.  */

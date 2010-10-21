@@ -1,8 +1,3 @@
-;; ##################################################################
-;; # Copyright (c) $Date$ Qualcomm Innovation Center, Inc..
-;; # All Rights Reserved.
-;; # Modified by Qualcomm Innovation Center, Inc. on $Date$
-;; ##################################################################
 ;;-----------;;
 ;; Registers ;;
 ;;-----------;;
@@ -175,6 +170,33 @@
        (match_test "IN_RANGE (INTVAL (op), -128, 127)"))
 )
 
+;; s7 constant
+(define_predicate "s7_const_int_operand"
+  (and (match_code "const_int")
+       (match_test "IN_RANGE (INTVAL (op), -64, 63)"))
+)
+
+
+;; s6 constant
+(define_predicate "s6_const_int_operand"
+  (and (match_code "const_int")
+       (match_test "IN_RANGE (INTVAL (op), -32, 31)"))
+)
+
+
+;; s5 constant
+(define_predicate "s5_const_int_operand"
+  (and (match_code "const_int")
+       (match_test "IN_RANGE (INTVAL (op), -16, 15)"))
+)
+
+
+;; s4 constant
+(define_predicate "s4_const_int_operand"
+  (and (match_code "const_int")
+       (match_test "IN_RANGE (INTVAL (op), -8, 7)"))
+)
+
 ;; u9 constant
 (define_predicate "u9_const_int_operand"
   (and (match_code "const_int")
@@ -338,6 +360,8 @@
                                     (match_operand 0 "s12_const_int_operand"))))))
 )
 
+(define_predicate "sym_or_lab_operand"
+  (match_code "symbol_ref,label_ref"))
 
 ;;-----------;;
 ;; Operators ;;
@@ -360,13 +384,115 @@
 (define_predicate "GP_or_reg_operand"
   (match_operand 0 "general_operand")
   {
-    return qdsp6_GP_or_reg_operand_c(op, mode);
+    enum rtx_code code = GET_CODE (op);
+    
+    if (mode == VOIDmode)	mode = GET_MODE (op);  
+
+    /* Don't accept CONST_INT or anything similar
+       if the caller wants something floating.  */
+    if (GET_MODE (op) == VOIDmode && mode != VOIDmode
+        && GET_MODE_CLASS (mode) != MODE_INT
+        && GET_MODE_CLASS (mode) != MODE_PARTIAL_INT)
+      return 0;
+
+    if (GET_CODE (op) == CONST_INT
+        && mode != VOIDmode
+        && trunc_int_for_mode (INTVAL (op), mode) != INTVAL (op))
+      return 0;
+
+    if (CONSTANT_P (op)){
+      return ((GET_MODE (op) == VOIDmode || GET_MODE (op) == mode
+               || mode == VOIDmode)
+              && (! flag_pic || LEGITIMATE_PIC_OPERAND_P (op))
+              && LEGITIMATE_CONSTANT_P (op));
+     }
+
+    /* Except for certain constants with VOIDmode, already checked for,
+       OP's mode must match MODE if MODE specifies a mode.  */
+    if (GET_MODE (op) != mode)	return 0; 
+
+    if (code == SUBREG){ 
+        rtx sub = SUBREG_REG (op);
+
+#ifdef INSN_SCHEDULING
+        /* On machines that have insn scheduling, we want all memory
+           reference to be explicit, so outlaw paradoxical SUBREGs.
+           However, we must allow them after reload so that they can
+           get cleaned up by cleanup_subreg_operands.  */
+        if (!reload_completed && MEM_P (sub)
+            && GET_MODE_SIZE (mode) > GET_MODE_SIZE (GET_MODE (sub)))
+          return 0;
+#endif
+        /* Avoid memories with nonzero SUBREG_BYTE, as offsetting the memory
+           may result in incorrect reference.  We should simplify all valid
+           subregs of MEM anyway.  But allow this after reload because we
+           might be called from cleanup_subreg_operands.
+           ??? This is a kludge.  */
+        if (!reload_completed && SUBREG_BYTE (op) != 0 && MEM_P (sub))	
+          return 0;
+
+        /* FLOAT_MODE subregs can't be paradoxical.  Combine will occasionally
+           create such rtl, and we must reject it.  */
+        if (SCALAR_FLOAT_MODE_P (GET_MODE (op))
+            && GET_MODE_SIZE (GET_MODE (op)) > GET_MODE_SIZE (GET_MODE (sub)))
+          return 0;
+
+        op = sub;
+        code = GET_CODE (op);
+      }
+    if (code == REG) 
+      /* A register whose class is NO_REGS is not a general operand.  */
+      return (REGNO (op) >= FIRST_PSEUDO_REGISTER
+              || REGNO_REG_CLASS (REGNO (op)) != NO_REGS);
+
+    if (code == MEM){ 
+        rtx y = XEXP (op, 0);
+
+        if (! volatile_ok && MEM_VOLATILE_P (op))	return 0; 
+        /* _LSY_ if (GET_CODE (y) == ADDRESSOF)		return 1; */  
+
+        /* Use the mem's mode, since it will be reloaded thus.  */
+        mode = GET_MODE (op);
+
+        /* Catch GP relative MEM accesses */  
+        if(sdata_symbolic_operand(y, Pmode)){
+          /* Will be GP relative */
+          unsigned HOST_WIDE_INT mem_size = 0; 
+
+          if((GET_CODE (op) == MEM) && MEM_SIZE (op))	
+                  mem_size = INTVAL (MEM_SIZE (op)); 
+          /* Dev warning. if(GET_MODE_SIZE(mode) != mem_size)	
+             fprintf(stderr,"Warning. GET_MODE_SIZE(%d) != mem_size(%d)\n",
+             GET_MODE_SIZE(mode),mem_size); 
+          */
+
+          /* This makes this predicate to reject GP relative 
+             addressing if access unit is smaller than declaration unit*/ 
+          if(TARGET_SECTION_SORTING_CODE_SUPPORT 
+          && TARGET_SECTION_SORTING 
+          /* There is a difference in approach possible here: In case of a struct
+             we can consider overal struct size as grounds for rejection, on the other
+             hand we can see what is the smallest accessable member of the struct is, and 
+             use that instead. Currently it makes no significant difference in performance
+             or size, but we can easily think of a theoretical example where it might.
+             Alternative code:
+             mem_size < sdata_symbolic_operand_size(y)
+          */
+          && (mem_size < sdata_symbolic_operand_smallest_accessable_size(y))){ 
+             if(reload_completed)	; /* Dev warning. fprintf(stderr,
+                                       "Warning. Skip late section sorting match\n"); */ 
+             else	return 0;
+          }
+        }
+        if (memory_address_p (mode, y))	return 1;
+     }
+    return 0;
   }
 )
 
 (define_predicate "nonimmediate_operand_with_GP"
   (match_operand 0 "nonimmediate_operand")
   {
-    return qdsp6_nonimmediate_operand_with_GP_c(op, mode);
+    return (! CONSTANT_P (op) && GP_or_reg_operand (op, mode));
   }
 )

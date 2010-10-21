@@ -1,8 +1,3 @@
-/*****************************************************************
-# Copyright (c) $Date$ Qualcomm Innovation Center, Inc..
-# All Rights Reserved.
-# Modified by Qualcomm Innovation Center, Inc. on $Date$
-*****************************************************************/
 /* Scalar evolution detector.
    Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010
    Free Software Foundation, Inc.
@@ -1646,7 +1641,7 @@ follow_ssa_edge (struct loop *loop, gimple def, gimple halting_phi,
 	 the halting_phi to itself in the loop.  */
       if (def == halting_phi)
 	return t_true;
-	else if(!TARGET_DISABLE_DEEP_PHI_MATCH &&
+	else if(TARGET_DEEP_PHI_MATCH &&
             analyze_possible_phi_aliasing(loop, def, 
 	         halting_phi, evolution_of_loop, limit))	
 		return t_true; 

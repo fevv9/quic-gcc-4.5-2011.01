@@ -3516,7 +3516,7 @@ output_address (rtx x)
    that may appear in these expressions.  */
 
 void
-output_addr_const (FILE *file, rtx x)
+output_addr_const (FILE *file, const_rtx x)
 {
   char buf[256];
 

@@ -1324,18 +1324,7 @@ gate_handle_lower_subreg (void)
 static unsigned int
 rest_of_handle_lower_subreg (void)
 {
- /* Taxis code degraded immensely with this pass of subreg.
-	* This pass of subreg is splitting the double word opcodes
-	* into single words, which resulted in larger packet size.
-	* See bugzilla # 3659 for the details.
-	* See hexframe runid 4964.
-	* To enable subreg - use -menable-subreg1
-	*/
-
-	if (flag_enable_subreg1) 
-	{
-		decompose_multiword_subregs ();
-	}
+  decompose_multiword_subregs ();
   return 0;
 }
 

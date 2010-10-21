@@ -139,7 +139,7 @@ process_define_predicate (rtx defn, int lineno)
 
    becomes
 
-       static inline int basereg_operand_1(rtx op, enum machine_mode mode)
+       static inline int basereg_operand_1(const_rtx op, enum machine_mode mode)
        {
          if (GET_CODE (op) == SUBREG)
            op = SUBREG_REG (op);
@@ -181,7 +181,7 @@ write_predicate_subfunction (struct pred_data *p)
   p->exp = and_exp;
 
   printf ("static inline int\n"
-	  "%s_1 (rtx op, enum machine_mode mode ATTRIBUTE_UNUSED)\n",
+	  "%s_1 (const_rtx op, enum machine_mode mode ATTRIBUTE_UNUSED)\n",
 	  p->name);
   print_rtx_ptr_loc (p->c_block);
   if (p->c_block[0] == '{')
@@ -643,7 +643,7 @@ write_one_predicate_function (struct pred_data *p)
 
   /* A normal predicate can legitimately not look at enum machine_mode
      if it accepts only CONST_INTs and/or CONST_DOUBLEs.  */
-  printf ("int\n%s (rtx op, enum machine_mode mode ATTRIBUTE_UNUSED)\n{\n",
+  printf ("int\n%s (const_rtx op, enum machine_mode mode ATTRIBUTE_UNUSED)\n{\n",
 	  p->name);
   write_predicate_stmts (p->exp);
   fputs ("}\n\n", stdout);
@@ -1258,7 +1258,7 @@ write_tm_preds_h (void)
 #ifdef HAVE_MACHINE_MODES");
 
   FOR_ALL_PREDICATES (p)
-    printf ("extern int %s (rtx, enum machine_mode);\n", p->name);
+    printf ("extern int %s (const_rtx, enum machine_mode);\n", p->name);
 
   puts ("#endif /* HAVE_MACHINE_MODES */\n");
 

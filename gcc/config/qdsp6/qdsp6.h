@@ -1,8 +1,3 @@
-/*****************************************************************
-# Copyright (c) $Date$ Qualcomm Innovation Center, Inc..
-# All Rights Reserved.
-# Modified by Qualcomm Innovation Center, Inc. on $Date$
-*****************************************************************/
 /* Definitions of QDSP6 target
    Copyright (C) 1998, 1999, 2000, 2001, 2002 Free Software Foundation, Inc.
 
@@ -32,16 +27,6 @@ are used to switch between the two implementations.
 
 #ifndef GCC_QDSP6_H
 #define GCC_QDSP6_H
-
-#define GCC_3_4_6 0
-
-#if GCC_3_4_6
-/* Define these to enable using the newer conventions in both versions. */
-#define gcc_assert(ASSERTION) ((void) (!(ASSERTION) ? abort(), 0 : 0))
-#define gcc_unreachable abort
-#define MEM_P(X) (GET_CODE (X) == MEM)
-#define CALL_P(X) (GET_CODE (X) == CALL_INSN)
-#endif /* GCC_3_4_6 */
 
 
 /*--------------------------------------------------------
@@ -101,142 +86,6 @@ Run-time Target Specification
     builtin_define_std ("qdsp6"); \
     builtin_assert ("machine=qdsp6"); \
   }while(0)
-
-#if GCC_3_4_6 
-extern int target_flags;
-
-#define MASK_NO_FALIGN (1 << 0)
-#define TARGET_NO_FALIGN ((target_flags & MASK_NO_FALIGN) != 0)
-
-#define MASK_FALIGN_LOOPS (1 << 1)
-#define TARGET_FALIGN_LOOPS ((target_flags & MASK_FALIGN_LOOPS) != 0)
-
-#define MASK_FALIGN_LABELS (1 << 2)
-#define TARGET_FALIGN_LABELS ((target_flags & MASK_FALIGN_LABELS) != 0)
-
-#define MASK_G0_LIB (1 << 3)
-#define TARGET_G0_LIB \
-  ((target_flags & MASK_G0_LIB) != 0)
-
-#define MASK_BUILDING_MULTILIB (1 << 4)
-#define TARGET_BUILDING_MULTILIB \
-  ((target_flags & MASK_BUILDING_MULTILIB) != 0)
-
-#define MASK_LITERAL_POOL (1 << 5)
-#define TARGET_LITERAL_POOL \
-  ((target_flags & MASK_LITERAL_POOL) != 0)
-
-#define MASK_LITERAL_POOL_ADDRESSES (1 << 6)
-#define TARGET_LITERAL_POOL_ADDRESSES \
-  ((target_flags & MASK_LITERAL_POOL_ADDRESSES) != 0)
-
-#define MASK_HARDWARE_LOOPS (1 << 7)
-#define TARGET_HARDWARE_LOOPS ((target_flags & MASK_HARDWARE_LOOPS) != 0)
-
-#define MASK_DOT_NEW (1 << 8)
-#define TARGET_DOT_NEW ((target_flags & MASK_DOT_NEW) != 0)
-
-#define MASK_PULLUP (1 << 9)
-#define TARGET_PULLUP ((target_flags & MASK_PULLUP) != 0)
-
-#define MASK_LITERAL_INTRINSICS (1 << 10)
-#define TARGET_LITERAL_INTRINSICS \
-  ((target_flags & MASK_LITERAL_INTRINSICS) != 0)
-
-#define MASK_UNCACHED_DATA (1 << 12)
-#define TARGET_UNCACHED_DATA ((target_flags & MASK_UNCACHED_DATA) != 0)
-
-#define MASK_LONG_CALLS (1 << 13)
-#define TARGET_LONG_CALLS ((target_flags & MASK_LONG_CALLS) != 0)
-
-#define MASK_SECTION_SORTING (1 << 14)
-#define TARGET_SECTION_SORTING ((target_flags & MASK_SECTION_SORTING) != 0)
-
-#define MASK_SECTION_SORTING_CODE_SUPPORT (1 << 15)
-#define TARGET_SECTION_SORTING_CODE_SUPPORT ((target_flags & MASK_SECTION_SORTING_CODE_SUPPORT) != 0)
-
-#define TARGET_DEFAULT \
-  (MASK_LITERAL_POOL | MASK_LITERAL_POOL_ADDRESSES | MASK_HARDWARE_LOOPS \
-   | MASK_DOT_NEW | MASK_PULLUP | MASK_SECTION_SORTING | MASK_SECTION_SORTING_CODE_SUPPORT )
-
-#define TARGET_SWITCHES                                                     \
-  {                                                                         \
-    {"v1", 0,                                                               \
-     N_("alias for -march=qdsp6v1")},                                       \
-    {"v2", 0,                                                               \
-     N_("alias for -march=qdsp6v2")},                                       \
-    {"v3", 0,                                                               \
-     N_("alias for -march=qdsp6v3")},                                       \
-    {"long-calls",                       MASK_LONG_CALLS,                   \
-     N_("Make all calls indirect except those where the target is known "   \
-        "to be close")},                                                    \
-    {"no-long-calls",                   -MASK_LONG_CALLS,                   \
-     N_("Assume all call targets are close enough to use a PC-relative "    \
-        "call instruction (default)")},                                     \
-    {"no-falign",                        MASK_NO_FALIGN,                    \
-     N_("Do not use the falign directive (default with -O0 or -Os)")},      \
-    {"falign-loops",                     MASK_FALIGN_LOOPS,                 \
-     N_("Use the falign directive before loops (default with -O and not "   \
-        "-Os)")},                                                           \
-    {"falign-labels",                    MASK_FALIGN_LABELS,                \
-     N_("Use the falign directive before all labels")},                     \
-    {"G0lib",                            MASK_G0_LIB,                       \
-     N_("Link with standard libraries compiled with -G 0")},                \
-    {"building-multilib",                MASK_BUILDING_MULTILIB,            \
-     ""},                                                                   \
-    {"literal-pool",                     MASK_LITERAL_POOL,                 \
-     N_("Enable placing literal values into .sdata (default)")},            \
-    {"no-literal-pool",                 -MASK_LITERAL_POOL,                 \
-     N_("Disable placing literal values into .sdata")},                     \
-    {"literal-pool-addresses",           MASK_LITERAL_POOL_ADDRESSES,       \
-     N_("Enable placing literal address values into .sdata (default)")},    \
-    {"no-literal-pool-addresses",       -MASK_LITERAL_POOL_ADDRESSES,       \
-     N_("Disable placing literal address values into .sdata")},             \
-    {"hardware-loops",                   MASK_HARDWARE_LOOPS,               \
-     N_("Enable hardware loops (default)")},                                \
-    {"no-hardware-loops",               -MASK_HARDWARE_LOOPS,               \
-     N_("Disable hardware loops")},                                         \
-    {"dot-new",                          MASK_DOT_NEW,                      \
-     N_("Enable .new instructions (default)")},                             \
-    {"no-dot-new",                       -MASK_DOT_NEW,                     \
-     N_("Disable .new instructions")},                                      \
-    {"pullup",                           MASK_PULLUP,                       \
-     N_("Pull up instructions across basic block boundaries (default)")},   \
-    {"no-pullup",                       -MASK_PULLUP,                       \
-     N_("Do not pull up instructions across basic block boundaries")},      \
-    {"literal-intrinsics",               MASK_LITERAL_INTRINSICS,           \
-     N_("Force intrinsics to mean the corresponding instruction, not just " \
-        "the corresponding operation")},                                    \
-    {"no-literal-intrinsics",           -MASK_LITERAL_INTRINSICS,           \
-     N_("Internally expand some intrinsics into the corresponding "         \
-        "operation to allow optimization (default)")},                      \
-    {"v1-v2-uncached-data",              MASK_UNCACHED_DATA,                \
-     ""},                                                                   \
-    {"no-sort-sda",               -MASK_SECTION_SORTING,              	    \
-     N_("Disable small data sections sorting")},			    \
-    {"no-sort-sda-code-support",  -MASK_SECTION_SORTING_CODE_SUPPORT,       \
-     N_("Disable small data sections sorting code support")},        	    \
-    {"", TARGET_DEFAULT, NULL}                                              \
-  }
-
-#define TARGET_OPTIONS                                                        \
-  {                                                                           \
-    {"arch=", &qdsp6_arch_string,                                             \
-     N_("Generate code for the specified architecture (default qdsp6v2)"),    \
-     NULL},                                                                   \
-    {"cpu=", &qdsp6_arch_string,                                              \
-     N_("currently an alias for march (except that it does not affect which " \
-        "libraries are included)"),                                           \
-     NULL},                                                                   \
-    {"abi=", &qdsp6_abi_string,                                               \
-     N_("Adhere to the specified ABI (default abi1)"),                        \
-     NULL},                                                                   \
-    {"oslib=", &qdsp6_oslib_string,                                           \
-     N_("Add the specified OS library to the link command in such a way "     \
-        "that it can resolve symbols referenced by the C library."),          \
-     NULL},                                                                   \
-  }
-#endif /* GCC_3_4_6 */
 
 /* Append (qdsp6) to the version string. */
 #define TARGET_VERSION fprintf(stderr, " (qdsp6)");
@@ -370,11 +219,6 @@ Storage Layout
   Also, bitfields do not cross the alignment boundaries of their type. */
 #define PCC_BITFIELD_TYPE_MATTERS 1
 
-#if GCC_3_4_6
-/* ??? Define this? */
-/*#define VECTOR_MODE_SUPPORTED_P(MODE)*/
-#endif /* GCC_3_4_6 */
-
 /* QDSP6 emulates IEEE floating point. */
 
 /* The prevailing floating point rounding mode is round towards nearest. */
@@ -399,23 +243,59 @@ Layout of Source Language Data Types
    type. */
 #define DEFAULT_SIGNED_CHAR 0
 
-#if GCC_3_4_6
-/* As specified by the ABI, enumerated types behave like the smallest integer
-   type that can hold all of the enumerated constants associated with the
-   enumerated type. */
-#define DEFAULT_SHORT_ENUMS 1
-#endif /* GCC_3_4_6 */
+/* GCC uses the following internal structure to represent a 
+   pointer-to-member-function:
 
-/* Function pointers on QDSP6 should always be even. */
+   struct {
+    union {
+        void (*fn)();
+        ptrdiff_t vtable_index;
+    };
+    ptrdiff_t delta;
+   };
+
+   Generally GCC must use one bit to indicate whether the function that will be
+   called through a pointer-to-member-function is virtual. 
+   Normally, we assume that the low-order bit of a function pointer must always
+   be zero (word aligned). Then, by ensuring that the vtable_index is odd, 
+   we can distinguish which variant of the union is in use. But, on some 
+   platforms function pointers can be odd, and so this doesn't work. In that 
+   case, we use the low-order bit of the delta field, and shift the remainder 
+   of the delta field to the left. 
+   On QDSP6 use of delta field is not _needed_ but produces a better code for 
+   several scenarios. Particularly for an empty class with function 
+   definitions:
+
+   (from bug 3711)
+
+   struct S {
+       int func(char)      { return 100; }
+   } s;
+
+   int main(void)
+   {
+      int (S::*pfc)(char)    = &S::func;
+      (s.*pfc)(0);
+   }
+
+   GCC will use default alignment of "char" for 's', but might use memw/mov_si
+   to access nonexistent vtable in "front" of s, resulting in potential conflict.
+
+   When delta field is used via TARGET_PTRMEMFUNC_VBIT_LOCATION, compiler is 
+   capable to determine that there is _no_ vtable to access in this case, and 
+   simply optimizes out the access code. If a vtable does exist, it will be word 
+   aligned by definition.
+   */  
+#define TARGET_PTRMEMFUNC_VBIT_LOCATION ptrmemfunc_vbit_in_delta
 
 
 /*--------------------------------
 Basic Characteristics of Registers
 --------------------------------*/
 
-/* 32 GPRs, 4 .old and 4 .new predicate regs, 8 CRs (sa0/lc0, sa1/lc1, m0/m1,
-   usr, ugp), and fake frame pointer and argument pointer registers */
-#define FIRST_PSEUDO_REGISTER (32 + 4 * 2 + 8 + 2)
+/* 32 GPRs, 4 predicate regs, 8 CRs (sa0/lc0, sa1/lc1, m0/m1, usr, ugp), and
+   fake frame pointer and argument pointer registers */
+#define FIRST_PSEUDO_REGISTER (32 + 4 + 8 + 2)
 
 #define FIXED_REGISTERS \
   { \
@@ -424,7 +304,6 @@ Basic Characteristics of Registers
     0, 0, 0, 0, 0, 0, 0, 0, /* 16 - 23 */ \
     0, 0, 0, 0, 0, 1, 1, 0, /* 24 - 31 */ \
     0, 0, 0, 0,             /* p0 - p3 */ \
-    1, 1, 1, 1,             /* p0 - p3 .new */ \
     1, 1, 1, 1, 1, 1, 1, 1, /* sa0, lc0, sa1, lc1, m0, m1, usr, ugp */ \
     1, 1,                   /* fake _fp and _ap */ \
   }
@@ -436,7 +315,6 @@ Basic Characteristics of Registers
     1, 1, 1, 1, 1, 1, 1, 1, /* 16 - 23 */ \
     0, 0, 0, 0, 1, 1, 1, 1, /* 24 - 31 */ \
     1, 1, 1, 1,             /* p0 - p3 */ \
-    1, 1, 1, 1,             /* p0 - p3 .new */ \
     1, 1, 1, 1, 1, 1, 1, 1, /* sa0, lc0, sa1, lc1, m0, m1, usr, ugp */ \
     1, 1,                   /* fake _fp and _ap */ \
   }
@@ -495,9 +373,7 @@ Register Classes
 enum reg_class {
   NO_REGS,
   GENERAL_REGS,           /* registers r0 through r31 */
-  PREDICATE_DOT_OLD_REGS, /* predicates p0 through p3 */
-  PREDICATE_DOT_NEW_REGS, /* predicates p0 through p3 .new */
-  PREDICATE_REGS,         /* predicates p0 through p3 and their .new forms */
+  PREDICATE_REGS,         /* predicates p0 through p3 */
   CONTROL_REGS,           /* sa0, lc0, sa1, lc1, m0, m1, usr, ugp */
   FAKE_REGS,              /* _fp, _ap */
   ALL_REGS,
@@ -510,8 +386,6 @@ enum reg_class {
   {                           \
     "NO_REGS",                \
     "GENERAL_REGS",           \
-    "PREDICATE_DOT_OLD_REGS", \
-    "PREDICATE_DOT_NEW_REGS", \
     "PREDICATE_REGS",         \
     "CONTROL_REGS",           \
     "FAKE_REGS",              \
@@ -524,26 +398,21 @@ enum reg_class {
     {0x00000000, 0x00000},       \
     /* GENERAL_REGS */           \
     {0xffffffff, 0x00000},       \
-    /* PREDICATE_DOT_OLD_REGS */ \
-    {0x00000000, 0x0000f},       \
-    /* PREDICATE_DOT_NEW_REGS */ \
-    {0x00000000, 0x000f0},       \
     /* PREDICATE_REGS */         \
-    {0x00000000, 0x000ff},       \
+    {0x00000000, 0x0000f},       \
     /* CONTROL_REGS */           \
-    {0x00000000, 0x0ff00},       \
+    {0x00000000, 0x00ff0},       \
     /* FAKE_REGS */              \
-    {0x00000000, 0x30000},       \
+    {0x00000000, 0x03000},       \
     /* ALL_REGS */               \
-    {0xffffffff, 0x3ffff},       \
+    {0xffffffff, 0x03fff},       \
   }
 
 #define REGNO_REG_CLASS(REGNO) \
   ( (REGNO) <  32 ? GENERAL_REGS \
-  : (REGNO) < (32 + 4) ? PREDICATE_DOT_OLD_REGS \
-  : (REGNO) < (32 + 4 + 4) ? PREDICATE_DOT_NEW_REGS \
-  : (REGNO) < (32 + 4 + 4 + 8) ? CONTROL_REGS \
-  : (REGNO) < (32 + 4 + 4 + 8 + 2) ? FAKE_REGS \
+  : (REGNO) < (32 + 4) ? PREDICATE_REGS \
+  : (REGNO) < (32 + 4 + 8) ? CONTROL_REGS \
+  : (REGNO) < (32 + 4 + 8 + 2) ? FAKE_REGS \
   : ALL_REGS)
 
 /* In base+offset and base+index addressing, the base must be a general purpose
@@ -564,7 +433,6 @@ enum reg_class {
    cheaper than load or store of the registers.  The macro value is
    array of register classes with LIM_REG_CLASSES used as the end
    marker.  */
-/* _LSY_ GENERAL_REGS, PREDICATE_DOT_OLD_REGS, PREDICATE_DOT_NEW_REGS, */  
 #define IRA_COVER_CLASSES \
 {                 \
   ALL_REGS,       \
@@ -577,8 +445,6 @@ enum reg_class {
 #define CONSTRAINT_LEN_FOR_R(CHAR, STR) \
   ( (STR)[1] == 'g' ? 2 \
   : (STR)[1] == 'p' ? 2 \
-  : (STR)[1] == 'n' ? ( (STR)[2] == 'p' ? 3 \
-                      : DEFAULT_CONSTRAINT_LEN(CHAR, STR)) \
   : (STR)[1] == 'c' ? 2 \
   : DEFAULT_CONSTRAINT_LEN(CHAR, STR))
 
@@ -615,10 +481,13 @@ enum reg_class {
 
 /* See qdsp6_const_ok_for_constraint_p for meanings. */
 #define QDSP6_KOOKY_KONSTANT_LENS(STR) \
+  QDSP6_CONSTRAINT_LEN(STR, -1) \
+  QDSP6_CONSTRAINT_LEN(STR, 01) \
   QDSP6_CONSTRAINT_LEN(STR, 16) \
   QDSP6_CONSTRAINT_LEN(STR, 32) \
   QDSP6_CONSTRAINT_LEN(STR, u7p1) \
   QDSP6_CONSTRAINT_LEN(STR, s8p1) \
+  QDSP6_CONSTRAINT_LEN(STR, u5_3p8) \
   QDSP6_CONSTRAINT_LEN(STR, u9p1) \
   QDSP6_CONSTRAINT_LEN(STR, s10p1) \
   QDSP6_CONSTRAINT_LEN(STR, s8s8) \
@@ -637,7 +506,11 @@ enum reg_class {
   QDSP6_CONSTRAINT_LEN(STR, si) \
   QDSP6_CONSTRAINT_LEN(STR, csi) \
   QDSP6_CONSTRAINT_LEN(STR, memop) \
-  QDSP6_CONSTRAINT_LEN(STR, ememop)
+  QDSP6_CONSTRAINT_LEN(STR, ememop) \
+  QDSP6_CONSTRAINT_LEN(STR, dm3)    \
+  QDSP6_CONSTRAINT_LEN(STR, dm4)    \
+  QDSP6_CONSTRAINT_LEN(STR, dmsp5)  \
+  QDSP6_CONSTRAINT_LEN(STR, dmsp6)
 
 /* used by CONSTRAINT_LEN */
 #define CONSTRAINT_LEN_FOR_A(CHAR, STR) \
@@ -653,14 +526,11 @@ enum reg_class {
 
 /* Rg  means general purpose register (r0-r31)
    Rp  means predicate register (p0-p3)
-   Rnp means .new form of a predicate register (p0.new-p3.new)
    Rc  means control register (sa0, lc0, sa1, lc1, m0, m1) */
 #define REG_CLASS_FROM_CONSTRAINT(CHAR, STR) \
   ( (CHAR) != 'R' ? NO_REGS \
   : (STR)[1] == 'g' ? GENERAL_REGS \
-  : (STR)[1] == 'p' ? PREDICATE_DOT_OLD_REGS \
-  : (STR)[1] == 'n' ? ( (STR)[2] == 'p' ? PREDICATE_DOT_NEW_REGS \
-                      : NO_REGS) \
+  : (STR)[1] == 'p' ? PREDICATE_REGS \
   : (STR)[1] == 'c' ? CONTROL_REGS \
   : NO_REGS)
 
@@ -671,11 +541,6 @@ enum reg_class {
 #define REGNO_OK_FOR_INDEX_P(NUM) 0
 
 #define PREFERRED_RELOAD_CLASS(X, CLASS) CLASS
-
-#if GCC_3_4_6
-#define SECONDARY_RELOAD_CLASS(CLASS, MODE, X) \
-  qdsp6_secondary_reload_class(X, CLASS)
-#endif /* GCC_3_4_6 */
 
 /* ??? maybe try this with predicates? */
 /*#define SMALL_REGISTER_CLASSES*/
@@ -727,6 +592,10 @@ enum reg_class {
     : QDSP6_CONSTRAINT_P (STR, csi)    ? EXTRA_CONSTRAINT_FOR_A(VALUE, csi) \
     : QDSP6_CONSTRAINT_P (STR, memop)  ? EXTRA_CONSTRAINT_FOR_A(VALUE, memop) \
     : QDSP6_CONSTRAINT_P (STR, ememop) ? EXTRA_CONSTRAINT_FOR_A(VALUE, ememop) \
+    : QDSP6_CONSTRAINT_P (STR, dm3)     ? EXTRA_CONSTRAINT_FOR_A(VALUE, dm3) \
+    : QDSP6_CONSTRAINT_P (STR, dm4)     ? EXTRA_CONSTRAINT_FOR_A(VALUE, dm4) \
+    : QDSP6_CONSTRAINT_P (STR, dmsp5)     ? EXTRA_CONSTRAINT_FOR_A(VALUE, dmsp5) \
+    : QDSP6_CONSTRAINT_P (STR, dmsp6)     ? EXTRA_CONSTRAINT_FOR_A(VALUE, dmsp6) \
     : 0 \
   : 0)
 
@@ -738,7 +607,8 @@ enum reg_class {
        || QDSP6_CONSTRAINT_P (STR, si) \
        || QDSP6_CONSTRAINT_P (STR, csi) \
        || QDSP6_CONSTRAINT_P (STR, memop) \
-       || QDSP6_CONSTRAINT_P (STR, ememop)))
+       || QDSP6_CONSTRAINT_P (STR, ememop) \
+       || QDSP6_CONSTRAINT_P (STR, dm)))
 
 
 /*----------------
@@ -748,6 +618,9 @@ Basic Stack Layout
 /* See the comment in qdsp6.c containing "QDSP6 stack frames look like:" for a
    diagram of stack frames on QDSP6. */
 #define STACK_GROWS_DOWNWARD 1
+#define FRAME_GROWS_DOWNWARD 1
+
+#define TARGET_LIBC_PROVIDES_SSP 1
 
 #define STARTING_FRAME_OFFSET 0
 
@@ -785,17 +658,17 @@ Registers That Address the Stack Frame
 #define STACK_POINTER_REGNUM 29
 
 /* Fake frame pointer register that will always be eliminated */
-#define FRAME_POINTER_REGNUM 48
+#define FRAME_POINTER_REGNUM 44
 
 #define HARD_FRAME_POINTER_REGNUM 30
 
 /* Fake argument pointer register that will always be eliminated */
-#define ARG_POINTER_REGNUM 49
+#define ARG_POINTER_REGNUM 45
 
 /* needs to be caller-save and not arg? */
 #define STATIC_CHAIN_REGNUM 28
 
-/*#define DWARF_FRAME_REGISTERS*/ /* ??? 6? */
+/*#define DWARF_FRAME_REGISTERS*/ /* ??? 14? */
 
 #define DWARF_FRAME_RETURN_COLUMN DWARF_FRAME_REGNUM (LINK_REGNUM)
 
@@ -839,17 +712,6 @@ Passing Arguments in Registers
 #define FUNCTION_ARG(CUM, MODE, TYPE, NAMED) \
   qdsp6_function_arg(CUM, MODE, TYPE, NAMED)
 
-#if GCC_3_4_6
-#define MUST_PASS_IN_STACK(MODE, TYPE) \
-  qdsp6_must_pass_in_stack(MODE, TYPE)
-#endif /* GCC_3_4_6 */
-
-#if GCC_3_4_6
-#define FUNCTION_ARG_PARTIAL_NREGS(CUM, MODE, TYPE, NAMED) 0
-
-#define FUNCTION_ARG_PASS_BY_REFERENCE(CUM, MODE, TYPE, NAMED) 0
-#endif /* GCC_3_4_6 */
-
 /* On the QDSP6 this value is an accumulating count of the number of argument
    registers that have been filled with argument values or skipped. */
 #define CUMULATIVE_ARGS int
@@ -879,11 +741,6 @@ Passing Arguments in Registers
 /*-------------------------------------
 How Scalar Function Values Are Returned
 -------------------------------------*/
-
-#if GCC_3_4_6
-#define FUNCTION_VALUE(VALTYPE, FUNC) \
-  qdsp6_function_value(VALTYPE, FUNC, false)
-#endif /* GCC_3_4_6 */
 
 #define LIBCALL_VALUE(MODE) gen_rtx_REG (MODE, RETURN_VALUE_REGNUM)
 
@@ -969,18 +826,13 @@ Addressing Modes
     goto LABEL; \
   }
 
-#if GCC_3_4_6
-#define REG_OK_FOR_BASE_P(X) \
-  qdsp6_reg_ok_for_base_p(X, REG_OK_STRICT_P)
-#endif /* GCC_3_4_6 */
+extern int symbol_mentioned_p (rtx x);
+extern int label_mentioned_p (rtx x);
 
-#if GCC_3_4_6
-#define REG_OK_FOR_INDEX_P(X) 0
-#endif /* GCC_3_4_6 */
+#define PIC_OFFSET_TABLE_REGNUM (flag_pic ? 24 : INVALID_REGNUM)
 
-#if GCC_3_4_6
-#define LEGITIMIZE_ADDRESS(X, OLDX, MODE, WIN)
-#endif /* GCC_3_4_6 */
+#define LEGITIMATE_PIC_OPERAND_P(X)   \
+  qdsp6_legitimate_pic_operand_p(X)
 
 #define GO_IF_MODE_DEPENDENT_ADDRESS(ADDR, LABEL) \
   if(GET_CODE (ADDR) == POST_INC || GET_CODE (ADDR) == POST_DEC){ \
@@ -1001,22 +853,17 @@ Anchored Addresses
 Describing Relative Costs of Operations
 -------------------------------------*/
 
-#define PREDICATE_CLASS(CLASS) \
-  (   (CLASS) == PREDICATE_REGS \
-   || (CLASS) == PREDICATE_DOT_OLD_REGS \
-   || (CLASS) == PREDICATE_DOT_NEW_REGS)
-
 /* Non general purpose transfers have slot restrictions. */
-#define REGISTER_MOVE_COST(MODE, FROM, TO)             \
-  ( FROM == GENERAL_REGS  ? ( TO == GENERAL_REGS  ? 2  \
-                            : PREDICATE_CLASS(TO) ? 3  \
-                            :     /*CONTROL_REGS*/  3) \
-  : PREDICATE_CLASS(FROM) ? ( TO == GENERAL_REGS  ? 3  \
-                            : PREDICATE_CLASS(TO) ? 6  \
-                            :     /*CONTROL_REGS*/  6) \
-  :       /*CONTROL_REGS*/  ( TO == GENERAL_REGS  ? 3  \
-                            : PREDICATE_CLASS(TO) ? 6  \
-                            :     /*CONTROL_REGS*/  6))
+#define REGISTER_MOVE_COST(MODE, FROM, TO)               \
+  ( FROM == GENERAL_REGS   ? ( TO == GENERAL_REGS   ? 2  \
+                             : TO == PREDICATE_REGS ? 3  \
+                             :     /*CONTROL_REGS*/   3) \
+  : FROM == PREDICATE_REGS ? ( TO == GENERAL_REGS   ? 3  \
+                             : TO == PREDICATE_REGS ? 6  \
+                             :     /*CONTROL_REGS*/   6) \
+  :       /*CONTROL_REGS*/   ( TO == GENERAL_REGS   ? 3  \
+                             : TO == PREDICATE_REGS ? 6  \
+                             :     /*CONTROL_REGS*/   6))
 
 /* Loads and stores are cheap on QDSP6.  Yay, IMT. */
 #define MEMORY_MOVE_COST(MODE, CLASS, IN) 4
@@ -1035,10 +882,6 @@ Describing Relative Costs of Operations
 /* Direct calls can be executed on more slots than indirect calls. */
 #define NO_FUNCTION_CSE 1
 
-#if GCC_3_4_6
-#define NO_RECURSIVE_FUNCTION_CSE 1
-#endif /* GCC_3_4_6 */
-
 
 /*--------------------------------------------------
 Dividing the Output into Sections (Texts, Data, ...)
@@ -1048,15 +891,11 @@ Dividing the Output into Sections (Texts, Data, ...)
 
 #define DATA_SECTION_ASM_OP "\t.data"
 
-#if !GCC_3_4_6
 #define SDATA_SECTION_ASM_OP "\t.section .sdata"
-#endif /* !GCC_3_4_6 */
 
 #define BSS_SECTION_ASM_OP "\t.section .bss"
 
-#if !GCC_3_4_6
 #define SBSS_SECTION_ASM_OP "\t.section .sbss"
-#endif /* !GCC_3_4_6 */
 
 
 /*----------------------------------------
@@ -1100,8 +939,7 @@ Output of Assembler Instructions
     "r16", "r17", "r18", "r19", "r20", "r21", "r22", "r23", \
     "r24", "r25", "r26", "r27", "r28", "r29", "r30", "r31", \
     /* predicate registers */                               \
-    "p0",     "p1",     "p2",     "p3",                     \
-    "p0.new", "p1.new", "p2.new", "p3.new",                 \
+    "p0", "p1", "p2", "p3",                                 \
     /* control registers */                                 \
     "sa0", "lc0", "sa1", "lc1", "m0", "m1", "usr", "ugp",   \
     /* fake frame pointer and argument pointer */           \
@@ -1156,40 +994,6 @@ Assembler Commands for Alignment
 Miscellaneous Parameters
 ----------------------*/
 
-#if GCC_3_4_6
-#define PREDICATE_CODES                                                     \
-  {"gr_register_operand",         {REG, SUBREG}},                           \
-  {"pr_register_operand",         {REG, SUBREG}},                           \
-  {"nongr_register_operand",      {REG, SUBREG}},                           \
-  {"splattable_vector",           {REG, SUBREG}},                           \
-  {"indirect_memory_operand",     {MEM}},                                   \
-  {"call_target_operand",         {SYMBOL_REF, REG, SUBREG}},               \
-  {"sdata_symbolic_operand",      {SYMBOL_REF, CONST}},                     \
-  {"s16_const_int_operand",       {CONST_INT}},                             \
-  {"s12_const_int_operand",       {CONST_INT}},                             \
-  {"s10_const_int_operand",       {CONST_INT}},                             \
-  {"s8_const_int_operand",        {CONST_INT}},                             \
-  {"u9_const_int_operand",        {CONST_INT}},                             \
-  {"u8_const_int_operand",        {CONST_INT}},                             \
-  {"u7_const_int_operand",        {CONST_INT}},                             \
-  {"u6_const_int_operand",        {CONST_INT}},                             \
-  {"u5_const_int_operand",        {CONST_INT}},                             \
-  {"u3_const_int_operand",        {CONST_INT}},                             \
-  {"u2_const_int_operand",        {CONST_INT}},                             \
-  {"u1_const_int_operand",        {CONST_INT}},                             \
-  {"zero_constant",               {CONST_INT, CONST_DOUBLE, CONST_VECTOR}}, \
-  {"m9_const_int_operand",        {CONST_INT}},                             \
-  {"power_of_two_operand",        {CONST_INT}},                             \
-  {"addasl_const_int_operand",    {CONST_INT}},                             \
-  {"immediate_not_s16_operand",   {CONST_INT, CONST_DOUBLE, CONST_VECTOR,   \
-                                   CONST, LABEL_REF, SYMBOL_REF}},          \
-  {"nongr_reg_or_memory_operand", {REG, SUBREG, MEM}},                      \
-  {"conditional_dest_operand",    {REG, SUBREG, MEM}},                      \
-  {"conditional_add_operand",     {REG, SUBREG, CONST_INT}},                \
-  {"conditional_src_operand",     {REG, SUBREG, MEM, CONST_INT}},           \
-  {"predicate_operator",          {NE, EQ}},
-#endif /* GCC_3_4_6 */
-
 #define CASE_VECTOR_MODE Pmode
 
 /* ??? smaller? */
@@ -1204,10 +1008,8 @@ Miscellaneous Parameters
 
 #define TRULY_NOOP_TRUNCATION(OUTPREC, INPREC) 1
 
-#if !GCC_3_4_6
 /* ??? const1_rtx? */
 /*#define VECTOR_STORE_FLAG_VALUE(MODE)*/
-#endif /* !GCC_3_4_6 */
 
 #define CLZ_DEFINED_VALUE_AT_ZERO(MODE, VALUE) ((VALUE) = 32)
 
@@ -1219,6 +1021,9 @@ Miscellaneous Parameters
 
 /* ??? play with this? */
 /*#define MAX_CONDITIONAL_EXECUTE*/
+
+/* Allow querying the cpu units */
+#define CPU_UNITS_QUERY 1
 
 
 /*------------
@@ -1242,9 +1047,6 @@ enum qdsp6_architecture {
 };
 
 extern enum qdsp6_architecture qdsp6_arch;
-#if GCC_3_4_6
-extern const char *qdsp6_arch_string;
-#endif /* GCC_3_4_6 */
 
 #define QDSP6_FEAT_V1 (1 << QDSP6_ARCH_V1)
 #define QDSP6_FEAT_V2 (1 << QDSP6_ARCH_V2)
@@ -1289,9 +1091,6 @@ enum qdsp6_abi {
 };
 
 extern enum qdsp6_abi qdsp6_abi;
-#if GCC_3_4_6
-extern const char *qdsp6_abi_string;
-#endif /* GCC_3_4_6 */
 
 struct qdsp6_abi_table_entry {
   const char *const name;
@@ -1308,43 +1107,32 @@ struct qdsp6_abi_table_entry {
 #define QDSP6_ABI_TABLE_DEFAULT_INDEX \
   (TARGET_V3_FEATURES ? QDSP6_ABI_2 : QDSP6_ABI_1)
 
-#if GCC_3_4_6
-extern const char *qdsp6_oslib_string;
-#endif /* GCC_3_4_6 */
-
 enum qdsp6_falign {
   QDSP6_NO_FALIGN,
   QDSP6_FALIGN_LOOPS,
   QDSP6_FALIGN_LABELS,
+  QDSP6_FALIGN_ALL,
   QDSP6_FALIGN_UNSPECIFIED
 };
 
 extern bool qdsp6_dual_memory_accesses;
 
-#define TARGET_CONST32 \
-  (TARGET_V2_FEATURES && TARGET_LITERAL_POOL \
-   && g_switch_value >= UNITS_PER_WORD)
-#define TARGET_CONST64 \
-  (TARGET_V2_FEATURES && TARGET_LITERAL_POOL \
-   && g_switch_value >= 2 * UNITS_PER_WORD)
+#define TARGET_CONST32 (TARGET_LITERAL_POOL && g_switch_value >= 4)
+#define TARGET_CONST64 (TARGET_LITERAL_POOL && g_switch_value >= 8)
+
+#define TARGET_PACKET_OPTIMIZATIONS (TARGET_PULLUP || TARGET_NEW_VALUE_JUMP)
 
 /* ranges for the various kinds of registers */
 #define G_REGNO_P(REGNO) (IN_RANGE ((REGNO), 0, 31))
-#define PO_REGNO_P(REGNO) (IN_RANGE ((REGNO), 32, 35))
-#define PN_REGNO_P(REGNO) (IN_RANGE ((REGNO), 36, 39))
-#define P_REGNO_P(REGNO) (IN_RANGE ((REGNO), 32, 39))
-#define C_REGNO_P(REGNO) (IN_RANGE ((REGNO), 40, 47))
+#define P_REGNO_P(REGNO) (IN_RANGE ((REGNO), 32, 35))
+#define C_REGNO_P(REGNO) (IN_RANGE ((REGNO), 36, 43))
 
 #define G_REG_P(RTX) (REG_P (RTX) && G_REGNO_P (REGNO (RTX)))
-#define PO_REG_P(RTX) (REG_P (RTX) && PO_REGNO_P (REGNO (RTX)))
-#define PN_REG_P(RTX) (REG_P (RTX) && PN_REGNO_P (REGNO (RTX)))
 #define P_REG_P(RTX) (REG_P (RTX) && P_REGNO_P (REGNO (RTX)))
 #define C_REG_P(RTX) (REG_P (RTX) && C_REGNO_P (REGNO (RTX)))
 
 #define G_REG(REGNO) ((REGNO) + 0)
 #define P_REG(REGNO) ((REGNO) + 32)
-
-#define DOT_NEW_OFFSET (P0_DOT_NEW_REGNUM - P0_REGNUM)
 
 /* Fixed register assignments: */
 
@@ -1367,9 +1155,11 @@ extern bool qdsp6_dual_memory_accesses;
 
 enum qdsp6_builtins {
 #define BUILTIN_INFO(TAG, TYPE, NARGS) QDSP6_BUILTIN_##TAG,
+#define BUILTIN_INFO_NONCONST(TAG, TYPE, NARGS) QDSP6_BUILTIN_##TAG,
 #include "builtins.def"
 #include "manual_builtins.def"
 #undef BUILTIN_INFO
+#undef BUILTIN_INFO_NONCONST
   QDSP6_BUILTIN_NONEXISTANT_THING_TO_SHUT_UP_GCC_WARNING
 };
 
@@ -1436,12 +1226,15 @@ struct GTY(()) qdsp6_final_info {
   bool print_endloop0;
   /* whether the current insn is an endloop1 */
   bool print_endloop1;
+  /* whether to falign the following packet */
+  bool print_falign;
   /* whether the current packet ends an inner hardware loop */
   bool endloop0;
   /* the label at the start of a hardware loop */
   rtx endloop_label;
   bool dot_new_predicate_p;
   bool dot_new_gpr_p;
+  bool duplex;
 };
 
 struct GTY(()) machine_function {
@@ -1452,6 +1245,127 @@ struct GTY(()) machine_function {
   int calls_builtin_return_address;
   int has_hardware_loops;
 };
+
+struct GTY((chain_next ("%h.next"))) qdsp6_reg_access {
+  rtx reg;
+  unsigned int regno;
+  int flags;
+  struct qdsp6_reg_access *next;
+};
+
+struct GTY((chain_next ("%h.next"))) qdsp6_mem_access {
+  rtx mem;
+  int flags;
+  struct qdsp6_mem_access *next;
+};
+
+struct GTY((chain_next ("%h.stack"))) qdsp6_insn_info {
+  rtx insn;
+  struct qdsp6_reg_access *reg_reads;
+  struct qdsp6_reg_access *reg_writes;
+  struct qdsp6_mem_access *loads;
+  struct qdsp6_mem_access *stores;
+  int flags;
+  struct qdsp6_insn_info *stack;
+  struct qdsp6_packet_info *transformed_at_packet;
+};
+
+struct GTY((chain_prev ("%h.prev"), chain_next ("%h.next"))) qdsp6_packet_info {
+  struct qdsp6_insn_info *insns[QDSP6_MAX_INSNS_PER_PACKET];
+  int num_insns;
+  rtx location;
+  struct qdsp6_packet_info *prev;
+  struct qdsp6_packet_info *next;
+};
+
+#include "hard-reg-set.h"
+
+
+struct qdsp6_bb_aux_info {
+  HARD_REG_SET live_out;
+  struct qdsp6_packet_info *head_packet;
+  struct qdsp6_packet_info *end_packet;
+  struct qdsp6_bb_aux_info *next;
+};
+
+#define QDSP6_BB_AUX(BB) ((struct qdsp6_bb_aux_info *) (BB->aux))
+#define BB_LIVE_OUT(BB) (QDSP6_BB_AUX (BB)->live_out)
+#define BB_HEAD_PACKET(BB) (QDSP6_BB_AUX (BB)->head_packet)
+#define BB_END_PACKET(BB) (QDSP6_BB_AUX (BB)->end_packet)
+
+enum qdsp6_dependence_type {
+  QDSP6_DEP_REGISTER,
+  QDSP6_DEP_MEMORY,
+  QDSP6_DEP_CONTROL,
+  QDSP6_DEP_VOLATILE
+};
+
+struct GTY((chain_next ("%h.next"))) qdsp6_dependence {
+  enum qdsp6_dependence_type type;
+  rtx set;
+  rtx use;
+  struct qdsp6_dependence *next;
+};
+
+
+
+
+#define QDSP6_MASK(WIDTH, LOW) (((1 << (WIDTH)) - 1) << (LOW))
+
+#define QDSP6_PREDICATE_MASK QDSP6_MASK(2, 0)
+#define QDSP6_IF_TRUE        QDSP6_MASK(1, 2)
+#define QDSP6_IF_FALSE       QDSP6_MASK(1, 3)
+#define QDSP6_GPR_CONDITION  QDSP6_MASK(1, 4)
+#define QDSP6_SENSE_MASK     (QDSP6_IF_TRUE | QDSP6_IF_FALSE)
+#define QDSP6_UNCONDITIONAL  QDSP6_SENSE_MASK
+#define QDSP6_CONDITION_MASK \
+  (QDSP6_GPR_CONDITION | QDSP6_SENSE_MASK | QDSP6_PREDICATE_MASK)
+
+#define QDSP6_DIRECT_JUMP    QDSP6_MASK(1, 5)
+#define QDSP6_INDIRECT_JUMP  QDSP6_MASK(1, 6)
+#define QDSP6_ENDLOOP        QDSP6_MASK(1, 7)
+#define QDSP6_DIRECT_CALL    QDSP6_MASK(1, 8)
+#define QDSP6_INDIRECT_CALL  QDSP6_MASK(1, 9)
+#define QDSP6_EMULATION_CALL QDSP6_MASK(1, 10)
+#define QDSP6_JUMP \
+  (QDSP6_DIRECT_JUMP | QDSP6_INDIRECT_JUMP | QDSP6_ENDLOOP)
+#define QDSP6_CALL           (QDSP6_DIRECT_CALL | QDSP6_INDIRECT_CALL)
+#define QDSP6_CONTROL        (QDSP6_CALL | QDSP6_JUMP)
+
+#define QDSP6_MEM            QDSP6_MASK(1, 11)
+#define QDSP6_VOLATILE       QDSP6_MASK(1, 12)
+#define QDSP6_NEW_PREDICATE  QDSP6_MASK(1, 13)
+#define QDSP6_NEW_GPR        QDSP6_MASK(1, 14)
+
+#define QDSP6_MOVED          QDSP6_MASK(1, 15)
+
+#define QDSP6_CONDITION(INSN)       ((INSN)->flags & QDSP6_CONDITION_MASK)
+#define QDSP6_PREDICATE(INSN)       ((INSN)->flags & QDSP6_PREDICATE_MASK)
+#define QDSP6_SENSE(INSN)           ((INSN)->flags & QDSP6_SENSE_MASK)
+#define QDSP6_GPR_CONDITION_P(INSN) (((INSN)->flags & QDSP6_GPR_CONDITION) != 0)
+#define QDSP6_CONFLICT_P(ACCESS0, ACCESS1) \
+  (QDSP6_SENSE (ACCESS0) & QDSP6_SENSE (ACCESS1) \
+   || QDSP6_PREDICATE (ACCESS0) != QDSP6_PREDICATE (ACCESS1))
+#define QDSP6_CONDITIONAL_P(INSN) \
+  (QDSP6_SENSE (INSN) != QDSP6_UNCONDITIONAL || QDSP6_GPR_CONDITION_P (INSN))
+
+#define QDSP6_DIRECT_JUMP_P(INSN)    (((INSN)->flags & QDSP6_DIRECT_JUMP) != 0)
+#define QDSP6_INDIRECT_JUMP_P(INSN)  (((INSN)->flags & QDSP6_INDIRECT_JUMP) != 0)
+#define QDSP6_ENDLOOP_P(INSN)        (((INSN)->flags & QDSP6_ENDLOOP) != 0)
+#define QDSP6_DIRECT_CALL_P(INSN)    (((INSN)->flags & QDSP6_DIRECT_CALL) != 0)
+#define QDSP6_INDIRECT_CALL_P(INSN)  (((INSN)->flags & QDSP6_INDIRECT_CALL) != 0)
+#define QDSP6_EMULATION_CALL_P(INSN) (((INSN)->flags & QDSP6_EMULATION_CALL) != 0)
+#define QDSP6_JUMP_P(INSN)           (((INSN)->flags & QDSP6_JUMP) != 0)
+#define QDSP6_CALL_P(INSN)           (((INSN)->flags & QDSP6_CALL) != 0)
+#define QDSP6_CONTROL_P(INSN)        (((INSN)->flags & QDSP6_CONTROL) != 0)
+
+#define QDSP6_MEM_P(INSN)           (((INSN)->flags & QDSP6_MEM) != 0)
+#define QDSP6_VOLATILE_P(INSN)      (((INSN)->flags & QDSP6_VOLATILE) != 0)
+#define QDSP6_NEW_PREDICATE_P(INSN) (((INSN)->flags & QDSP6_NEW_PREDICATE) != 0)
+#define QDSP6_NEW_GPR_P(INSN)       (((INSN)->flags & QDSP6_NEW_GPR) != 0)
+
+#define QDSP6_MOVED_P(INSN)  (((INSN)->flags & QDSP6_MOVED) != 0)
+
 #endif /* !USED_FOR_TARGET */
 
 #endif /* !GCC_QDSP6_H */

@@ -1,8 +1,3 @@
-/*****************************************************************
-# Copyright (c) $Date$ Qualcomm Innovation Center, Inc..
-# All Rights Reserved.
-# Modified by Qualcomm Innovation Center, Inc. on $Date$
-*****************************************************************/
 /* Print RTL for GCC.
    Copyright (C) 1987, 1988, 1992, 1997, 1998, 1999, 2000, 2002, 2003,
    2004, 2005, 2007, 2008, 2009, 2010
@@ -647,7 +642,7 @@ debug_rtx (const_rtx x)
 {
   outfile = stderr;
   sawclose = 0;
-
+#if 0
 #ifndef GENERATOR_FILE
   if (targetm.print_rtl_pseudo_asm)
     {
@@ -655,6 +650,7 @@ debug_rtx (const_rtx x)
       targetm.print_rtl_pseudo_asm (stderr, x);
       fputc ('\n', stderr);
     }
+#endif
 #endif
 
   print_rtx (x);
@@ -763,6 +759,7 @@ print_rtl (FILE *outf, const_rtx rtx_first)
       case BARRIER:
 	for (tmp_rtx = rtx_first; tmp_rtx != 0; tmp_rtx = NEXT_INSN (tmp_rtx))
 	  {
+#if 0
 #ifndef GENERATOR_FILE
             if (print_rtx_head[0] == '\0' && targetm.print_rtl_pseudo_asm)
               {
@@ -774,6 +771,7 @@ print_rtl (FILE *outf, const_rtx rtx_first)
                   fputc ('\n', outfile);
               }
 #endif
+#endif
 	    fputs (print_rtx_head, outfile);
 	    print_rtx (tmp_rtx);
 	    fprintf (outfile, "\n");
@@ -781,6 +779,7 @@ print_rtl (FILE *outf, const_rtx rtx_first)
 	break;
 
       default:
+#if 0
 #ifndef GENERATOR_FILE
         if (print_rtx_head[0] == '\0' && targetm.print_rtl_pseudo_asm)
           {
@@ -788,6 +787,7 @@ print_rtl (FILE *outf, const_rtx rtx_first)
             targetm.print_rtl_pseudo_asm (outfile, rtx_first);
             fputc ('\n', outfile);
           }
+#endif
 #endif
 	fputs (print_rtx_head, outfile);
 	print_rtx (rtx_first);
@@ -802,6 +802,7 @@ print_rtl_single (FILE *outf, const_rtx x)
 {
   outfile = outf;
   sawclose = 0;
+#if 0 
 #ifndef GENERATOR_FILE
   if (print_rtx_head[0] == '\0' && targetm.print_rtl_pseudo_asm)
     {
@@ -809,6 +810,7 @@ print_rtl_single (FILE *outf, const_rtx x)
       targetm.print_rtl_pseudo_asm (outfile, x);
       fputc ('\n', outfile);
     }
+#endif
 #endif
   fputs (print_rtx_head, outfile);
   print_rtx (x);

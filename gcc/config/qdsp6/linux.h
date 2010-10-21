@@ -11,7 +11,7 @@ Controlling the Compilation Driver, gcc
 		   %{static:-dn -Bstatic} \
 		   %{shared:-G -dy -z text} \
 		   %{symbolic:-Bsymbolic -G -dy -z text} \
-		   %{G*} \
+		   %{G*:-G%*;:%{mbuilding-multilib:%{mG0lib:-G0}}} \
 		   %{YP,*} \
 		   %{Qy:} %{!Qn:-Qy}"
 #else /* !CROSS_COMPILE */
@@ -20,48 +20,23 @@ Controlling the Compilation Driver, gcc
 		   %{static:-dn -Bstatic} \
 		   %{shared:-G -dy -z text} \
 		   %{symbolic:-Bsymbolic -G -dy -z text} \
-		   %{G*} \
+		   %{G*:-G%*;:%{mbuilding-multilib:%{mG0lib:-G0}}} \
 		   %{YP,*} \
 		   %{!YP,*:%{p:-Y P,/usr/ccs/lib/libp:/usr/lib/libp:/usr/ccs/lib:/usr/lib} \
 		    %{!p:-Y P,/usr/ccs/lib:/usr/lib}} \
 		   %{Qy:} %{!Qn:-Qy}"
 #endif /* !CROSS_COMPILE */
 
-/* Copied from config/linux.h and modified to remove crti.o. */
-
-#undef	STARTFILE_SPEC
+#undef STARTFILE_SPEC
+/* Define linux startfiles */
 #define STARTFILE_SPEC \
-  "%{!shared: %{pg|p|profile:gcrt1.o%s;:crt1.o%s}} \
-   %{static:crtbeginT.o%s;shared|pie:crtbeginS.o%s;:crtbegin.o%s}"
+  "%{msys-crt0=*: %*} %{!msys-crt0=*:%{!shared:crt1%O%s}} \
+   %{msys-crt0=: %eYou need a C startup file for -msys-crt0=} \
+   %{!shared:crti%\O%s} %{!shared:crtbegin%O%s}"
 
-/* Copied from config/linux.h and modified to remove crtn.o. */
-
-#undef	ENDFILE_SPEC
+#undef ENDFILE_SPEC
 #define ENDFILE_SPEC \
-  "%{shared|pie:crtendS.o%s;:crtend.o%s}"
+ "%{!shared:crtend%O%s crtn%O%s}"
 
-
-/*---------------------------
-Run-time Target Specification
----------------------------*/
-
-#define TARGET_OS_CPP_BUILTINS() LINUX_TARGET_OS_CPP_BUILTINS()
-
-
-/*----------------------------------------
-The Overall Framework of an Assembler File
-----------------------------------------*/
-
-#undef ASM_APP_ON
-#define ASM_APP_ON "//APP\n"
-
-#undef ASM_APP_OFF
-#define ASM_APP_OFF "//NO_APP\n"
-
-
-/*------------
-QDSP6 specific
-------------*/
-
-#undef QDSP6_ABI_TABLE_DEFAULT_INDEX
-#define QDSP6_ABI_TABLE_DEFAULT_INDEX QDSP6_ABI_LINUX
+#undef LIB_SPEC
+#define LIB_SPEC "-lc"

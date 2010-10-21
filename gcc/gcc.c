@@ -3090,11 +3090,31 @@ execute (void)
       int err;
       const char *string = commands[i].argv[0];
 
+#if _WIN32
+      {
+      char *arg_temp_file = NULL;
+      char **newargv = check_arg_size(commands[i].argv, &arg_temp_file);
+      if (arg_temp_file)
+      {
+        record_temp_file(arg_temp_file, 1, 1);
+        if (verbose_flag)
+            fprintf(stderr,"Passing args in file %s to %s\n", arg_temp_file,
+                    commands[i].prog); 
+      }
+
+      errmsg = pex_run (pex,
+			((i + 1 == n_commands ? PEX_LAST : 0)
+			 | (string == commands[i].prog ? PEX_SEARCH : 0)),
+			string, CONST_CAST (char **, newargv),
+			NULL, NULL, &err);
+      }
+#else
       errmsg = pex_run (pex,
 			((i + 1 == n_commands ? PEX_LAST : 0)
 			 | (string == commands[i].prog ? PEX_SEARCH : 0)),
 			string, CONST_CAST (char **, commands[i].argv),
 			NULL, NULL, &err);
+#endif
       if (errmsg != NULL)
 	{
 	  if (err == 0)
@@ -4669,6 +4689,11 @@ set_collect_gcc_options (void)
     {
       const char *const *args;
       const char *p, *q;
+
+      /* Ignore path options such as -I and -L. Bug# 4302 */
+/*      if (switches[i].part1[0] == 'I' || switches[i].part1[0] == 'L')
+          continue;
+*/
       if (!first_time)
 	obstack_grow (&collect_obstack, " ", 1);
 

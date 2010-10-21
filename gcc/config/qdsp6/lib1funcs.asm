@@ -1,8 +1,3 @@
-/*****************************************************************
-# Copyright (c) $Date$ Qualcomm Innovation Center, Inc..
-# All Rights Reserved.
-# Modified by Qualcomm Innovation Center, Inc. on $Date$
-*****************************************************************/
 /* libgcc routines for the QDSP6.
    Copyright (C) 1998, 1999 Free Software Foundation, Inc.
 
@@ -517,7 +512,90 @@ FUNC_START moddi3
 FUNC_END moddi3
 #endif /* L_moddi3 */
 
-
+#ifdef L_qdsp_memcpy_likely_aligned_min32bytes_mult8bytes
+#if __QDSP6_ARCH__ >= 4
+FUNC_START qdsp_memcpy_likely_aligned_min32bytes_mult8bytes
+	{
+		p0 = bitsclr(r1,#7)
+		p0 = bitsclr(r0,#7)
+		if (p0.new) r5:4 = memd(r1)
+		r3 = #-3
+	}
+	{
+		if (!p0) jump 2f
+		if (p0) memd(r0++#8) = r5:4
+		if (p0) r5:4 = memd(r1+#8)
+		r3 += lsr(r2,#3)
+	}
+	{
+		memd(r0++#8) = r5:4
+		r5:4 = memd(r1+#16)
+		r1 = add(r1,#24)
+		loop0(1f,r3)
+	}
+	.falign
+1:
+	{
+		memd(r0++#8) = r5:4
+		r5:4 = memd(r1++#8)
+	}:endloop0
+	{
+		memd(r0) = r5:4
+		r0 -= add(r2,#-8)
+		jumpr r31
+	}
+#ifdef __PIC__
+2:	jump memcpy@PLT
+#else
+2:	jump memcpy
+#endif
+FUNC_END qdsp_memcpy_likely_aligned_min32bytes_mult8bytes
+#else
+FUNC_START qdsp_memcpy_likely_aligned_min32bytes_mult8bytes
+	{
+		p0 = bitsclr(r1,#7)
+		p1 = bitsclr(r0,#7)
+		if (p0.new) r5:4 = memd(r1)
+		r3 = #-4
+	}
+	{
+		if (p1) memd(r0) = r5:4
+		if (p0) r5:4 = memd(r1+#8)
+		p0 = and(p0,p1)
+		r3 += lsr(r2,#3)
+	}
+	{
+	        if (!p0) jump 2f
+		if (p0) memd(r0+#8) = r5:4
+		if (p0) r5:4 = memd(r1+#16)
+		if (p0) r0 = add(r0,#16)
+	}
+	{
+		memd(r0++#8) = r5:4
+		r5:4 = memd(r1+#24)
+		loop0(1f,r3)
+		p0 = cmp.eq(r2,#32)
+	}
+	.falign
+1:
+	{
+		memd(r0++#8) = r5:4
+		if (!p0) r5:4 = memd(r1+#32)
+		r1 = add(r1,#8)
+	}:endloop0
+	{
+		if (!p0) memd(r0) = r5:4
+		r0 -= add(r2,#-8)
+		jumpr r31
+	}
+#ifdef __PIC__	
+2:	jump memcpy@PLT
+#else	
+2:	jump memcpy
+#endif
+FUNC_END qdsp_memcpy_likely_aligned_min32bytes_mult8bytes
+#endif /* __QDSP6_ARCH__ >= 4 */
+#endif /* L_qdsp_memcpy_likely_aligned_min32bytes_mult8bytes */
 
 
 /* Functions that implement common sequences in function prologues and epilogues
@@ -644,4 +722,522 @@ FUNC_START deallocframe
 		deallocframe
 		jumpr lr
 FUNC_END deallocframe
+
+
+/*******************************************************************************/
+/*************following functions added by SRP for newlib support***************/
+/*******************************************************************************/
+
+
+/*common_entry_exit_abi2.S*/
+/* Save r17:16 at fp+#-8, r19:18 at fp+#-16, r21:20 at fp+#-24, r23:22 at
+   fp+#-32, r25:24 at fp+#-40, and r27:26 at fp+#-48. */
+
+
+#if __QDSP6_ARCH__ >= 4
+/* The compiler knows that the save_* functions clobber LR.  No other
+   registers should be used without informing the compiler. */
+
+FUNC_START save_r16_through_r27
+	{
+		memd(fp+#-48) = r27:26
+		memd(fp+#-40) = r25:24
+	}
+FALLTHROUGH_TAIL_CALL save_r16_through_r27 save_r16_through_r23
+	{
+		memd(fp+#-32) = r23:22
+		memd(fp+#-24) = r21:20
+	}
+FALLTHROUGH_TAIL_CALL save_r16_through_r23 save_r16_through_r19
+	{
+		memd(fp+#-16) = r19:18
+		memd(fp+#-8) = r17:16
+		jumpr lr
+	}
+FUNC_END save_r16_through_r19
+
+
+
+
+FUNC_START save_r16_through_r25
+	{
+		memd(fp+#-40) = r25:24
+		memd(fp+#-32) = r23:22
+	}
+FALLTHROUGH_TAIL_CALL save_r16_through_r25 save_r16_through_r21
+	{
+		memd(fp+#-24) = r21:20
+		memd(fp+#-16) = r19:18
+	}
+FALLTHROUGH_TAIL_CALL save_r16_through_r21 save_r16_through_r17
+	{
+		memd(fp+#-8) = r17:16
+		jumpr lr
+	}
+FUNC_END save_r16_through_r17
+
+
+
+
+/* For each of the *_before_tailcall functions, jumpr lr is executed in parallel
+   with deallocframe.  That way, the return gets the old value of lr, which is
+   where these functions need to return, and at the same time, lr gets the value
+   it needs going into the tail call. */
+
+FUNC_START restore_r16_through_r23_and_deallocframe_before_tailcall
+	{
+		r23:22 = memd(fp+#-32)
+		r21:20 = memd(fp+#-24)
+	}
+FALLTHROUGH_TAIL_CALL restore_r16_through_r23_and_deallocframe_before_tailcall restore_r16_through_r19_and_deallocframe_before_tailcall
+	{
+		r19:18 = memd(fp+#-16)
+		jump __restore_r16_through_r17_and_deallocframe_before_tailcall
+	}
+FUNC_END restore_r16_through_r19_and_deallocframe_before_tailcall
+
+
+
+
+FUNC_START restore_r16_through_r27_and_deallocframe_before_tailcall
+		r27:26 = memd(fp+#-48)
+FALLTHROUGH_TAIL_CALL restore_r16_through_r27_and_deallocframe_before_tailcall restore_r16_through_r25_and_deallocframe_before_tailcall
+	{
+		r25:24 = memd(fp+#-40)
+		r23:22 = memd(fp+#-32)
+	}
+FALLTHROUGH_TAIL_CALL restore_r16_through_r25_and_deallocframe_before_tailcall restore_r16_through_r21_and_deallocframe_before_tailcall
+	{
+		r21:20 = memd(fp+#-24)
+		r19:18 = memd(fp+#-16)
+	}
+FALLTHROUGH_TAIL_CALL restore_r16_through_r21_and_deallocframe_before_tailcall restore_r16_through_r17_and_deallocframe_before_tailcall
+	{
+		r17:16 = memd(fp+#-8)
+		deallocframe
+		jumpr lr
+	}
+FUNC_END restore_r16_through_r17_and_deallocframe_before_tailcall
+
+
+
+
+FUNC_START restore_r16_through_r23_and_deallocframe
+	{
+		r23:22 = memd(fp+#-32)
+		r21:20 = memd(fp+#-24)
+	}
+FALLTHROUGH_TAIL_CALL restore_r16_through_r23_and_deallocframe restore_r16_through_r19_and_deallocframe
+	{
+		r19:18 = memd(fp+#-16)
+		jump __restore_r16_through_r17_and_deallocframe
+	}
+FUNC_END restore_r16_through_r19_and_deallocframe
+
+
+
+
+FUNC_START restore_r16_through_r27_and_deallocframe
+		r27:26 = memd(fp+#-48)
+FALLTHROUGH_TAIL_CALL restore_r16_through_r27_and_deallocframe restore_r16_through_r25_and_deallocframe
+	{
+		r25:24 = memd(fp+#-40)
+		r23:22 = memd(fp+#-32)
+	}
+FALLTHROUGH_TAIL_CALL restore_r16_through_r25_and_deallocframe restore_r16_through_r21_and_deallocframe
+	{
+		r21:20 = memd(fp+#-24)
+		r19:18 = memd(fp+#-16)
+	}
+FALLTHROUGH_TAIL_CALL restore_r16_through_r21_and_deallocframe restore_r16_through_r17_and_deallocframe
+	{
+		r17:16 = memd(fp+#-8)
+		dealloc_return
+	}
+FUNC_END restore_r16_through_r17_and_deallocframe
+
+
+
+
+FUNC_START __deallocframe
+		dealloc_return
+FUNC_END __deallocframe
+
+
+
+
+#else /* __QDSP6_ARCH__ < 4 */
+
+
+
+
+/* The compiler knows that the save_* functions clobber LR.  No other
+   registers should be used without informing the compiler. */
+
+/* Since we can only issue one store per packet, we don't hurt performance by
+   simply jumping to the right point in this sequence of stores. */
+
+FUNC_START save_r16_through_r27
+		memd(fp+#-48) = r27:26
+FALLTHROUGH_TAIL_CALL save_r16_through_r27 save_r16_through_r25
+		memd(fp+#-40) = r25:24
+FALLTHROUGH_TAIL_CALL save_r16_through_r25 save_r16_through_r23
+		memd(fp+#-32) = r23:22
+FALLTHROUGH_TAIL_CALL save_r16_through_r23 save_r16_through_r21
+		memd(fp+#-24) = r21:20
+FALLTHROUGH_TAIL_CALL save_r16_through_r21 save_r16_through_r19
+		memd(fp+#-16) = r19:18
+FALLTHROUGH_TAIL_CALL save_r16_through_r19 save_r16_through_r17
+	{
+		memd(fp+#-8) = r17:16
+		jumpr lr
+	}
+FUNC_END save_r16_through_r17
+
+
+
+
+/* For each of the *_before_tailcall functions, jumpr lr is executed in parallel
+   with deallocframe.  That way, the return gets the old value of lr, which is
+   where these functions need to return, and at the same time, lr gets the value
+   it needs going into the tail call. */
+
+FUNC_START restore_r16_through_r23_and_deallocframe_before_tailcall
+	{
+		r23:22 = memd(fp+#-32)
+		r21:20 = memd(fp+#-24)
+	}
+FALLTHROUGH_TAIL_CALL restore_r16_through_r23_and_deallocframe_before_tailcall restore_r16_through_r19_and_deallocframe_before_tailcall
+	{
+		r19:18 = memd(fp+#-16)
+		jump __restore_r16_through_r17_and_deallocframe_before_tailcall
+	}
+FUNC_END restore_r16_through_r19_and_deallocframe_before_tailcall
+
+
+
+
+FUNC_START restore_r16_through_r27_and_deallocframe_before_tailcall
+		r27:26 = memd(fp+#-48)
+FALLTHROUGH_TAIL_CALL restore_r16_through_r27_and_deallocframe_before_tailcall restore_r16_through_r25_and_deallocframe_before_tailcall
+	{
+		r25:24 = memd(fp+#-40)
+		r23:22 = memd(fp+#-32)
+	}
+FALLTHROUGH_TAIL_CALL restore_r16_through_r25_and_deallocframe_before_tailcall restore_r16_through_r21_and_deallocframe_before_tailcall
+	{
+		r21:20 = memd(fp+#-24)
+		r19:18 = memd(fp+#-16)
+	}
+FALLTHROUGH_TAIL_CALL restore_r16_through_r21_and_deallocframe_before_tailcall restore_r16_through_r17_and_deallocframe_before_tailcall
+	{
+		r17:16 = memd(fp+#-8)
+		deallocframe
+		jumpr lr
+	}
+FUNC_END restore_r16_through_r17_and_deallocframe_before_tailcall
+
+
+
+
+/* Here we use the extra load bandwidth to restore LR early, allowing the return
+   to occur in parallel with the deallocframe. */
+
+FUNC_START restore_r16_through_r27_and_deallocframe
+	{
+		r27:26 = memd(fp+#-48)
+		r25:24 = memd(fp+#-40)
+	}
+FALLTHROUGH_TAIL_CALL restore_r16_through_r27_and_deallocframe restore_r16_through_r23_and_deallocframe
+	{
+		r23:22 = memd(fp+#-32)
+		r21:20 = memd(fp+#-24)
+	}
+FALLTHROUGH_TAIL_CALL restore_r16_through_r23_and_deallocframe restore_r16_through_r19_and_deallocframe
+	{
+		lr = memw(fp+#4)
+		r19:18 = memd(fp+#-16)
+	}
+	{
+		r17:16 = memd(fp+#-8)
+		deallocframe
+		jumpr lr
+	}
+FUNC_END restore_r16_through_r19_and_deallocframe
+
+
+
+
+/* Here the load bandwidth is maximized for all three functions. */
+
+FUNC_START restore_r16_through_r25_and_deallocframe
+	{
+		r25:24 = memd(fp+#-40)
+		r23:22 = memd(fp+#-32)
+	}
+FALLTHROUGH_TAIL_CALL restore_r16_through_r25_and_deallocframe restore_r16_through_r21_and_deallocframe
+	{
+		r21:20 = memd(fp+#-24)
+		r19:18 = memd(fp+#-16)
+	}
+FALLTHROUGH_TAIL_CALL restore_r16_through_r21_and_deallocframe restore_r16_through_r17_and_deallocframe
+	{
+		r17:16 = memd(fp+#-8)
+		deallocframe
+	}
+		jumpr lr
+FUNC_END restore_r16_through_r17_and_deallocframe
+
+
+
+
+FUNC_START __deallocframe
+		deallocframe
+		jumpr lr
+FUNC_END __deallocframe
+#endif /* __QDSP6_ARCH__ < 4 */
+
+/*common_entry_exit_abi1.S*/
+/* Save r25:24 at fp+#-8 and r27:26 at fp+#-16. */
+/* The compiler knows that the save_* functions clobber LR.  No other
+   registers should be used without informing the compiler. */
+
+/* Since we can only issue one store per packet, we don't hurt performance by
+   simply jumping to the right point in this sequence of stores. */
+
+FUNC_START save_r24_through_r27
+		memd(fp+#-16) = r27:26
+FALLTHROUGH_TAIL_CALL save_r24_through_r27 save_r24_through_r25
+	{
+		memd(fp+#-8) = r25:24
+		jumpr lr
+	}
+FUNC_END save_r24_through_r25
+
+
+
+
+/* For each of the *_before_tailcall functions, jumpr lr is executed in parallel
+   with deallocframe.  That way, the return gets the old value of lr, which is
+   where these functions need to return, and at the same time, lr gets the value
+   it needs going into the tail call. */
+
+FUNC_START restore_r24_through_r27_and_deallocframe_before_tailcall
+		r27:26 = memd(fp+#-16)
+FALLTHROUGH_TAIL_CALL restore_r24_through_r27_and_deallocframe_before_tailcall restore_r24_through_r25_and_deallocframe_before_tailcall
+	{
+		r25:24 = memd(fp+#-8)
+		deallocframe
+		jumpr lr
+	}
+FUNC_END restore_r24_through_r25_and_deallocframe_before_tailcall
+
+
+
+
+/* Here we use the extra load bandwidth to restore LR early, allowing the return
+   to occur in parallel with the deallocframe. */
+
+FUNC_START restore_r24_through_r27_and_deallocframe
+	{
+		lr = memw(fp+#4)
+		r27:26 = memd(fp+#-16)
+	}
+	{
+		r25:24 = memd(fp+#-8)
+		deallocframe
+		jumpr lr
+	}
+FUNC_END restore_r24_through_r27_and_deallocframe
+
+
+
+
+/* Here the load bandwidth is maximized. */
+
+FUNC_START restore_r24_through_r25_and_deallocframe
+	{
+		r25:24 = memd(fp+#-8)
+		deallocframe
+	}
+		jumpr lr
+FUNC_END restore_r24_through_r25_and_deallocframe
+
+/*******************************************************************************/
+/*****************above functions added by SRP for newlib support***************/
+/*******************************************************************************/
+
+
 #endif /* L_common_prologue_epilogue */
+
+/****************************This function is required by crt0_standalone.S*****/
+/********probably should be a part of libstandalone.a which does not exit for newlib yet. *****/
+#ifdef L_crt0_standalone_support
+
+
+/* This is the function that starts another thread      */
+/* If you recall, the code up above is where we go to   */
+/* in the newly-started thread after we use the "start" */
+/* instruction (see the system spec).                   */
+/* This code sets up the information for the thread     */
+/* and then starts the thread up.                       */
+
+	.text
+
+	.p2align 4
+	.global thread_create
+	.weak thread_create
+ 	.type thread_create, @function
+
+thread_create:
+	/* R0 = start PC */
+	/* R1 = stack pointer */
+	/* R2 = thread num */
+	/* R3 = param0 */
+{
+        r4.h = #HI (__start_pc)
+        r5.h = #HI (__start_sp)
+        r6.h = #HI (__start_param)
+        r7 = asl (r2, #2)
+}
+{
+        r4.l = #LO (__start_pc)
+        r5.l = #LO (__start_sp)
+        r6.l = #LO (__start_param)
+        r8 = #1
+}
+{
+        r4 = add (r7, r4)
+        r5 = add (r7, r5)
+        r6 = add (r7, r6)
+        r8 = asl (r8, r2)
+}
+	memw (r4) = r0
+	memw (r5) = r1
+	memw (r6) = r3
+	start (r8)
+	jumpr lr
+
+	.size thread_create, . - thread_create
+
+/* This stops the current thread */
+
+	.p2align 4
+	.global thread_stop
+	.weak thread_stop
+ 	.type thread_stop, @function
+
+thread_stop:
+#if __QDSP6_ARCH__ < 4
+	r0 = ssr
+#endif /* __QDSP6_ARCH__ < 4 */
+{
+#if __QDSP6_ARCH__ < 4
+	r0 = extractu (r0, #3, #19)
+#else /* __QDSP6_ARCH__ >= 4 */
+	r0 = htid
+#endif /* __QDSP6_ARCH__ >= 4 */
+	r1 = #1
+}
+	r1 = lsl (r1, r0)
+	stop (r1)
+	/* shouldn't get here */
+        r28.h = #HI (__coredump)
+        r28.l = #LO (__coredump)
+	jumpr r28
+
+	.size thread_stop, . - thread_stop
+
+/* This waits until all of the specified threads stop. */
+
+	.p2align 4
+	.p2align 4
+	.global thread_join
+	.weak thread_join
+ 	.type thread_join, @function
+
+	/* R0 = thread mask */
+thread_join:
+	/* Firstly, remove the current thread from the mask. */
+#if __QDSP6_ARCH__ < 4
+	r1 = ssr
+#endif /* __QDSP6_ARCH__ < 4 */
+{
+#if __QDSP6_ARCH__ < 4
+	r1 = extractu (r1, #3, #19)
+#else /* __QDSP6_ARCH__ >= 4 */
+	r1 = htid
+#endif /* __QDSP6_ARCH__ >= 4 */
+	r3 = #1
+}
+	r1 = asl (r3, r1)
+        r1 = not (r1)
+	r0 = and (r0, r1)
+	r0 = combine (r0.l, r0.l)
+
+1:
+	r2 = modectl
+	r2 = and (r0, r2)
+	{ p0 = cmp.eq (r2, #0)
+#if __QDSP6_ARCH__ >= 3
+	  if (p0.new) jumpr:nt lr }
+	/* Save some power on V3 and later. */
+	pause (#1)
+        jump 1b
+#else
+	  if (!p0.new) jump:t 1b }
+
+	jumpr lr
+#endif
+
+	.size thread_join, . - thread_join
+
+/* This reads the current thread number */
+
+	.p2align 4
+	.global thread_get_tnum
+	.weak thread_get_tnum
+ 	.type thread_get_tnum, @function
+
+thread_get_tnum:
+#if __QDSP6_ARCH__ < 4
+	r0 = ssr
+#endif /* __QDSP6_ARCH__ < 4 */
+{
+#if __QDSP6_ARCH__ < 4
+	r0 = extractu (r0, #3, #19)
+#else /* __QDSP6_ARCH__ >= 4 */
+	r0 = htid
+#endif /* __QDSP6_ARCH__ >= 4 */
+	jumpr lr
+}
+
+	.size thread_get_tnum, . - thread_get_tnum
+
+/* This saves the stack size for the specified thread number */
+/*     (used for graphical profiling of stack)               */
+
+   .p2align 4
+   .global thread_stack_size
+   .weak thread_stack_size
+   .type thread_stack_size, @function
+
+thread_stack_size:
+   /* R0 = thread num */
+   /* R1 = stack size */
+
+   r2.h = #HI (__stack_size)
+{
+   r2.l = #LO (__stack_size)
+   r3 = asl (r0, #2)
+}
+{
+   r4 = add (r2, r3)
+}
+   memw (r4) = r1
+   jumpr lr
+
+   .size thread_stack_size, . - thread_stack_size
+
+
+#endif /*L_crt0_standalone_support*/

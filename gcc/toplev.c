@@ -2431,9 +2431,11 @@ do_compile (void)
    It is not safe to call this function more than once.  */
 
 int
-toplev_main (int argc, char **argv)
+toplev_main (unsigned int argc, const char **argv)
 {
+/*#if _WIN32*/
   expandargv (&argc, &argv);
+/*#endif */
 
   save_argv = CONST_CAST2 (const char **, char **, argv);
 

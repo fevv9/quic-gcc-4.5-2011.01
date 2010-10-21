@@ -1,8 +1,3 @@
-/*****************************************************************
-# Copyright (c) $Date$ Qualcomm Innovation Center, Inc..
-# All Rights Reserved.
-# Modified by Qualcomm Innovation Center, Inc. on $Date$
-*****************************************************************/
 /* Output variables, constants and external declarations, for GNU compiler.
    Copyright (C) 1987, 1988, 1989, 1992, 1993, 1994, 1995, 1996, 1997,
    1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009,
@@ -571,7 +566,14 @@ get_section (const char *name, unsigned int flags, tree decl)
   /* LSY If section sorting is enabled, update the name
      This should work even if the original name is an empty string */ 
   if(TARGET_SECTION_SORTING){ 
-	  if(decl != NULL_TREE){ 
+    /* sdata comparison is ugly way to fix this. we need to figure out a way 
+       to put this into the machine dependent portion of the compiler if
+       possible, or come up with a cleaner interface such that we can easily 
+       tell the kind of section we want to sort based on size.  Right now, 
+       this is very specific to our implementation.
+    */
+	  if(decl != NULL_TREE && (!strcmp(name, ".sdata") ||
+	     !strcmp(name, ".sbss"))){ 
 		unsigned int smallest_unit_size	= smallest_accessable_entity_in_declaration(decl); 
 		/* This is sanity check - smallest_unit_size rarely 
 		   exceeds 16 */
@@ -3651,10 +3653,10 @@ init_varasm_status (void)
    include the same symbol.  */
 
 rtx
-simplify_subtraction (rtx x)
+simplify_subtraction (const_rtx x)
 {
   rtx r = simplify_rtx (x);
-  return r ? r : x;
+  return r ? r : CONST_CAST_RTX (x);
 }
 
 /* Given a constant rtx X, make (or find) a memory constant for its value

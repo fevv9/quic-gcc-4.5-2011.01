@@ -1,8 +1,3 @@
-##################################################################
-# Copyright (c) $Date$ Qualcomm Innovation Center, Inc..
-# All Rights Reserved.
-# Modified by Qualcomm Innovation Center, Inc. on $Date$
-##################################################################
 # If any special flags are necessary when building libgcc2 put them here.
 TARGET_LIBGCC2_CFLAGS =
 
@@ -10,6 +5,10 @@ LIB1ASMSRC    = qdsp6/lib1funcs.asm
 LIB1ASMFUNCS  = _udivmodsi4 _udivsi3 _umodsi3 _divsi3 _modsi3 \
                 _udivmoddi4 _udivdi3 _umoddi3 _divdi3 _moddi3 \
                 _common_prologue_epilogue
+
+ifneq (,$(with_newlib))
+LIB1ASMFUNCS += _qdsp_memcpy_likely_aligned_min32bytes_mult8bytes _crt0_standalone_support 
+endif
 
 # We want fine grained libraries, so use the new code to build the
 # floating point emulation libraries.
@@ -33,4 +32,6 @@ MULTILIB_MATCHES    =
 MULTILIB_EXCEPTIONS =
 MULTILIB_EXTRA_OPTS = mbuilding-multilib
 
+ifneq (,$(with_newlib))
 gt-qdsp6.h: s-gtype ; @true
+endif

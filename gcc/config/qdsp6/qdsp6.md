@@ -1,8 +1,3 @@
-;; ##################################################################
-;; # Copyright (c) $Date$ Qualcomm Innovation Center, Inc..
-;; # All Rights Reserved.
-;; # Modified by Qualcomm Innovation Center, Inc. on $Date$
-;; ##################################################################
 ;; QDSP6 machine description.
 ;; Copyright (C) 1998, 1999, 2000, 2002 Free Software Foundation, Inc.
 
@@ -40,16 +35,17 @@
    (P1_REGNUM         33) ; p1
    (P2_REGNUM         34) ; p2
    (P3_REGNUM         35) ; p3
-   (P0_DOT_NEW_REGNUM 36) ; p0.new
-   (P1_DOT_NEW_REGNUM 37) ; p1.new
-   (P2_DOT_NEW_REGNUM 38) ; p2.new
-   (P3_DOT_NEW_REGNUM 39) ; p3.new
-   (SA0_REGNUM        40) ; loop0 start address
-   (LC0_REGNUM        41) ; loop0 count
-   (SA1_REGNUM        42) ; loop1 start address
-   (LC1_REGNUM        43) ; loop1 count
-   (M0_REGNUM         44) ; modifier register 0
-   (M1_REGNUM         45) ; modifier register 1
+   (SA0_REGNUM        36) ; loop0 start address
+   (LC0_REGNUM        37) ; loop0 count
+   (SA1_REGNUM        38) ; loop1 start address
+   (LC1_REGNUM        39) ; loop1 count
+   (M0_REGNUM         40) ; modifier register 0
+   (M1_REGNUM         41) ; modifier register 1
+   (DUPLEX_PRED_REG         32)   ; Duplex predicate register
+   (DUPLEX_REG_LOW_START     0)   ; First range of duplex registers
+   (DUPLEX_REG_LOW_END       7)   ; First range of duplex registers
+   (DUPLEX_REG_HIGH_START   16)   ; Second range of duplex registers
+   (DUPLEX_REG_HIGH_END     23)   ; Second range of duplex registers
    (UNSPEC_SIBCALL         100)   ; call to sibling
    (UNSPEC_VEC_SHL         101)   ; whole-vector shift left
    (UNSPEC_VEC_SHR         102)   ; Whole-vector shift right
@@ -63,13 +59,17 @@
    (UNSPEC_MULDI_1         110)   ; First part of a muldi
    (UNSPEC_MULDI_2         111)   ; second part of a muldi
    (UNSPEC_NOP             112)   ; nop for appeasing Combine
-   (UNSPEC_SET_R_p         113)   ; general register = predicate register
+   (UNSPEC_NEW_VALUE       114)   ; R.new
+   (UNSPEC_MOVSI_CONST32   115)   ; const32 a + b
    (UNSPEC_QDSP6_vcmpb_eq  150)
    (UNSPEC_QDSP6_vcmpb_gtu 151)
    (UNSPEC_QDSP6_any       152)
    (UNSPEC_QDSP6_all       153)
    (UNSPEC_QDSP6_falign    154)
-   (UNSPEC_DOLOOP_END      160)]
+   (UNSPEC_DOLOOP_END      160)
+   (UNSPEC_PIC_SYM_GOTOFF  161)   ; For PIC GOTOFF symbols
+   (UNSPEC_PIC_SYM_GOT     162)   ; For PIC GOT symbols
+ ]
 )
 
 
@@ -87,7 +87,7 @@
 ;; Used to determine which slots an insn can use when scheduling insns
 
 (define_attr "type"
-             "A,X,Load,Store,Memop,NewValue,LoadStore,AStore,ALoadStore,M,S,J,JR,CR,loop,endloop0,endloop1,EA,EX,ELoad,EStore,EMemop,ENewValue,EM,ES,EJ,EJR,ECR,multiple,J_dotnew"
+             "A,X,Load,Store,Memop,NewValue,LoadStore,AStore,ALoadStore,M,S,J,JR,CR,loop,endloop0,endloop1,EA,EX,ELoad,EStore,EMemop,ENewValue,EM,ES,EJ,EJR,ECR,multiple,J_dotnew,NewValueJump,ENewValueJump,AJ,XJ"
              (const_string "multiple"))
 
 
@@ -109,7 +109,8 @@
 
 (define_attr "predicable" "no,yes" (const (const_string "no")))
 
-
+;; Two duplex instructions can be paired to reduce code size
+(define_attr "duplex"   "no,yes" (const_string "no"))
 
 
 ;;-----------------------------;;
@@ -123,7 +124,7 @@
 
 (automata_option "ndfa")
 
-(define_cpu_unit "Slot0,Slot1,Slot2,Slot3,
+(define_query_cpu_unit "Slot0,Slot1,Slot2,Slot3,
                   Store0,Store1,
                   PCadder,PCadder_dualjumps,
                   endloop0,endloop1,endloop0_dualjumps,endloop1_dualjumps"
@@ -401,6 +402,24 @@
                                                 (eq_attr "type" "NewValue"))
  "Slot0 + Store0 + Store1")
 
+(define_insn_reservation "v4_NewValueJump"   1 (and (eq_attr "arch" "v4")
+                                                (eq_attr "type" "NewValueJump"))
+ "Slot0 + Store0 + Store1 + PCadder + ( control | control_dualjumps ) ")
+
+(define_insn_reservation "v4_ENewValueJump"   1 (and (eq_attr "arch" "v4")
+                                                (eq_attr "type" "ENewValueJump"))
+ "Slot0 + Store0 + Store1 + PCadder + ( control | control_dualjumps ) + ( Slot1 | Slot2 | Slot3 )")
+
+
+(define_insn_reservation "v4_AJ"     1 (and (eq_attr "arch" "v4")
+                                                (eq_attr "type" "AJ"))
+ "((Slot2 + (Slot0 | Slot1 | Slot3)) | (Slot3 + (Slot0 | Slot1 | Slot2))) + ( PCadder | PCadder_dualjumps ) + ( control | control_dualjumps )")
+
+(define_insn_reservation "v4_XJ"     1 (and (eq_attr "arch" "v4")
+                                                (eq_attr "type" "XJ"))
+ "(Slot2 + Slot3) + ( PCadder | PCadder_dualjumps ) + ( control | control_dualjumps )")
+
+
 (define_insn_reservation "v4_M"          1 (and (eq_attr "arch" "v4")
                                                 (eq_attr "type" "M"))
                  "Slot2 | Slot3")
@@ -415,23 +434,23 @@
 
 (define_insn_reservation "v4_loop"       1 (and (eq_attr "arch" "v4")
                                                 (eq_attr "type" "loop"))
-                         "Slot3  + PCadder")
+                         "Slot3  +  PCadder")
 
 (define_insn_reservation "v4_J"          1 (and (eq_attr "arch" "v4")
                                                 (eq_attr "type" "J"))
-                "(Slot2 | Slot3) + PCadder + control")
+                "(Slot2 | Slot3) + (PCadder | PCadder_dualjumps) + (control | control_dualjumps)")
 
 (define_insn_reservation "v4_JR"         1 (and (eq_attr "arch" "v4")
                                                 (eq_attr "type" "JR"))
-                 "Slot2                    + control")
+                 "Slot2                                          +  control + control_dualjumps")
 
 (define_insn_reservation "v4_endloop0"   1 (and (eq_attr "arch" "v4")
                                                 (eq_attr "type" "endloop0"))
-                                            "endloop0")
+                                  "endloop0 + endloop0_dualjumps")
 
 (define_insn_reservation "v4_endloop1"   1 (and (eq_attr "arch" "v4")
                                                 (eq_attr "type" "endloop1"))
-                                            "endloop1")
+                                  "endloop1 + endloop1_dualjumps")
 
 (define_insn_reservation "v4_EA"         1 (and (eq_attr "arch" "v4")
                                                 (eq_attr "type" "EA"))
@@ -471,11 +490,11 @@
 
 (define_insn_reservation "v4_EJ"         1 (and (eq_attr "arch" "v4")
                                                 (eq_attr "type" "EJ"))
-                  "(ESlot2 | ESlot3) + PCadder + control")
+                  "(ESlot2 | ESlot3) + (PCadder | PCadder_dualjumps) + (control | control_dualjumps)")
 
 (define_insn_reservation "v4_EJR"        1 (and (eq_attr "arch" "v4")
                                                 (eq_attr "type" "EJR"))
-                   "ESlot2                     + control")
+                   "ESlot2                                           +  control + control_dualjumps")
 
 
 ;;-------;;
@@ -509,10 +528,63 @@
 ;;---------------;;
 
 
-
 ;;----------------;;
 ;; Standard Names ;;
 ;;----------------;;
+
+;;---------;;
+;; PIC mov ;;
+;;---------;;
+
+;;
+;; Compute offset for PIC mode via @GOTOFF
+;;
+
+(define_insn "pic_movsi_hi_gotoff"
+  [(set (match_operand:SI 0 "gr_register_operand"      "=Rg")
+        (high:SI (unspec:SI [(match_operand:SI 1 "sym_or_lab_operand" "")] UNSPEC_PIC_SYM_GOTOFF)))]
+  "flag_pic"
+  "%0.h = #HI(%1@GOTOFF)"
+  [(set_attr "type" "A")]
+)
+
+(define_insn "pic_movsi_lo_gotoff"
+  [(set (match_operand:SI 0 "gr_register_operand"          "=Rg")
+	(lo_sum:SI (match_operand:SI 1 "gr_register_operand" "0")
+                   (unspec:SI [(match_operand:SI 2 "sym_or_lab_operand" "")] UNSPEC_PIC_SYM_GOTOFF)))]
+  "flag_pic"
+  "%0.l = #LO(%2@GOTOFF)"
+  [(set_attr "type" "A")]
+)
+
+;;
+;; Compute global offset for PIC mode via @GOT
+;;
+
+(define_insn "pic_movsi"
+  [(set (match_operand:SI 0 "gr_register_operand"      "=Rg")
+        (unspec:SI [(match_operand:SI 1 "" "")] UNSPEC_PIC_SYM_GOT))]
+  "flag_pic"
+  "%0 = #%1@GOT"
+  [(set_attr "type" "A")]
+)
+
+(define_insn "pic_movsi_hi_got"
+  [(set (match_operand:SI 0 "gr_register_operand"      "=Rg")
+        (high:SI (unspec:SI [(match_operand:SI 1 "sym_or_lab_operand" "")] UNSPEC_PIC_SYM_GOT)))]
+  "flag_pic"
+  "%0.h = #HI(%1@GOT)"
+  [(set_attr "type" "A")]
+)
+
+(define_insn "pic_movsi_lo_got"
+  [(set (match_operand:SI 0 "gr_register_operand"          "=Rg")
+	(lo_sum:SI (match_operand:SI 1 "gr_register_operand" "0")
+                   (unspec:SI [(match_operand:SI 2 "sym_or_lab_operand" "")] UNSPEC_PIC_SYM_GOT)))]
+  "flag_pic"
+  "%0.l = #LO(%2@GOT)"
+  [(set_attr "type" "A")]
+)
 
 
 ;;--------;;
@@ -535,65 +607,36 @@
 )
 
 (define_insn "movbi_real"
-  [(set (match_operand:BI 0 "nonimmediate_operand" "=Rp,  Rp,Rp,?*Rg,?Rp,*Rg,   ?*Rg,?*Rg,?*Anoext,?*m,?*Rg")
-        (match_operand:BI 1 "general_operand"      "Iu0,Iu01,Rp,  Rp,*Rg,*Rg,*Anoext,  *m,     *Rg,*Rg,Iu01"))]
+  [(set (match_operand:BI 0 "nonimmediate_operand" "=Rp,  Rp,Rp,?*Rg,?Rp,*Rg, ?*Rg,   ?*Rg,?*Rg,?*Anoext,?*m,?*Rg")
+        (match_operand:BI 1 "general_operand"      "Iu0,Iu01,Rp,  Rp,*Rg,*Rg,*Adm3,*Anoext,  *m,     *Rg,*Rg,Iu01"))]
   "!(memory_operand(operands[0], BImode)
      && immediate_operand(operands[1], BImode))"
-  {
-    switch(which_alternative){
-      case 0:
-        return "%0 = cmp.gt(r0,r0)";
-      case 1:
-        return "%0 = cmp.eq(r0,r0)";
-      case 2:
-        return "%0 = or(%1,%1) //pred=pred(BI)";
-      case 3:
-        if(TARGET_V2_FEATURES){
-          return "%0 = mux(%1,#1,#0) //reg=pred(BI)";
-        }
-        else {
-          return "#";
-        }
-      case 4:
-        return "%0 = tstbit(%1,#0) //pred=reg(BI)";
-      case 5:
-        return "%0 = %1 //reg=reg(BI)";
-      case 6:
-        return "%0 = memub(%1) //load(BI)";
-      case 7:
-        return "%0 = memub(%E1) //load(BI)";
-      case 8:
-        return "memb(%0) = %1 //store(BI)";
-      case 9:
-        return "memb(%E0) = %1 //store(BI)";
-      case 10:
-        return "%0 = #%1";
-      default:
-        gcc_unreachable();
-    }
-  }
-  [(set_attr "type" "A,A,S,A,S,A,Load,ELoad,Store,EStore,A")]
+  "@
+   %0 = cmp.gt(r0,r0)
+   %0 = cmp.eq(r0,r0)
+   %0 = or(%1,%1) //pred=pred(BI)
+   %0 = mux(%1,#1,#0) //reg=pred(BI)
+   %0 = tstbit(%1,#0) //pred=reg(BI)
+   %0 = %1 //reg=reg(BI)
+   %0 = memub(%1) //load(BI)
+   %0 = memub(%1) //load(BI)
+   %0 = memub(%E1) //load(BI)
+   memb(%0) = %1 //store(BI)
+   memb(%E0) = %1 //store(BI)
+   %0 = #%1"
+  [(set_attr "type" "A,A,S,A,S,A,Load,Load,ELoad,Store,EStore,A")
+   (set_attr "duplex" "no,no,no,no,no,no,yes,no,no,no,no,no")]
 )
 
-(define_split
-  [(set (match_operand:BI 0 "gr_register_operand" "")
-        (match_operand:BI 1 "pr_register_operand" ""))]
-  "!TARGET_V2_FEATURES && reload_completed"
-  [(set (match_dup 0) (unspec:BI [(match_dup 1)] UNSPEC_SET_R_p))
-   (set (match_dup 2) (ashift:SI (match_dup 2) (const_int 31)))
-   (set (match_dup 2) (lshiftrt:SI (match_dup 2) (const_int 31)))]
-  {
-    operands[2] = gen_rtx_REG (SImode, REGNO (operands[0]));
-  }
-)
-
-(define_insn "movbi_unspec_set_r_p"
-  [(set (match_operand:BI 0 "gr_register_operand"            "=Rg")
-        (unspec:BI [(match_operand:BI 1 "pr_register_operand" "Rp")]
-                   UNSPEC_SET_R_p))]
-  "!TARGET_V2_FEATURES"
-  "%0 = %1 //reg=pred(BI)"
-  [(set_attr "type" "S")]
+(define_insn "movbi_new_value"
+  [(set (match_operand:BI 0 "memory_operand"             "=Anoext, m")
+        (unspec:BI [(match_operand:BI 1 "gr_register_operand" "Rg,Rg")]
+                   UNSPEC_NEW_VALUE))]
+  "TARGET_V4_FEATURES"
+  "@
+   memb(%0) = %1.new //store(BI)
+   memb(%E0) = %1.new //store(BI)"
+  [(set_attr "type" "NewValue,ENewValue")]
 )
 
 ;;-------;;
@@ -633,8 +676,8 @@
 )
 
 (define_insn "movqi_real_v4"
-  [(set (match_operand:QI 0 "nonimmediate_operand_with_GP" "=Rg,    Rg,Rg,Asi,Asi,Anoext, m,  Rg,?Rg,?*Rp")
-        (match_operand:QI 1 "GP_or_reg_operand"             "Rg,Anoext, m,Is8,  i,    Rg,Rg,Is16,*Rp,  Rg"))]
+  [(set (match_operand:QI 0 "nonimmediate_operand_with_GP" "=Rg,  Rg,    Rg,Rg,Adm4,Asi,Asi,Adm4,Anoext, m, Rg,  Rg,?Rg,?*Rp")
+        (match_operand:QI 1 "GP_or_reg_operand"             "Rg,Adm3,Anoext, m, Iu1,Is8,  i,  Rg,    Rg,Rg,Iu6,Is16,*Rp,  Rg"))]
   "TARGET_V4_FEATURES
    && (!memory_operand(operands[0], QImode)
        || gr_register_operand(operands[1], QImode)
@@ -645,15 +688,31 @@
   "@
    %0 = %1
    %0 = memb(%1)
+   %0 = memb(%1)
    %0 = memb(%E1)
+   memb(%0) = #%1
    memb(%0) = #%1
    memb(%0) = ##%1
    memb(%0) = %1
+   memb(%0) = %1
    memb(%E0) = %1
+   %0 = #%1
    %0 = #%1
    %0 = %1
    %0 = %1"
-  [(set_attr "type" "A,Load,ELoad,Store,EStore,Store,EStore,A,S,S")]
+  [(set_attr "type" "A,Load,Load,ELoad,Store,Store,EStore,Store,Store,EStore,A,A,S,S")
+   (set_attr "duplex" "yes,yes,no,no,yes,no,no,yes,no,no,yes,no,no,no")]
+)
+
+(define_insn "movqi_new_value"
+  [(set (match_operand:QI 0 "memory_operand"             "=Anoext, m")
+        (unspec:QI [(match_operand:QI 1 "gr_register_operand" "Rg,Rg")]
+                   UNSPEC_NEW_VALUE))]
+  "TARGET_V4_FEATURES"
+  "@
+   memb(%0) = %1.new
+   memb(%E0) = %1.new"
+  [(set_attr "type" "NewValue,ENewValue")]
 )
 
 (define_insn "movqi_real"
@@ -664,8 +723,8 @@
        || gr_register_operand(operands[1], QImode))"
   "@
    %0 = %1
-   %0 = memb(%1) // movqi_real
-   memb(%0) = %1 // movqi_real
+   %0 = memb(%1)
+   memb(%0) = %1
    %0 = #%1
    %0 = %1
    %0 = %1"
@@ -675,10 +734,10 @@
 (define_insn "cond_movqi"
   [(cond_exec
      (match_operator:BI 2 "predicate_operator"
-       [(match_operand:BI 3 "pr_register_operand"      "RpRnp,RpRnp, RpRnp,RpRnp,RpRnp,RpRnp, RpRnp,RpRnp")
+       [(match_operand:BI 3 "pr_register_operand"         "Rp,   Rp,    Rp,  Rp,  Rp,   Rp,    Rp,  Rp")
         (const_int 0)])
-     (set (match_operand:QI 0 "conditional_dest_operand" "=Rg,   Rg,    Rg, Acsi, Acsi,Acond,Aecond,   Rg")
-          (match_operand:QI 1 "conditional_src_operand"   "Rg,Acond,Aecond,  Is6,    i,   Rg,    Rg, Is12")))]
+     (set (match_operand:QI 0 "conditional_dest_operand" "=Rg,   Rg,    Rg,Acsi,Acsi,Acond,Aecond,  Rg")
+          (match_operand:QI 1 "conditional_src_operand"   "Rg,Acond,Aecond, Is6,   i,   Rg,    Rg,Is12")))]
   "!memory_operand(operands[0], QImode)
    || gr_register_operand(operands[1], QImode)
    || (TARGET_V4_FEATURES
@@ -696,6 +755,21 @@
    if (%C2) memb(%E0) = %1
    if (%C2) %0 = #%1"
   [(set_attr "type" "A,Load,ELoad,Store,EStore,Store,EStore,A")]
+)
+
+(define_insn "cond_movqi_new_value"
+  [(cond_exec
+     (match_operator:BI 2 "predicate_operator"
+       [(match_operand:BI 3 "pr_register_operand"               "Rp,    Rp")
+        (const_int 0)])
+     (set (match_operand:QI 0 "memory_operand"              "=Acond,Aecond")
+          (unspec:QI [(match_operand:QI 1 "gr_register_operand" "Rg,    Rg")]
+                     UNSPEC_NEW_VALUE)))]
+  "TARGET_V4_FEATURES"
+  "@
+   if (%C2) memb(%0) = %1.new
+   if (%C2) memb(%E0) = %1.new"
+  [(set_attr "type" "NewValue,ENewValue")]
 )
 
 ;;-------;;
@@ -735,8 +809,8 @@
 )
 
 (define_insn "movhi_real_v4"
-  [(set (match_operand:HI 0 "nonimmediate_operand_with_GP" "=Rg,    Rg,Rg,Asi,Asi,Anoext, m,  Rg")
-        (match_operand:HI 1 "GP_or_reg_operand"             "Rg,Anoext, m,Is8,  i,    Rg,Rg,Is16"))]
+  [(set (match_operand:HI 0 "nonimmediate_operand_with_GP" "=Rg,  Rg,    Rg,Rg,Asi,Asi,Adm3,Anoext, m, Rg,  Rg")
+        (match_operand:HI 1 "GP_or_reg_operand"             "Rg,Adm3,Anoext, m,Is8,  i,  Rg,    Rg,Rg,Iu6,Is16"))]
   "TARGET_V4_FEATURES
    && (!memory_operand(operands[0], HImode)
        || gr_register_operand(operands[1], HImode)
@@ -749,13 +823,28 @@
   "@
    %0 = %1
    %0 = memh(%1)
+   %0 = memh(%1)
    %0 = memh(%E1)
    memh(%0) = #%1
    memh(%0) = ##%1
    memh(%0) = %1
+   memh(%0) = %1
    memh(%E0) = %1
+   %0 = #%1
    %0 = #%1"
-  [(set_attr "type" "A,Load,ELoad,Store,EStore,Store,EStore,A")]
+  [(set_attr "type" "A,Load,Load,ELoad,Store,EStore,Store,Store,EStore,A,A")
+   (set_attr "duplex" "yes,yes,no,no,no,no,yes,no,no,yes,no")]
+)
+
+(define_insn "movhi_new_value"
+  [(set (match_operand:HI 0 "memory_operand"             "=Anoext, m")
+        (unspec:HI [(match_operand:HI 1 "gr_register_operand" "Rg,Rg")]
+                   UNSPEC_NEW_VALUE))]
+  "TARGET_V4_FEATURES"
+  "@
+   memh(%0) = %1.new
+   memh(%E0) = %1.new"
+  [(set_attr "type" "NewValue,ENewValue")]
 )
 
 (define_insn "movhi_real"
@@ -775,10 +864,10 @@
 (define_insn "cond_movhi"
   [(cond_exec
      (match_operator:BI 2 "predicate_operator"
-       [(match_operand:BI 3 "pr_register_operand"      "RpRnp,RpRnp, RpRnp,RpRnp,RpRnp,RpRnp, RpRnp,RpRnp,RpRnp")
+       [(match_operand:BI 3 "pr_register_operand"         "Rp,   Rp,    Rp,  Rp,  Rp,   Rp,    Rp,  Rp,Rp")
         (const_int 0)])
-     (set (match_operand:HI 0 "conditional_dest_operand" "=Rg,   Rg,    Rg, Acsi, Acsi,Acond,Aecond,   Rg,   Rg")
-          (match_operand:HI 1 "conditional_src_operand"   "Rg,Acond,Aecond,  Is6,    i,   Rg,    Rg, Is12,    i")))]
+     (set (match_operand:HI 0 "conditional_dest_operand" "=Rg,   Rg,    Rg,Acsi,Acsi,Acond,Aecond,  Rg,Rg")
+          (match_operand:HI 1 "conditional_src_operand"   "Rg,Acond,Aecond, Is6,   i,   Rg,    Rg,Is12, i")))]
   "!memory_operand(operands[0], HImode)
    || gr_register_operand(operands[1], HImode)
    || (TARGET_V4_FEATURES
@@ -799,6 +888,21 @@
    if (%C2) %0 = #%1
    if (%C2) %0 = ##%1"
   [(set_attr "type" "A,Load,ELoad,Store,EStore,Store,EStore,A,EA")]
+)
+
+(define_insn "cond_movhi_new_value"
+  [(cond_exec
+     (match_operator:BI 2 "predicate_operator"
+       [(match_operand:BI 3 "pr_register_operand"               "Rp,    Rp")
+        (const_int 0)])
+     (set (match_operand:HI 0 "memory_operand"              "=Acond,Aecond")
+          (unspec:HI [(match_operand:HI 1 "gr_register_operand" "Rg,    Rg")]
+                     UNSPEC_NEW_VALUE)))]
+  "TARGET_V4_FEATURES"
+  "@
+   if (%C2) memh(%0) = %1.new
+   if (%C2) memh(%E0) = %1.new"
+  [(set_attr "type" "NewValue,ENewValue")]
 )
 
 ;;-------;;
@@ -834,6 +938,15 @@
              && s8_const_int_operand(operands[1], SImode)))){
       operands[1] = force_reg(SImode, operands[1]);
     }
+    
+    if(flag_pic 
+       && (CONSTANT_P (operands[1])
+           || symbol_mentioned_p (operands[1])
+           || label_mentioned_p (operands[1]))){
+      operands[1] = legitimize_pic_address (operands[1], SImode,
+                                            (can_create_pseudo_p()
+                                             ? NULL_RTX : operands[0]));
+    }
   }
 )
 
@@ -854,9 +967,11 @@
   [(set_attr "type" "A")]
 )
 
+
+
 (define_insn "movsi_real_v4"
-  [(set (match_operand:SI 0 "nonimmediate_operand_with_GP" "=Rg,    Rg,Rg,Asi,Asi,Anoext, m,  Rg,Rg,Rg,Rc")
-        (match_operand:SI 1 "GP_or_reg_operand"             "Rg,Anoext, m,Is8,  i,    Rg,Rg,Is16, i,Rc,Rg"))]
+  [(set (match_operand:SI 0 "nonimmediate_operand_with_GP" "=Rg,  Rg,    Rg,    Rg,Rg,Adm4,Asi,Asi, Admsp5,Anoext,  m,     Rg, Rg,  Rg,Rg,Rc")
+        (match_operand:SI 1 "GP_or_reg_operand"             "Rg,Adm4,Admsp5,Anoext, m, Iu1,Is8,  i,     Rg,     Rg,Rg,K-1Iu6,Is16,   i,Rc,Rg"))]
   "TARGET_V4_FEATURES
    && (!memory_operand(operands[0], SImode)
        || gr_register_operand(operands[1], SImode)
@@ -869,16 +984,42 @@
   "@
    %0 = %1
    %0 = memw(%1)
+   %0 = memw(%1)
+   %0 = memw(%1)
    %0 = memw(%E1)
+   memw(%0) = #%1
    memw(%0) = #%1
    memw(%0) = ##%1
    memw(%0) = %1
+   memw(%0) = %1
    memw(%E0) = %1
+   %0 = #%1
    %0 = #%1
    %0 = ##%1
    %0 = %1
    %0 = %1"
-  [(set_attr "type" "A,Load,ELoad,Store,EStore,Store,EStore,A,EA,CR,CR")]
+  [(set_attr "type" "A,Load,Load,Load,ELoad,Store,Store,EStore,Store,Store,EStore,A,A,EA,CR,CR")
+   (set_attr "duplex" "yes,yes,yes,no,no,yes,no,no,yes,no,no,yes,no,no,no,no")]
+)
+
+(define_insn "movsi_new_value"
+  [(set (match_operand:SI 0 "memory_operand"             "=Anoext, m")
+        (unspec:SI [(match_operand:SI 1 "gr_register_operand" "Rg,Rg")]
+                   UNSPEC_NEW_VALUE))]
+  "TARGET_V4_FEATURES"
+  "@
+   memw(%0) = %1.new
+   memw(%E0) = %1.new"
+  [(set_attr "type" "NewValue,ENewValue")]
+)
+
+(define_insn "movsi_const32"
+  [(set (match_operand:SI 0 "gr_register_operand"         "=Rg")
+        (unspec:SI [(match_operand:SI 1 "GP_or_reg_operand" "i")
+                    (match_operand:SI 2 "nonmemory_operand" "i")] UNSPEC_MOVSI_CONST32))]
+  ""
+  "%0 = CONST32(%1 + %2)"
+  [(set_attr "type" "Load")]
 )
 
 (define_insn "movsi_real"
@@ -934,10 +1075,10 @@
 (define_insn "cond_movsi"
   [(cond_exec
      (match_operator:BI 2 "predicate_operator"
-       [(match_operand:BI 3 "pr_register_operand"      "RpRnp,RpRnp, RpRnp,RpRnp,RpRnp,RpRnp, RpRnp,RpRnp,RpRnp")
+       [(match_operand:BI 3 "pr_register_operand"         "Rp,   Rp,    Rp,  Rp,  Rp,   Rp,    Rp,  Rp,  Rp,Rp")
         (const_int 0)])
-     (set (match_operand:SI 0 "conditional_dest_operand" "=Rg,   Rg,    Rg, Acsi, Acsi,Acond,Aecond,   Rg,   Rg")
-          (match_operand:SI 1 "conditional_src_operand"   "Rg,Acond,Aecond,  Is6,    i,   Rg,    Rg, Is12,    i")))]
+     (set (match_operand:SI 0 "conditional_dest_operand" "=Rg,   Rg,    Rg,Acsi,Acsi,Acond,Aecond,  Rg,  Rg,Rg")
+          (match_operand:SI 1 "conditional_src_operand"   "Rg,Acond,Aecond, Is6,   i,   Rg,    Rg,Iu00,Is12, i")))]
   "!memory_operand(operands[0], SImode)
    || gr_register_operand(operands[1], SImode)
    || (TARGET_V4_FEATURES
@@ -956,8 +1097,25 @@
    if (%C2) memw(%0) = %1
    if (%C2) memw(%E0) = %1
    if (%C2) %0 = #%1
+   if (%C2) %0 = #%1
    if (%C2) %0 = ##%1"
-  [(set_attr "type" "A,Load,ELoad,Store,EStore,Store,EStore,A,EA")]
+  [(set_attr "type" "A,Load,ELoad,Store,EStore,Store,EStore,A,A,EA")
+   (set_attr "duplex" "no,no,no,no,no,no,no,yes,no,no")]
+)
+
+(define_insn "cond_movsi_new_value"
+  [(cond_exec
+     (match_operator:BI 2 "predicate_operator"
+       [(match_operand:BI 3 "pr_register_operand"               "Rp,    Rp")
+        (const_int 0)])
+     (set (match_operand:SI 0 "memory_operand"              "=Acond,Aecond")
+          (unspec:SI [(match_operand:SI 1 "gr_register_operand" "Rg,    Rg")]
+                     UNSPEC_NEW_VALUE)))]
+  "TARGET_V4_FEATURES"
+  "@
+   if (%C2) memw(%0) = %1.new
+   if (%C2) memw(%E0) = %1.new"
+  [(set_attr "type" "NewValue,ENewValue")]
 )
 
 ;;-------;;
@@ -976,8 +1134,8 @@
 )
 
 (define_insn "movdi_real"
-  [(set (match_operand:DI 0 "nonimmediate_operand" "=Rg,    Rg,Rg,Anoext, m, Rg,   Rg,Rg,Rg,Rc")
-        (match_operand:DI 1 "general_operand"       "Rg,Anoext, m,    Rg,Rg,Is8,Ks8s8, i,Rc,Rg"))]
+  [(set (match_operand:DI 0 "nonimmediate_operand" "=Rg,    Rg,    Rg,Rg,Admsp6,Anoext, m, Rg,   Rg,Rg,Rg,Rc")
+        (match_operand:DI 1 "general_operand"       "Rg,Admsp5,Anoext, m,    Rg,    Rg,Rg,Is8,Ks8s8, i,Rc,Rg"))]
   "!(memory_operand(operands[0], DImode)
      && immediate_operand(operands[1], DImode))"
   {
@@ -987,34 +1145,39 @@
       case 1:
         return "%P0 = memd(%1)";
       case 2:
-        return "%P0 = memd(%E1)";
+        return "%P0 = memd(%1)";
       case 3:
-        return "memd(%0) = %P1";
+        return "%P0 = memd(%E1)";
       case 4:
-        return "memd(%E0) = %P1";
+        return "memd(%0) = %P1";
       case 5:
-        return "%P0 = #%1";
+        return "memd(%0) = %P1";
       case 6:
+        return "memd(%E0) = %P1";
+      case 7:
+        return "%P0 = #%1";
+      case 8:
         operands[2] = gen_int_mode(INTVAL (operands[1]) >> 32ULL, SImode);
         operands[1] = gen_int_mode(INTVAL (operands[1]) & 0xFFFFFFFFULL,
                                    SImode);
         return "%P0 = combine(#%2,#%1)";
-      case 7:
+      case 9:
         if(TARGET_CONST64){
           return "%P0 = CONST64(#%1)";
         }
         else {
           return "#";
         }
-      case 8:
+      case 10:
         return "%P0 = %P1";
-      case 9:
+      case 11:
         return "%P0 = %P1";
       default:
         gcc_unreachable();
     }
   }
-  [(set_attr "type" "A,Load,ELoad,Store,EStore,A,A,Load,CR,CR")]
+  [(set_attr "type"   "A,Load,Load,ELoad,Store,Store,EStore,A,A,Load,CR,CR")
+   (set_attr "duplex" "no,yes,no,no,yes,no,no,no,no,no,no,no")]
 )
 
 ;; Split moves of immediates to register pairs into separate moves to each
@@ -1022,10 +1185,9 @@
 (define_split
   [(set (match_operand:DI 0 "gr_register_operand" "")
         (match_operand:DI 1 "immediate_operand" ""))]
-  "!(((TARGET_V2_FEATURES && GET_CODE (operands[1]) == CONST_INT
-       && CONST_OK_FOR_CONSTRAINT_P (INTVAL (operands[1]), 'K', \"Ks8s8\"))
-      || TARGET_CONST64)
-     || operands[1] == const0_rtx)
+  "!((GET_CODE (operands[1]) == CONST_INT
+      && CONST_OK_FOR_CONSTRAINT_P (INTVAL (operands[1]), 'K', \"Ks8s8\"))
+     || TARGET_CONST64)
    && reload_completed"
   [(set (match_dup 2) (match_dup 4))
    (set (match_dup 3) (match_dup 5))]
@@ -1040,7 +1202,7 @@
 (define_insn "cond_movdi"
   [(cond_exec
      (match_operator:BI 2 "predicate_operator"
-       [(match_operand:BI 3 "pr_register_operand"      "RpRnp,RpRnp, RpRnp,RpRnp, RpRnp")
+       [(match_operand:BI 3 "pr_register_operand"         "Rp,   Rp,    Rp,   Rp,    Rp")
         (const_int 0)])
      (set (match_operand:DI 0 "conditional_dest_operand" "=Rg,   Rg,    Rg,Acond,Aecond")
           (match_operand:DI 1 "conditional_src_operand"   "Rg,Acond,Aecond,   Rg,    Rg")))]
@@ -1088,6 +1250,12 @@
              && CONST_DOUBLE_OK_FOR_LETTER_P (operands[1], 'G')))){
       operands[1] = force_reg(SFmode, operands[1]);
     }
+
+    if(flag_pic && CONSTANT_P (operands[1])){
+      operands[1] = legitimize_pic_address (operands[1], SImode,
+                                            (can_create_pseudo_p()
+                                             ? NULL_RTX : operands[0]));
+    }
   }
 )
 
@@ -1114,6 +1282,17 @@
    %0 = #%1
    %0 = ##%1"
   [(set_attr "type" "A,Load,ELoad,Store,EStore,Store,EStore,A,EA")]
+)
+
+(define_insn "movsf_new_value"
+  [(set (match_operand:SF 0 "memory_operand"             "=Anoext, m")
+        (unspec:SF [(match_operand:SF 1 "gr_register_operand" "Rg,Rg")]
+                   UNSPEC_NEW_VALUE))]
+  "TARGET_V4_FEATURES"
+  "@
+   memw(%0) = %1.new
+   memw(%E0) = %1.new"
+  [(set_attr "type" "NewValue,ENewValue")]
 )
 
 (define_insn "movsf_real"
@@ -1170,10 +1349,10 @@
 (define_insn "cond_movsf"
   [(cond_exec
      (match_operator:BI 2 "predicate_operator"
-       [(match_operand:BI 3 "pr_register_operand"      "RpRnp,RpRnp, RpRnp,RpRnp,RpRnp,RpRnp, RpRnp,RpRnp,RpRnp")
+       [(match_operand:BI 3 "pr_register_operand"         "Rp,   Rp,    Rp,  Rp,  Rp,   Rp,    Rp,Rp,Rp")
         (const_int 0)])
-     (set (match_operand:SF 0 "conditional_dest_operand" "=Rg,   Rg,    Rg, Acsi, Acsi,Acond,Aecond,   Rg,   Rg")
-          (match_operand:SF 1 "conditional_src_operand"   "Rg,Acond,Aecond,    G,    i,   Rg,    Rg,    G,    i")))]
+     (set (match_operand:SF 0 "conditional_dest_operand" "=Rg,   Rg,    Rg,Acsi,Acsi,Acond,Aecond,Rg,Rg")
+          (match_operand:SF 1 "conditional_src_operand"   "Rg,Acond,Aecond,   G,   i,   Rg,    Rg, G, i")))]
   "!memory_operand(operands[0], SFmode)
    || gr_register_operand(operands[1], SFmode)
    || (TARGET_V4_FEATURES
@@ -1194,6 +1373,21 @@
    if (%C2) %0 = #%1
    if (%C2) %0 = ##%1"
   [(set_attr "type" "A,Load,ELoad,Store,EStore,Store,EStore,A,EA")]
+)
+
+(define_insn "cond_movsf_new_value"
+  [(cond_exec
+     (match_operator:BI 2 "predicate_operator"
+       [(match_operand:BI 3 "pr_register_operand"               "Rp,    Rp")
+        (const_int 0)])
+     (set (match_operand:SF 0 "memory_operand"              "=Acond,Aecond")
+          (unspec:SF [(match_operand:SF 1 "gr_register_operand" "Rg,    Rg")]
+                     UNSPEC_NEW_VALUE)))]
+  "TARGET_V4_FEATURES"
+  "@
+   if (%C2) memw(%0) = %1.new
+   if (%C2) memw(%E0) = %1.new"
+  [(set_attr "type" "NewValue,ENewValue")]
 )
 
 ;;-------;;
@@ -1266,7 +1460,7 @@
 (define_insn "cond_movdf"
   [(cond_exec
      (match_operator:BI 2 "predicate_operator"
-       [(match_operand:BI 3 "pr_register_operand"      "RpRnp,RpRnp, RpRnp,RpRnp, RpRnp")
+       [(match_operand:BI 3 "pr_register_operand"         "Rp,   Rp,    Rp,   Rp,    Rp")
         (const_int 0)])
      (set (match_operand:DF 0 "conditional_dest_operand" "=Rg,   Rg,    Rg,Acond,Aecond")
           (match_operand:DF 1 "conditional_src_operand"   "Rg,Acond,Aecond,   Rg,    Rg")))]
@@ -1349,10 +1543,22 @@
   }
 )
 
+(define_insn "increment_stack_pointer_duplex"
+   [(set (reg:SI SP_REGNUM)
+        (plus:SI (reg:SI SP_REGNUM)
+                 (match_operand 0 "nonmemory_operand" "Ju6_2")))]
+   "TARGET_V4_FEATURES
+    && u8_const_int_operand(operands[0], SImode)"
+   "r29 = add(r29,#%0)"
+  [(set_attr "type" "A")
+   (set_attr "duplex" "yes")]
+)
+
+
 (define_insn_and_split "addsi3_real_v4"
-  [(set (match_operand:SI 0 "nonimmediate_operand"         "=Rg,Rg,Rg,Amemop,Aememop,Amemop,Aememop,Amemop,Aememop")
-        (plus:SI (match_operand:SI 1 "nonimmediate_operand" "Rg,Rg,Rg,     0,      0,     0,      0,     0,      0")
-                 (match_operand:SI 2 "nonmemory_operand"  "Is16, i,Rg,   Iu5,    Iu5,   In5,    In5,    Rg,     Rg")))]
+  [(set (match_operand:SI 0 "nonimmediate_operand"         "=Rg, Rg, Rg,  Rg,Rg,Rg,Rg,Amemop,Aememop,Amemop,Aememop,Amemop,Aememop")
+        (plus:SI (match_operand:SI 1 "nonimmediate_operand""Rg,  Rg,  0,  Rg,Rg, 0,Rg,     0,      0,     0,      0,     0,      0")
+                 (match_operand:SI 2 "nonmemory_operand"   "K01,K-1,Is7,Is16, i,Rg,Rg,   Iu5,    Iu5,   In5,    In5,    Rg,     Rg")))]
   "TARGET_V4_FEATURES
    && (!immediate_operand(operands[2], SImode)
        || s16_const_int_operand(operands[2], SImode)
@@ -1362,7 +1568,11 @@
        || (TARGET_MEMOPS && rtx_equal_p(operands[0], operands[1])))"
   "@
    %0 = add(%1,#%2)
+   %0 = add(%1,#%2)
+   %0 = add(%1,#%2)
+   %0 = add(%1,#%2)
    %0 = add(%1,##%2)
+   %0 = add(%1,%2)
    %0 = add(%1,%2)
    memw(%0) += #%2
    memw(%E0) += #%2
@@ -1384,7 +1594,8 @@
     emit_move_insn(address_reg, address);
     operands[0] = change_address(operands[0], SImode, address_reg);
   }
-  [(set_attr "type" "A,EA,A,Memop,EMemop,Memop,EMemop,Memop,EMemop")]
+  [(set_attr "type" "A,A,A,A,EA,A,A,Memop,EMemop,Memop,EMemop,Memop,EMemop")
+   (set_attr "duplex" "yes,yes,yes,no,no,yes,no,no,no,no,no,no,no")]
 )
 
 (define_insn "addsi3_real"
@@ -1401,11 +1612,11 @@
 (define_insn "cond_addsi3"
   [(cond_exec
      (match_operator:BI 3 "predicate_operator"
-       [(match_operand:BI 4 "pr_register_operand"             "RpRnp,RpRnp,RpRnp")
+       [(match_operand:BI 4 "pr_register_operand"                "Rp, Rp,Rp")
         (const_int 0)])
-     (set (match_operand:SI 0 "gr_register_operand"             "=Rg,   Rg,   Rg")
-          (plus:SI (match_operand:SI 1 "gr_register_operand"     "Rg,   Rg,   Rg")
-                   (match_operand:SI 2 "conditional_add_operand" "Rg,  Is8,    i"))))]
+     (set (match_operand:SI 0 "gr_register_operand"             "=Rg, Rg,Rg")
+          (plus:SI (match_operand:SI 1 "gr_register_operand"     "Rg, Rg,Rg")
+                   (match_operand:SI 2 "conditional_add_operand" "Rg,Is8, i"))))]
   "!immediate_operand(operands[2], SImode)
    || s8_const_int_operand(operands[2], SImode)
    || crtl->combine_in_progress || crtl->combine_completed"
@@ -1515,7 +1726,7 @@
 (define_insn "cond_subsi3"
   [(cond_exec
      (match_operator:BI 3 "predicate_operator"
-       [(match_operand:BI 4 "pr_register_operand"          "RpRnp")
+       [(match_operand:BI 4 "pr_register_operand"             "Rp")
         (const_int 0)])
      (set (match_operand:SI 0 "gr_register_operand"          "=Rg")
           (minus:SI (match_operand:SI 1 "gr_register_operand" "Rg")
@@ -1605,7 +1816,7 @@
   [(set (match_operand:DI 0 "gr_register_operand"        "=&Rg")
         (mult:DI (match_operand:DI 1 "gr_register_operand" "Rg")
                  (match_operand:DI 2 "gr_register_operand" "Rg")))]
-  "TARGET_V2_FEATURES"
+  ""
   "#"
   "reload_completed"
   [
@@ -1619,7 +1830,7 @@
   [(set (match_operand:DI 0 "gr_register_operand"            "=Rg")
         (unspec:DI [(match_operand:DI 1 "gr_register_operand" "Rg")
                     (match_operand:DI 2 "gr_register_operand" "Rg")] UNSPEC_MULDI_1))]
-  "TARGET_V2_FEATURES"
+  ""
   "%P0 = mpyu(%L1,%L2)"
   [(set_attr "type" "M")]
 )
@@ -1629,7 +1840,7 @@
         (unspec:DI [(match_operand:DI 1 "gr_register_operand" "Rg")
                     (match_operand:DI 2 "gr_register_operand" "Rg")
                     (match_operand:DI 3 "gr_register_operand"  "0")] UNSPEC_MULDI_2))]
-  "TARGET_V2_FEATURES"
+  ""
   "%H0 += mpyi(%L1,%H2)"
   [(set_attr "type" "M")]
 )
@@ -1730,9 +1941,9 @@
 )
 
 (define_insn_and_split "andsi3_real_v4"
-  [(set (match_operand:SI 0 "nonimmediate_operand"        "=Rg,       Rg,Rg,Rg,   Amemop,  Aememop,Amemop,Aememop")
-        (and:SI (match_operand:SI 1 "nonimmediate_operand" "Rg,       Rg,Rg,Rg,        0,        0,     0,      0")
-                (match_operand:SI 2 "nonmemory_operand"  "Is10,Konenot32, i,Rg,Konenot32,Konenot32,    Rg,     Rg")))]
+  [(set (match_operand:SI 0 "nonimmediate_operand"        "=Rg,  Rg,       Rg,Rg,Rg,   Amemop,  Aememop,Amemop,Aememop")
+        (and:SI (match_operand:SI 1 "nonimmediate_operand" "Rg,  Rg,       Rg,Rg,Rg,        0,        0,     0,      0")
+                (match_operand:SI 2 "nonmemory_operand"    "K01,Is10,Konenot32, i,Rg,Konenot32,Konenot32,    Rg,     Rg")))]
   "TARGET_V4_FEATURES
    && (!immediate_operand(operands[2], SImode)
        || s10_const_int_operand(operands[2], SImode)
@@ -1741,6 +1952,7 @@
         && !memory_operand(operands[1], SImode))
        || (TARGET_MEMOPS && rtx_equal_p(operands[0], operands[1])))"
   "@
+   %0 = and(%1,#%2)
    %0 = and(%1,#%2)
    %0 = clrbit(%1,#%K2)
    %0 = and(%1,##%2)
@@ -1763,7 +1975,8 @@
     emit_move_insn(address_reg, address);
     operands[0] = change_address(operands[0], SImode, address_reg);
   }
-  [(set_attr "type" "A,S,EA,A,Memop,EMemop,Memop,EMemop")]
+  [(set_attr "type" "A,A,S,EA,A,Memop,EMemop,Memop,EMemop")
+   (set_attr "duplex" "yes,no,no,no,no,no,no,no,no")]
 )
 
 (define_insn "andsi3_real"
@@ -1781,7 +1994,7 @@
 (define_insn "cond_andsi3"
   [(cond_exec
      (match_operator:BI 3 "predicate_operator"
-       [(match_operand:BI 4 "pr_register_operand"        "RpRnp")
+       [(match_operand:BI 4 "pr_register_operand"           "Rp")
         (const_int 0)])
      (set (match_operand:SI 0 "gr_register_operand"        "=Rg")
           (and:SI (match_operand:SI 1 "gr_register_operand" "Rg")
@@ -1880,7 +2093,7 @@
 (define_insn "cond_iorsi3"
   [(cond_exec
      (match_operator:BI 3 "predicate_operator"
-       [(match_operand:BI 4 "pr_register_operand"        "RpRnp")
+       [(match_operand:BI 4 "pr_register_operand"           "Rp")
         (const_int 0)])
      (set (match_operand:SI 0 "gr_register_operand"        "=Rg")
           (ior:SI (match_operand:SI 1 "gr_register_operand" "Rg")
@@ -1933,12 +2146,12 @@
 (define_insn "cond_xorsi3"
   [(cond_exec
      (match_operator:BI 3 "predicate_operator"
-       [(match_operand:BI 4 "pr_register_operand"        "RpRnp")
+       [(match_operand:BI 4 "pr_register_operand"           "Rp")
         (const_int 0)])
      (set (match_operand:SI 0 "gr_register_operand"        "=Rg")
           (xor:SI (match_operand:SI 1 "gr_register_operand" "Rg")
                   (match_operand:SI 2 "gr_register_operand" "Rg"))))]
-  "TARGET_V2_FEATURES"
+  ""
   "if (%C3) %0 = xor(%1,%2)"
   [(set_attr "type" "A")]
 )
@@ -2456,7 +2669,7 @@
 (define_insn "ctzsi2"
   [(set (match_operand:SI 0 "gr_register_operand"        "=Rg")
         (ctz:SI (match_operand:SI 1 "gr_register_operand" "Rg")))]
-  "TARGET_V2_FEATURES"
+  ""
   "%0 = ct0(%1)"
   [(set_attr "type" "S")]
 )
@@ -2538,18 +2751,20 @@
 ;; Now, the actual comparisons, generated by the branch and/or movcc operations
 
 (define_insn "cmpsi_eq_v4"
-  [(set (match_operand:BI 0 "pr_register_operand"       "=Rp,Rp,Rp")
-        (eq:BI (match_operand:SI 1 "gr_register_operand" "Rg,Rg,Rg")
-               (match_operand:SI 2 "nonmemory_operand" "Is10, i,Rg")))]
+  [(set (match_operand:BI 0 "pr_register_operand"       "=Rp,  Rp,Rp,Rp")
+        (eq:BI (match_operand:SI 1 "gr_register_operand" "Rg,  Rg,Rg,Rg")
+               (match_operand:SI 2 "nonmemory_operand" " Iu2,Is10, i,Rg")))]
   "TARGET_V4_FEATURES
    && (!immediate_operand(operands[2], SImode)
        || s10_const_int_operand(operands[2], SImode)
        || crtl->combine_in_progress || crtl->combine_completed)"
   "@
    %0 = cmp.eq(%1,#%2)
+   %0 = cmp.eq(%1,#%2)
    %0 = cmp.eq(%1,##%2)
    %0 = cmp.eq(%1,%2)"
-  [(set_attr "type" "A,EA,A")]
+  [(set_attr "type" "A,A,EA,A")
+   (set_attr "duplex" "yes,no,no,no")]
 )
 
 (define_insn "cmpsi_gt_v4"
@@ -3040,14 +3255,16 @@
 
 ;; char -> int
 (define_insn "extendqisi2"
-  [(set (match_operand:SI 0 "gr_register_operand"                         "=Rg,    Rg,Rg")
-        (sign_extend:SI (match_operand:QI 1 "nonimmediate_operand_with_GP" "Rg,Anoext, m")))]
+  [(set (match_operand:SI 0 "gr_register_operand"                         "=Rg,  Rg,    Rg,Rg")
+        (sign_extend:SI (match_operand:QI 1 "nonimmediate_operand_with_GP" "Rg,Adm3,Anoext, m")))]
   ""
   "@
    %0 = sxtb(%1)
    %0 = memb(%1)
+   %0 = memb(%1)
    %0 = memb(%E1)"
-  [(set_attr "type" "A,Load,ELoad")]
+  [(set_attr "type" "A,Load,Load,ELoad")
+   (set_attr "duplex" "yes,yes,no,no")]
 )
 
 (define_insn_and_split "extendqidi2"
@@ -3066,14 +3283,16 @@
 
 ;; short -> int
 (define_insn "extendhisi2"
-  [(set (match_operand:SI 0 "gr_register_operand"                         "=Rg,    Rg,Rg")
-        (sign_extend:SI (match_operand:HI 1 "nonimmediate_operand_with_GP" "Rg,Anoext, m")))]
+  [(set (match_operand:SI 0 "gr_register_operand"                         "=Rg,  Rg,    Rg,Rg")
+        (sign_extend:SI (match_operand:HI 1 "nonimmediate_operand_with_GP" "Rg,Adm3,Anoext, m")))]
   ""
   "@
    %0 = sxth(%1)
    %0 = memh(%1)
+   %0 = memh(%1)
    %0 = memh(%E1)"
-  [(set_attr "type" "A,Load,ELoad")]
+  [(set_attr "type"   "A,Load,Load,ELoad")
+   (set_attr "duplex" "yes,yes,no,no")]
 )
 
 ;; short -> long long
@@ -3114,15 +3333,17 @@
 
 ;; char -> int
 (define_insn "zero_extendqisi2"
-  [(set (match_operand:SI 0 "gr_register_operand"                         "=Rg,    Rg,Rg,?Rg")
-        (zero_extend:SI (match_operand:QI 1 "nonimmediate_operand_with_GP" "Rg,Anoext, m,*Rp")))]
+  [(set (match_operand:SI 0 "gr_register_operand"                         "=Rg,  Rg,    Rg,Rg,?Rg")
+        (zero_extend:SI (match_operand:QI 1 "nonimmediate_operand_with_GP" "Rg,Adm4,Anoext, m,*Rp")))]
   ""
   "@
    %0 = zxtb(%1)
    %0 = memub(%1)
+   %0 = memub(%1)
    %0 = memub(%E1)
    %0 = %1"
-  [(set_attr "type" "A,Load,ELoad,S")]
+  [(set_attr "type" "A,Load,Load,ELoad,S")
+   (set_attr "duplex" "yes,yes,no,no,no")]
 )
 
 ;; char -> long long
@@ -3142,14 +3363,16 @@
 )
 ;; short -> int
 (define_insn "zero_extendhisi2"
-  [(set (match_operand:SI 0 "gr_register_operand"                         "=Rg,    Rg,Rg")
-        (zero_extend:SI (match_operand:HI 1 "nonimmediate_operand_with_GP" "Rg,Anoext, m")))]
+  [(set (match_operand:SI 0 "gr_register_operand"                         "=Rg,  Rg,    Rg,Rg")
+        (zero_extend:SI (match_operand:HI 1 "nonimmediate_operand_with_GP" "Rg,Adm3,Anoext, m")))]
   ""
   "@
    %0 = zxth(%1)
    %0 = memuh(%1)
+   %0 = memuh(%1)
    %0 = memuh(%E1)"
-  [(set_attr "type" "A,Load,ELoad")]
+  [(set_attr "type" "A,Load,Load,ELoad")
+   (set_attr "duplex" "yes,yes,no,no")]
 )
 
 ;; short -> long long
@@ -3626,46 +3849,25 @@
    (set (attr "length")
         (if_then_else (le (abs (minus (match_dup 2) (pc))) (const_int 15000))
                       (const_string "4")
-                      (const_string "8")))]
+                      (const_string "12")))]
 )
 
 (define_insn "cond_jump"
   [(set (pc)
         (if_then_else (match_operator:BI 0 "predicate_operator"
-                        [(match_operand:BI 1 "pr_register_operand" "Rp,Rnp")
+                        [(match_operand:BI 1 "pr_register_operand" "Rp")
                          (const_int 0)])
                       (label_ref (match_operand 2 "" ""))
                       (pc)))]
   ""
   {
-    rtx prediction;
     if(get_attr_length(insn) == 4){
-      if(which_alternative == 0){
-        if(TARGET_V2_FEATURES){
-          return "if (%C0) jump %l2";
-        }
-        else {
-          return "if %C0 jump %l2";
-        }
-      }
-      else {
-        prediction = find_reg_note(insn, REG_BR_PROB, 0);
-        if(prediction && INTVAL (XEXP (prediction, 0)) > REG_BR_PROB_BASE / 2){
-          return "if (%C0) jump:t %l2";
-        }
-        else {
-          return "if (%C0) jump:nt %l2";
-        }
-      }
+      operands[3] = qdsp6_branch_hint(insn);
+      return "if (%C0) jump%h3 %l2";
     }
     else {
       operands[3] = gen_label_rtx();
-      if(TARGET_V2_FEATURES){
-        return "if (%I0) jump %l3\;jump %l2\n%l3:";
-      }
-      else {
-        return "if %I0 jump %l3\;jump %l2\n%l3:";
-      }
+      return "if (%I0) jump %l3\;jump %l2\n%l3:";
     }
   }
   [(set (attr "type")
@@ -3678,7 +3880,364 @@
                       (const_string "8")))]
 )
 
+(define_insn "new_value_jump_tstbit"
+  [(set (pc)
+        (if_then_else (match_operator:BI 0 "predicate_operator"
+                        [(zero_extract:SI (unspec:SI [(match_operand:SI 1 "gr_register_operand" "Rg, Rg")]
+                                           UNSPEC_NEW_VALUE)
+                                          (const_int 1)
+                                          (match_operand:SI 2 "nonmemory_operand"  "Iu5,Rg"))
+                         (const_int 0)
+                        ]
+                      )
+                      (label_ref (match_operand 3 "" ""))
+                      (pc)))
+  (set  (match_operand:BI 4 "pr_register_operand" "=Rp,Rp")
+        (match_op_dup:BI 0 
+          [(zero_extract:SI (unspec:SI [(match_dup 1)] UNSPEC_NEW_VALUE) 
+                             (const_int 1) 
+                             (match_dup 2))
+           (const_int 0)
+          ])
+  )
+  ]
+  "TARGET_V4_FEATURES"
+  {
+    rtx prediction;
+    int predict_taken;
+    enum rtx_code code;
 
+    predict_taken = 0;
+    code = GET_CODE(operands[0]);
+    prediction = find_reg_note(insn, REG_BR_PROB, 0);
+    predict_taken = (prediction && INTVAL (XEXP (prediction, 0)) > REG_BR_PROB_BASE / 2);
+ 
+    if (GET_CODE(operands[2]) == CONST_INT) 
+    {
+      switch(code)
+      {
+        case EQ: {
+          if (predict_taken)
+            return "if (tstbit(%1.new,#%2)) jump:t %l3";
+          else 
+            return "if (tstbit(%1.new,#%2)) jump:nt %l3";
+        }
+        case NE: {
+          if (predict_taken)
+            return "if (!tstbit(%1.new,#%2)) jump:t %l3"; 
+          else
+            return "if (!tstbit(%1.new,#%2)) jump:nt %l3"; 
+        }
+        default:
+          gcc_unreachable();
+      }
+    }
+    else 
+    {
+      switch(code)
+      {
+        case EQ: {
+          if (predict_taken)
+            return "if (tstbit(%1.new,%2)) jump:t %l3";
+          else
+            return "if (tstbit(%1.new,%2)) jump:nt %l3";
+        }
+        case NE: {
+          if (predict_taken)
+            return "if (!tstbit(%1.new,%2)) jump:t %l3"; 
+          else
+            return "if (!tstbit(%1.new,%2)) jump:nt %l3"; 
+        }
+        default:
+          gcc_unreachable();
+      }
+    }
+  }
+  [(set_attr "type" "NewValueJump,ENewValueJump")
+   (set (attr "type")
+        (if_then_else (eq_attr "length" "4")
+                      (const_string "NewValueJump")
+                      (const_string "ENewValueJump")))
+   (set (attr "length")
+        (if_then_else (le (abs (minus (match_dup 3) (pc))) (const_int 804))
+                      (const_string "4")
+                      (const_string "8")))]
+)
+
+(define_insn "compare_and_jump_tstbit"
+  [(set (pc)
+        (if_then_else (match_operator:BI 0 "predicate_operator"
+                        [(zero_extract:SI (match_operand:SI 1 "gr_register_operand" "Rg, Rg")
+                                          (const_int 1)
+                                          (match_operand:SI 2 "nonmemory_operand"  "Iu5,Rg"))
+                         (const_int 0)
+                        ]
+                      )
+                      (label_ref (match_operand 3 "" ""))
+                      (pc)))
+  (set  (match_operand:BI 4 "pr_register_operand" "=Rp,Rp")
+        (match_op_dup:BI 0 
+          [(zero_extract:SI  (match_dup 1) 
+                             (const_int 1) 
+                             (match_dup 2))
+           (const_int 0)
+          ])
+  )
+  ]
+  "TARGET_V4_FEATURES && crtl->combine_completed"
+  {
+    rtx prediction;
+    int predict_taken;
+    enum rtx_code code;
+
+    predict_taken = 0;
+    code = GET_CODE(operands[0]);
+    prediction = find_reg_note(insn, REG_BR_PROB, 0);
+    predict_taken = (prediction && INTVAL (XEXP (prediction, 0)) > REG_BR_PROB_BASE / 2);
+    if (GET_CODE(operands[2]) == CONST_INT) {
+      switch(code) {
+        case EQ: {
+           if (predict_taken)
+             return "%4 = tstbit(%1,#%2); if (%4.new) jump:t %l3"; 
+           else
+             return "%4 = tstbit(%1,#%2); if (%4.new) jump:nt %l3"; 
+        }
+        case NE: {
+          if (predict_taken)
+            return "%4 = tstbit(%1,#%2); if (!%4.new) jump:t %l3"; 
+          else 
+            return "%4 = tstbit(%1,#%2); if (!%4.new) jump:nt %l3"; 
+        }
+        default:
+          gcc_unreachable();
+      }
+    }
+    else {
+      switch(code) {
+        case EQ: {
+          if (predict_taken)
+            return "%4 = tstbit(%1,%2); if (%4.new) jump:t %l3"; 
+          else
+            return "%4 = tstbit(%1,%2); if (%4.new) jump:nt %l3"; 
+        }
+        case NE: {
+          if (predict_taken)
+            return "%4 = tstbit(%1,%2); if (!%4.new) jump:t %l3"; 
+          else
+            return "%4 = tstbit(%1,%2); if (!%4.new) jump:nt %l3"; 
+        }
+        default:
+          gcc_unreachable();
+      }
+    }
+  }
+  [(set_attr "type" "XJ")]
+)
+
+
+(define_insn "new_value_jump1"
+  [(set (pc)
+        (if_then_else (match_operator:BI 0 "comparison_operator"
+                        [(unspec:SI [(match_operand:SI 1 "gr_register_operand" "Rg,Rg")] 
+                          UNSPEC_NEW_VALUE)
+                         (match_operand:SI 2 "nonmemory_operand"  "Iu5K-1,Rg")
+                         ])
+                      (label_ref (match_operand 3 "" ""))
+                      (pc)))
+  (set  (match_operand:BI 4 "pr_register_operand" "=Rp,Rp")
+            (match_op_dup:BI 0 
+              [(unspec:SI [(match_dup 1)] UNSPEC_NEW_VALUE) 
+               (match_dup 2)
+              ])
+  )
+  ]
+  "TARGET_V4_FEATURES"
+  {
+    operands[5] = qdsp6_branch_hint(insn);
+    enum rtx_code code = GET_CODE(operands[0]);
+    if (GET_CODE(operands[2]) == CONST_INT) {
+      switch(code) {
+        case EQ: return "if (cmp.eq(%1.new,#%2)) jump%h5 %l3"; 
+        case NE: return "if (!cmp.eq(%1.new,#%2)) jump%h5 %l3"; 
+        case GT: return "if (cmp.gt(%1.new,#%2)) jump%h5 %l3"; 
+        case LE: return "if (!cmp.gt(%1.new,#%2)) jump%h5 %l3"; 
+        case GTU: return "if (cmp.gtu(%1.new,#%2)) jump%h5 %l3"; 
+        case LEU: return "if (!cmp.gtu(%1.new,#%2)) jump%h5 %l3"; 
+        default:
+          gcc_unreachable();
+      }
+    }
+    else {
+      switch(code) {
+        case EQ: return "if (cmp.eq(%1.new,%2)) jump%h5 %l3"; 
+        case NE: return "if (!cmp.eq(%1.new,%2)) jump%h5 %l3"; 
+        case GT: return "if (cmp.gt(%1.new,%2)) jump%h5 %l3"; 
+        case LE: return "if (!cmp.gt(%1.new,%2)) jump%h5 %l3"; 
+        case GTU: return "if (cmp.gtu(%1.new,%2)) jump%h5 %l3"; 
+        case LEU: return "if (!cmp.gtu(%1.new,%2)) jump%h5 %l3"; 
+        default:
+          gcc_unreachable();
+      }
+    }
+  }
+  [(set_attr "type" "NewValueJump,ENewValueJump")
+   (set (attr "type")
+        (if_then_else (eq_attr "length" "4")
+                      (const_string "NewValueJump")
+                      (const_string "ENewValueJump")))
+   (set (attr "length")
+        (if_then_else (le (abs (minus (match_dup 3) (pc))) (const_int 804))
+                      (const_string "4")
+                      (const_string "8")))]
+
+)
+
+
+(define_insn "compare_and_jump1"
+  [(set (pc)
+        (if_then_else (match_operator:BI 0 "comparison_operator"
+                        [(match_operand:SI 1 "gr_register_operand" "Rg,Rg") 
+                         (match_operand:SI 2 "nonmemory_operand"  "Iu5K-1,Rg")])
+                      (label_ref (match_operand 3 "" ""))
+                      (pc)))
+  ( set (match_operand:BI 4 "pr_register_operand" "=Rp,Rp")
+        (match_op_dup:BI 0 [(match_dup 1) (match_dup 2)])
+  )
+  ]
+  "TARGET_V4_FEATURES && crtl->combine_completed"
+  {
+    operands[5] = qdsp6_branch_hint(insn);
+    enum rtx_code code = GET_CODE(operands[0]);
+    if (GET_CODE(operands[2]) == CONST_INT) {
+      switch(code) {
+        case EQ: return "%4 = cmp.eq(%1, #%2); if (%4.new) jump%h5 %l3"; 
+        case NE: return "%4 = cmp.eq(%1, #%2); if (!%4.new) jump%h5 %l3"; 
+        case GT: return "%4 = cmp.gt(%1, #%2); if (%4.new) jump%h5 %l3"; 
+        case LE: return "%4 = cmp.gt(%1, #%2); if (!%4.new) jump%h5 %l3"; 
+        case GTU: return "%4 = cmp.gtu(%1, #%2); if (%4.new) jump%h5 %l3"; 
+        case LEU: return "%4 = cmp.gtu(%1, #%2); if (!%4.new) jump%h5 %l3"; 
+        default:
+          gcc_unreachable();
+      }
+    }
+    else {
+      switch(code) {
+        case EQ: return "%4 = cmp.eq(%1, %2); if (%4.new) jump%h5 %l3"; 
+        case NE: return "%4 = cmp.eq(%1, %2); if (!%4.new) jump%h5 %l3"; 
+        case GT: return "%4 = cmp.gt(%1, %2); if (%4.new) jump%h5 %l3"; 
+        case LE: return "%4 = cmp.gt(%1, %2); if (!%4.new) jump%h5 %l3"; 
+        case GTU: return "%4 = cmp.gtu(%1, %2); if (%4.new) jump%h5 %l3"; 
+        case LEU: return "%4 = cmp.gtu(%1, %2); if (!%4.new) jump%h5 %l3"; 
+        default:
+          gcc_unreachable();
+      }
+    }
+  }
+  [(set_attr "type" "AJ")]
+)
+
+(define_insn "new_value_jump2"
+  [(set (pc)
+        (if_then_else (match_operator:BI 0 "comparison_operator"
+                        [(match_operand:SI 1 "nonmemory_operand" "Iu5k-1,Rg") 
+                         (unspec:SI [(match_operand:SI 2 "gr_register_operand"  "Rg,Rg")]
+                          UNSPEC_NEW_VALUE)
+                         ])
+                      (label_ref (match_operand 3 "" ""))
+                      (pc)))
+  (set  (match_operand:BI 4 "pr_register_operand" "=Rp,Rp")
+            (match_op_dup:BI 0 
+              [(match_dup 1)
+              (unspec:SI [(match_dup 2)] UNSPEC_NEW_VALUE) 
+              ])
+  )
+  ]
+  "TARGET_V4_FEATURES"
+  {
+    operands[5] = qdsp6_branch_hint(insn);
+    enum rtx_code code = GET_CODE(operands[0]);
+    if (GET_CODE(operands[1]) == CONST_INT) {
+      switch(code) {
+        case EQ: return "if (cmp.eq(#%1,%2.new)) jump%h5 %l3"; 
+        case NE: return "if (!cmp.eq(#%%1,%2.new)) jump%h5 %l3"; 
+        case GT: return "if (cmp.gt(#%%1,%2.new)) jump%h5 %l3"; 
+        case LE: return "if (!cmp.gt(#%%1,%2.new)) jump%h5 %l3"; 
+        case GTU: return "if (cmp.gtu(#%%1,%2.new)) jump%h5 %l3"; 
+        case LEU: return "if (!cmp.gtu(#%%1,%2.new)) jump%h5 %l3"; 
+        default:
+          gcc_unreachable();
+      }
+    }
+    else {
+      switch(code) {
+        case EQ: return "if (cmp.eq(%1,%2.new)) jump%h5 %l3"; 
+        case NE: return "if (!cmp.eq(%1,%2.new)) jump%h5 %l3"; 
+        case GT: return "if (cmp.gt(%1,%2.new)) jump%h5 %l3"; 
+        case LE: return "if (!cmp.gt(%1,%2.new)) jump%h5 %l3"; 
+        case GTU: return "if (cmp.gtu(%1,%2.new)) jump%h5 %l3"; 
+        case LEU: return "if (!cmp.gtu(%1,%2.new)) jump%h5 %l3"; 
+        default:
+          gcc_unreachable();
+      }
+    }
+  }
+  [(set_attr "type" "NewValueJump,ENewValueJump")
+   (set (attr "type")
+        (if_then_else (eq_attr "length" "4")
+                      (const_string "NewValueJump")
+                      (const_string "ENewValueJump")))
+   (set (attr "length")
+        (if_then_else (le (abs (minus (match_dup 3) (pc))) (const_int 804))
+                      (const_string "4")
+                      (const_string "8")))]
+
+)
+
+
+(define_insn "compare_and_jump2"
+  [(set (pc)
+        (if_then_else (match_operator:BI 0 "comparison_operator"
+                        [(match_operand:SI 1 "nonmemory_operand"  "Iu5K-1,Rg")
+                        (match_operand:SI 2 "gr_register_operand" "Rg,Rg")])
+                      (label_ref (match_operand 3 "" ""))
+                      (pc)))
+  ( set (match_operand:BI 4 "pr_register_operand" "=Rp,Rp")
+        (match_op_dup:BI 0 [(match_dup 1) (match_dup 2)])
+  )
+  ]
+  "TARGET_V4_FEATURES && crtl->combine_completed"
+  {
+    operands[5] = qdsp6_branch_hint(insn);
+    enum rtx_code code = GET_CODE(operands[0]);
+    if (GET_CODE(operands[1]) == CONST_INT) {
+      switch(code) {
+        case EQ: return "%4 = cmp.eq(#%1, %2); if (%4.new) jump%h5 %l3"; 
+        case NE: return "%4 = cmp.eq(#%1, %2); if (!%4.new) jump%h5 %l3"; 
+        case GT: return "%4 = cmp.gt(#%1, %2); if (%4.new) jump%h5 %l3"; 
+        case LE: return "%4 = cmp.gt(#%1, %2); if (!%4.new) jump%h5 %l3"; 
+        case GTU: return "%4 = cmp.gtu(#%1, %2); if (%4.new) jump%h5 %l3"; 
+        case LEU: return "%4 = cmp.gtu(#%1, %2); if (!%4.new) jump%h5 %l3"; 
+        default:
+          gcc_unreachable();
+      }
+    }
+    else {
+      switch(code) {
+        case EQ: return "%4 = cmp.eq(%1, %2); if (%4.new) jump%h5 %l3"; 
+        case NE: return "%4 = cmp.eq(%1, %2); if (!%4.new) jump%h5 %l3"; 
+        case GT: return "%4 = cmp.gt(%1, %2); if (%4.new) jump%h5 %l3"; 
+        case LE: return "%4 = cmp.gt(%1, %2); if (!%4.new) jump%h5 %l3"; 
+        case GTU: return "%4 = cmp.gtu(%1, %2); if (%4.new) jump%h5 %l3"; 
+        case LEU: return "%4 = cmp.gtu(%1, %2); if (!%4.new) jump%h5 %l3"; 
+        default:
+          gcc_unreachable();
+      }
+    }
+  }
+  [(set_attr "type" "AJ")]
+)
+ 
+ 
 ;;----------------;;
 ;; cbranch{mode}4 ;;
 ;;----------------;;
@@ -3747,6 +4306,13 @@
     if(TARGET_LONG_CALLS && !REG_P (XEXP (operands[0], 0))){
       XEXP (operands[0], 0) = force_reg(Pmode, XEXP (operands[0], 0));
     }
+    else {
+      if (flag_pic) {
+        operands[0] = legitimize_pic_address(operands[0], SImode,
+                                             (can_create_pseudo_p()
+                                              ? NULL_RTX : operands[0]));
+      }
+    }
   }
 )
 
@@ -3755,10 +4321,34 @@
          (match_operand 1 "" ""))
    (clobber (reg:SI LINK_REGNUM))]
   "!TARGET_LONG_CALLS"
-  "@
-   call %0
-   callr %0"
+  {
+    if (which_alternative == 0){
+      if (flag_pic) {  
+        return "call %0@PLT";
+      }
+      else {
+        return "call %0";
+      }
+    }
+    else{
+      return "callr %0";
+    }
+  }
   [(set_attr "type" "J,JR")]
+)
+
+(define_expand  "call_register_expand"
+  [(call (mem:HI (match_operand:SI 0 "gr_register_operand" "Rg"))
+         (match_operand 1 "" ""))
+   (clobber (reg:SI LINK_REGNUM))]
+  ""
+  {
+    if (flag_pic){
+      operands[0] = legitimize_pic_address(operands[0], SImode,
+                                           (can_create_pseudo_p()
+                                            ? NULL_RTX : operands[0]));
+    }
+  }
 )
 
 (define_insn "call_register"
@@ -3783,10 +4373,21 @@
          (match_operand 1 "" ""))
    (return)]
   "!TARGET_LONG_CALLS"
-  "@
-   jump %0
-   jumpr %0"
-  [(set_attr "type" "J,JR")]
+  {
+    if (which_alternative == 0){
+      if (flag_pic){
+        return "jump %0@PLT";
+      }
+      else{
+	return "jump %0";
+      }
+    }
+    else{
+      return "jumpr %0";
+    }
+  }
+  [(set_attr "type" "J,JR")
+   (set_attr "duplex" "no,no")]
 )
 
 
@@ -3801,6 +4402,9 @@
               (clobber (reg:SI LINK_REGNUM))])]
   ""
   {
+    if (flag_unsafe_math_optimizations){
+       qdsp6_fast_math_libfunc (operands[1]);
+    }
     if(TARGET_LONG_CALLS && !REG_P (XEXP (operands[1], 0))){
       XEXP (operands[1], 0) = force_reg(Pmode, XEXP (operands[1], 0));
     }
@@ -3813,9 +4417,19 @@
               (match_operand 2 "" "")))
    (clobber (reg:SI LINK_REGNUM))]
   "!TARGET_LONG_CALLS"
-  "@
-   call %1
-   callr %1"
+  {
+    if (which_alternative == 0){
+      if (flag_pic){  
+        return "call %1@PLT";
+      } 
+      else{
+	return "call %1";
+       }
+    }
+    else{
+      return "callr %1";
+    }
+  }
   [(set_attr "type" "J,JR")]
 )
 
@@ -3835,7 +4449,11 @@
                          (match_operand 2 "" "")))
               (return)])]
   "!TARGET_LONG_CALLS"
-  ""
+  {
+    if (flag_unsafe_math_optimizations){
+       qdsp6_fast_math_libfunc (operands[1]);
+    }
+  }
 )
 
 (define_insn "sibcall_value_real"
@@ -3844,10 +4462,21 @@
               (match_operand 2 "" "")))
    (return)]
   "!TARGET_LONG_CALLS"
-  "@
-   jump %1
-   jumpr %1"
-  [(set_attr "type" "J,JR")]
+  {
+    if (which_alternative == 0){
+      if (flag_pic){  
+        return "jump %1@PLT";
+      }
+      else{
+	return "jump %1";
+      }
+    }
+    else{
+      return "jumpr %1";
+    }
+  }
+  [(set_attr "type" "J,JR")
+   (set_attr "duplex" "no,no")]
 )
 
 
@@ -3887,26 +4516,14 @@
 (define_insn_and_split "cond_return"
   [(set (pc)
         (if_then_else (match_operator:BI 0 "predicate_operator"
-                        [(match_operand:BI 1 "pr_register_operand" "Rp,Rnp")
+                        [(match_operand:BI 1 "pr_register_operand" "Rp")
                          (const_int 0)])
                       (return)
                       (pc)))]
   "qdsp6_direct_return()"
   {
-    rtx prediction;
-    if(which_alternative == 0){
-      return "if (%C0) jumpr r31";
-    }
-    else {
-      gcc_assert(TARGET_V3_FEATURES);
-      prediction = find_reg_note (insn, REG_BR_PROB, 0);
-      if(prediction && INTVAL (XEXP (prediction, 0)) > REG_BR_PROB_BASE / 2){
-        return "if (%C0) jumpr:t r31";
-      }
-      else {
-        return "if (%C0) jumpr:nt r31";
-      }
-    }
+    operands[2] = qdsp6_branch_hint(insn);
+    return "if (%C0) jumpr%h2 r31";
   }
   "cfun->machine->frame_info.use_allocframe"
   [(parallel [(set (pc)
@@ -3925,57 +4542,14 @@
   {
     gcc_assert(TARGET_V4_FEATURES);
   }
-  [(set_attr "type" "JR")]
-)
-
-(define_insn_and_split "cond_return_inverse"
-  [(set (pc)
-        (if_then_else (match_operator:BI 0 "predicate_operator"
-                        [(match_operand:BI 1 "pr_register_operand" "Rp,Rnp")
-                         (const_int 0)])
-                      (pc)
-                      (return)))]
-  "qdsp6_direct_return()"
-  {
-    rtx prediction;
-    if(which_alternative == 0){
-      return "if (%I0) jumpr r31";
-    }
-    else {
-      gcc_assert(TARGET_V3_FEATURES);
-      prediction = find_reg_note (insn, REG_BR_PROB, 0);
-      if(prediction && INTVAL (XEXP (prediction, 0)) > REG_BR_PROB_BASE / 2){
-        return "if (%I0) jumpr:t r31";
-      }
-      else {
-        return "if (%I0) jumpr:nt r31";
-      }
-    }
-  }
-  "cfun->machine->frame_info.use_allocframe"
-  [(parallel [(set (pc)
-                   (if_then_else (match_dup 0)
-                                 (pc)
-                                 (return)))
-              (cond_exec
-                (match_dup 0)
-                (parallel
-                  [(set (reg:SI SP_REGNUM)
-                        (plus:SI (reg:SI FP_REGNUM) (const_int 8)))
-                   (set (reg:SI LINK_REGNUM)
-                        (mem:SI (plus:SI (reg:SI FP_REGNUM) (const_int 4))))
-                   (set (reg:SI FP_REGNUM)
-                        (mem:SI (reg:SI FP_REGNUM)))]))])]
-  {
-    gcc_assert(TARGET_V4_FEATURES);
-  }
-  [(set_attr "type" "JR")]
+  [(set_attr "type" "JR")
+   (set_attr "duplex" "yes")]
 )
 
 (define_insn "cond_dealloc_return"
   [(set (pc)
         (if_then_else (match_operator:BI 0 "predicate_operator"
-                        [(match_operand:BI 1 "pr_register_operand" "Rp,Rnp")
+                        [(match_operand:BI 1 "pr_register_operand" "Rp")
                          (const_int 0)])
                       (return)
                       (pc)))
@@ -3990,56 +4564,11 @@
              (mem:SI (reg:SI FP_REGNUM)))]))]
   "qdsp6_direct_return()"
   {
-    rtx prediction;
-    if(which_alternative == 0){
-      return "if (%C0) dealloc_return";
-    }
-    else {
-      prediction = find_reg_note (insn, REG_BR_PROB, 0);
-      if(prediction && INTVAL (XEXP (prediction, 0)) > REG_BR_PROB_BASE / 2){
-        return "if (%C0) dealloc_return:t";
-      }
-      else {
-        return "if (%C0) dealloc_return:nt";
-      }
-    }
+    operands[2] = qdsp6_branch_hint(insn);
+    return "if (%C0) dealloc_return%h2";
   }
-  [(set_attr "type" "NewValue")]
-)
-
-(define_insn "cond_dealloc_inverse"
-  [(set (pc)
-        (if_then_else (match_operator:BI 0 "predicate_operator"
-                        [(match_operand:BI 1 "pr_register_operand" "Rp,Rnp")
-                         (const_int 0)])
-                      (pc)
-                      (return)))
-   (cond_exec
-     (match_dup 0)
-     (parallel
-       [(set (reg:SI SP_REGNUM)
-             (plus:SI (reg:SI FP_REGNUM) (const_int 8)))
-        (set (reg:SI LINK_REGNUM)
-             (mem:SI (plus:SI (reg:SI FP_REGNUM) (const_int 4))))
-        (set (reg:SI FP_REGNUM)
-             (mem:SI (reg:SI FP_REGNUM)))]))]
-  "qdsp6_direct_return()"
-  {
-    rtx prediction;
-    if(which_alternative == 0){
-      return "if (%I0) dealloc_return";
-    }
-    else {
-      prediction = find_reg_note (insn, REG_BR_PROB, 0);
-      if(prediction && INTVAL (XEXP (prediction, 0)) > REG_BR_PROB_BASE / 2){
-        return "if (%I0) dealloc_return:t";
-      }
-      else {
-        return "if (%I0) dealloc_return:nt";
-      }
-    }
-  }
-  [(set_attr "type" "NewValue")]
+  [(set_attr "type" "NewValue")
+   (set_attr "duplex" "yes")]
 )
 
 
@@ -4069,35 +4598,24 @@
   [(set (pc) (match_operand:SI 0 "nonimmediate_operand" "Rg"))]
   ""
   "jumpr %0"
-  [(set_attr "type" "JR")]
+  [(set_attr "type" "JR")
+   (set_attr "duplex" "yes")]
 )
 
 (define_insn "cond_jump_reg_indirect"
   [(set (pc)
         (if_then_else (match_operator:BI 0 "predicate_operator"
-                        [(match_operand:BI 1 "pr_register_operand" "Rp,Rnp")
+                        [(match_operand:BI 1 "pr_register_operand" "Rp")
                          (const_int 0)])
-                      (match_operand 2 "gr_register_operand" "Rg,Rg")
+                      (match_operand 2 "gr_register_operand" "Rg")
                       (pc)))]
   ""
   {
-    rtx prediction;
-
-    if(which_alternative == 0){
-      return "if (%C0) jumpr %2";
-    }
-    else {
-      gcc_assert(TARGET_V3_FEATURES);
-      prediction = find_reg_note(insn, REG_BR_PROB, 0);
-      if(prediction && INTVAL (XEXP (prediction, 0)) > REG_BR_PROB_BASE / 2){
-        return "if (%C0) jumpr:t %2";
-      }
-      else {
-        return "if (%C0) jumpr:nt %2";
-      }
-    }
+    operands[3] = qdsp6_branch_hint(insn);
+    return "if (%C0) jumpr%h3 %2";
   }
-  [(set_attr "type" "JR")]
+  [(set_attr "type" "JR")
+   (set_attr "duplex" "yes")]
 )
 
 
@@ -4110,12 +4628,33 @@
 ;; tablejump ;;
 ;;-----------;;
 
-(define_insn "tablejump"
+(define_expand "tablejump"
+ [(set (pc) (match_operand:SI 0 "nonimmediate_operand" "Rg"))
+   (use (label_ref (match_operand 1 "" "")))]
+ ""
+ {
+   if (flag_pic){
+     rtx addend;
+     require_pic_register();
+     addend = gen_reg_rtx(SImode);
+     emit_insn(gen_addsi3(addend, operands[0], pic_offset_table_rtx));
+     emit_jump_insn(gen_tablejump_real(addend, operands[1]));
+     DONE;
+   }
+   else{
+     emit_jump_insn(gen_tablejump_real(operands[0], operands[1]));
+     DONE;
+   }
+ }
+)
+
+(define_insn "tablejump_real"
   [(set (pc) (match_operand:SI 0 "nonimmediate_operand" "Rg"))
    (use (label_ref (match_operand 1 "" "")))]
   ""
   "jumpr %0"
-  [(set_attr "type" "JR")]
+  [(set_attr "type" "JR")
+   (set_attr "duplex" "yes")]
 )
 
 
@@ -4311,22 +4850,44 @@
     }
     else {
       if(which_alternative == 0){
-        return "%2 = %0\;"
-               "{\;"
-               "  lc0 = %2\;"
-               "  %2.h = #HI(%1)\;"
-               "}\;"
-               "%2.l = #LO(%1)\;"
-               "sa0 = %2";
+        if(flag_pic) {
+          return "%2 = %0\;"
+                 "{\;"
+                 "  lc0 = %2\;"
+                 "  %2.h = #HI(%1@GOTOFF)\;"
+                 "}\;"
+                 "%2.l = #LO(%1@GOTOFF)\;"
+                 "sa0 = %2";
+	}
+        else {
+          return "%2 = %0\;"
+                 "{\;"
+                 "  lc0 = %2\;"
+                 "  %2.h = #HI(%1)\;"
+                 "}\;"
+                 "%2.l = #LO(%1)\;"
+                 "sa0 = %2";
+        }
       }
       else {
-        return "%2 = #%0\;"
-               "{\;"
-               "  lc0 = %2\;"
-               "  %2.h = #HI(%1)\;"
-               "}\;"
-               "%2.l = #LO(%1)\;"
-               "sa0 = %2";
+        if(flag_pic) {
+          return "%2 = #%0\;"
+                 "{\;"
+                 "  lc0 = %2\;"
+                 "  %2.h = #HI(%1@GOTOFF)\;"
+                 "}\;"
+                 "%2.l = #LO(%1@GOTOFF)\;"
+                 "sa0 = %2";
+        }
+	else {
+          return "%2 = #%0\;"
+                 "{\;"
+                 "  lc0 = %2\;"
+                 "  %2.h = #HI(%1)\;"
+                 "}\;"
+                 "%2.l = #LO(%1)\;"
+                 "sa0 = %2";
+        }
       }
     }
   }
@@ -4353,7 +4914,7 @@
   [(set (reg:SI LC1_REGNUM) (match_operand:SI 0 "nonmemory_operand" "Rg,Iu10"))
    (set (reg:SI SA1_REGNUM) (label_ref (match_operand 1 "" "")))
    (clobber (match_scratch:SI 2 "=&Rg,&Rg"))]
-  ""
+  "!flag_pic"
   {
     if(get_attr_length(insn) == 4){
       if(which_alternative == 0){
@@ -4365,22 +4926,44 @@
     }
     else {
       if(which_alternative == 0){
-        return "%2 = %0\;"
-               "{\;"
-               "  lc1 = %2\;"
-               "  %2.h = #HI(%1)\;"
-               "}\;"
-               "%2.l = #LO(%1)\;"
-               "sa1 = %2";
+        if(flag_pic) {
+          return "%2 = %0\;"
+                 "{\;"
+                 "  lc1 = %2\;"
+                 "  %2.h = #HI(%1@GOTOFF)\;"
+                 "}\;"
+                 "%2.l = #LO(%1@GOTOFF)\;"
+                 "sa1 = %2";
+        }
+	else {
+          return "%2 = %0\;"
+                 "{\;"
+                 "  lc1 = %2\;"
+                 "  %2.h = #HI(%1)\;"
+                 "}\;"
+                 "%2.l = #LO(%1)\;"
+                 "sa1 = %2";
+        }
       }
       else {
-        return "%2 = #%0\;"
-               "{\;"
-               "  lc1 = %2\;"
-               "  %2.h = #HI(%1)\;"
-               "}\;"
-               "%2.l = #LO(%1)\;"
-               "sa1 = %2";
+        if(flag_pic) {
+          return "%2 = #%0\;"
+                 "{\;"
+                 "  lc1 = %2\;"
+                 "  %2.h = #HI(%1@GOTOFF)\;"
+                 "}\;"
+                 "%2.l = #LO(%1@GOTOFF)\;"
+                 "sa1 = %2";
+        }
+	else {
+         return "%2 = #%0\;"
+                 "{\;"
+                 "  lc1 = %2\;"
+                 "  %2.h = #HI(%1)\;"
+                 "}\;"
+                 "%2.l = #LO(%1)\;"
+                 "sa1 = %2";
+         }
       }
     }
   }
@@ -4758,40 +5341,19 @@
    (set (match_dup 0) (unspec:SI [(match_dup 0)] UNSPEC_NOP))]
 )
 
-(define_insn_and_split "andttbisi3_v2"
-  [(set (match_operand:SI 0 "gr_register_operand" "=Rg")
-        (if_then_else:SI
-          (and:BI (match_operand:BI 1 "pr_register_operand" "Rp")
-                  (match_operand:BI 2 "pr_register_operand" "Rp"))
-          (const_int 1) (const_int 0)))
-   (clobber (match_scratch:BI 3 "=Rp"))]
-  "TARGET_V2_FEATURES"
-  "#"
-  "reload_completed"
-  [(set (match_dup 3) (and:BI (match_dup 1) (match_dup 2)))
-   (set (match_dup 0) (if_then_else:SI (ne:BI (match_dup 3) (const_int 0))
-                                       (const_int 1) (const_int 0)))]
-  ""
-  [(set_attr "type" "multiple")]
-)
-
 (define_insn_and_split "andttbisi3"
   [(set (match_operand:SI 0 "gr_register_operand" "=Rg")
         (if_then_else:SI
           (and:BI (match_operand:BI 1 "pr_register_operand" "Rp")
                   (match_operand:BI 2 "pr_register_operand" "Rp"))
           (const_int 1) (const_int 0)))
-   (clobber (match_scratch:BI 3 "=Rp"))
-   (clobber (match_scratch:SI 4 "=Rg"))
-   (clobber (match_scratch:SI 5 "=Rg"))]
+   (clobber (match_scratch:BI 3 "=Rp"))]
   ""
   "#"
   "reload_completed"
-  [(set (match_dup 4) (const_int 1))
-   (set (match_dup 5) (const_int 0))
-   (set (match_dup 3) (and:BI (match_dup 1) (match_dup 2)))
+  [(set (match_dup 3) (and:BI (match_dup 1) (match_dup 2)))
    (set (match_dup 0) (if_then_else:SI (ne:BI (match_dup 3) (const_int 0))
-                                       (match_dup 4) (match_dup 5)))]
+                                       (const_int 1) (const_int 0)))]
   ""
   [(set_attr "type" "multiple")]
 )
@@ -4857,40 +5419,19 @@
    (set (match_dup 0) (unspec:SI [(match_dup 0)] UNSPEC_NOP))]
 )
 
-(define_insn_and_split "andtfbisi3_v2"
-  [(set (match_operand:SI 0 "gr_register_operand" "=Rg")
-        (if_then_else:SI
-          (and:BI (not:BI (match_operand:BI 1 "pr_register_operand" "Rp"))
-                  (match_operand:BI 2 "pr_register_operand" "Rp"))
-          (const_int 1) (const_int 0)))
-   (clobber (match_scratch:BI 3 "=Rp"))]
-  "TARGET_V2_FEATURES"
-  "#"
-  "reload_completed"
-  [(set (match_dup 3) (and:BI (not:BI (match_dup 1)) (match_dup 2)))
-   (set (match_dup 0) (if_then_else:SI (ne:BI (match_dup 3) (const_int 0))
-                                       (const_int 1) (const_int 0)))]
-  ""
-  [(set_attr "type" "multiple")]
-)
-
 (define_insn_and_split "andtfbisi3"
   [(set (match_operand:SI 0 "gr_register_operand" "=Rg")
         (if_then_else:SI
           (and:BI (not:BI (match_operand:BI 1 "pr_register_operand" "Rp"))
                   (match_operand:BI 2 "pr_register_operand" "Rp"))
           (const_int 1) (const_int 0)))
-   (clobber (match_scratch:BI 3 "=Rp"))
-   (clobber (match_scratch:SI 4 "=Rg"))
-   (clobber (match_scratch:SI 5 "=Rg"))]
+   (clobber (match_scratch:BI 3 "=Rp"))]
   ""
   "#"
   "reload_completed"
-  [(set (match_dup 4) (const_int 1))
-   (set (match_dup 5) (const_int 0))
-   (set (match_dup 3) (and:BI (not:BI (match_dup 1)) (match_dup 2)))
+  [(set (match_dup 3) (and:BI (not:BI (match_dup 1)) (match_dup 2)))
    (set (match_dup 0) (if_then_else:SI (ne:BI (match_dup 3) (const_int 0))
-                                       (match_dup 4) (match_dup 5)))]
+                                       (const_int 1) (const_int 0)))]
   ""
   [(set_attr "type" "multiple")]
 )
@@ -4918,23 +5459,8 @@
                        (match_operand:BI 2 "pr_register_operand" ""))
                (const_int 1) (const_int 0))] UNSPEC_NOP)
           (const_int 0)))]
-  "TARGET_V2_FEATURES"
+  ""
   [(set (match_dup 0) (ior:BI (not:BI (match_dup 2)) (match_dup 1)))]
-  ""
-)
-
-(define_split
-  [(set (match_operand:BI 0 "pr_register_operand" "")
-        (eq:BI
-          (unspec:SI
-            [(if_then_else:SI
-               (and:BI (not:BI (match_operand:BI 1 "pr_register_operand" ""))
-                       (match_operand:BI 2 "pr_register_operand" ""))
-               (const_int 1) (const_int 0))] UNSPEC_NOP)
-          (const_int 0)))]
-  ""
-  [(set (match_dup 0) (and:BI (not:BI (match_dup 1)) (match_dup 2)))
-   (set (match_dup 0) (not:BI (match_dup 0)))]
   ""
 )
 
@@ -4955,40 +5481,19 @@
    (set (match_dup 0) (unspec:SI [(match_dup 0)] UNSPEC_NOP))]
 )
 
-(define_insn_and_split "andffbisi3_v2"
-  [(set (match_operand:SI 0 "gr_register_operand" "=Rg")
-        (if_then_else:SI
-          (and:BI (not:BI (match_operand:BI 1 "pr_register_operand" "Rp"))
-                  (not:BI (match_operand:BI 2 "pr_register_operand" "Rp")))
-          (const_int 1) (const_int 0)))
-   (clobber (match_scratch:BI 3 "=Rp"))]
-  "TARGET_V2_FEATURES"
-  "#"
-  "reload_completed"
-  [(set (match_dup 3) (ior:BI (match_dup 1) (match_dup 2)))
-   (set (match_dup 0) (if_then_else:SI (eq:BI (match_dup 3) (const_int 0))
-                                       (const_int 1) (const_int 0)))]
-  ""
-  [(set_attr "type" "multiple")]
-)
-
 (define_insn_and_split "andffbisi3"
   [(set (match_operand:SI 0 "gr_register_operand" "=Rg")
         (if_then_else:SI
           (and:BI (not:BI (match_operand:BI 1 "pr_register_operand" "Rp"))
                   (not:BI (match_operand:BI 2 "pr_register_operand" "Rp")))
           (const_int 1) (const_int 0)))
-   (clobber (match_scratch:BI 3 "=Rp"))
-   (clobber (match_scratch:SI 4 "=Rg"))
-   (clobber (match_scratch:SI 5 "=Rg"))]
+   (clobber (match_scratch:BI 3 "=Rp"))]
   ""
   "#"
   "reload_completed"
-  [(set (match_dup 4) (const_int 1))
-   (set (match_dup 5) (const_int 0))
-   (set (match_dup 3) (ior:BI (match_dup 1) (match_dup 2)))
+  [(set (match_dup 3) (ior:BI (match_dup 1) (match_dup 2)))
    (set (match_dup 0) (if_then_else:SI (eq:BI (match_dup 3) (const_int 0))
-                                       (match_dup 4) (match_dup 5)))]
+                                       (const_int 1) (const_int 0)))]
   ""
   [(set_attr "type" "multiple")]
 )
@@ -5039,40 +5544,19 @@
    (set (match_dup 0) (unspec:SI [(match_dup 0)] UNSPEC_NOP))]
 )
 
-(define_insn_and_split "iorttbisi3_v2"
-  [(set (match_operand:SI 0 "gr_register_operand" "=Rg")
-        (if_then_else:SI
-          (ior:BI (match_operand:BI 1 "pr_register_operand" "Rp")
-                  (match_operand:BI 2 "pr_register_operand" "Rp"))
-          (const_int 1) (const_int 0)))
-   (clobber (match_scratch:BI 3 "=Rp"))]
-  "TARGET_V2_FEATURES"
-  "#"
-  "reload_completed"
-  [(set (match_dup 3) (ior:BI (match_dup 1) (match_dup 2)))
-   (set (match_dup 0) (if_then_else:SI (ne:BI (match_dup 3) (const_int 0))
-                                       (const_int 1) (const_int 0)))]
-  ""
-  [(set_attr "type" "multiple")]
-)
-
 (define_insn_and_split "iorttbisi3"
   [(set (match_operand:SI 0 "gr_register_operand" "=Rg")
         (if_then_else:SI
           (ior:BI (match_operand:BI 1 "pr_register_operand" "Rp")
                   (match_operand:BI 2 "pr_register_operand" "Rp"))
           (const_int 1) (const_int 0)))
-   (clobber (match_scratch:BI 3 "=Rp"))
-   (clobber (match_scratch:SI 4 "=Rg"))
-   (clobber (match_scratch:SI 5 "=Rg"))]
+   (clobber (match_scratch:BI 3 "=Rp"))]
   ""
   "#"
   "reload_completed"
-  [(set (match_dup 4) (const_int 1))
-   (set (match_dup 5) (const_int 0))
-   (set (match_dup 3) (ior:BI (match_dup 1) (match_dup 2)))
+  [(set (match_dup 3) (ior:BI (match_dup 1) (match_dup 2)))
    (set (match_dup 0) (if_then_else:SI (ne:BI (match_dup 3) (const_int 0))
-                                       (match_dup 4) (match_dup 5)))]
+                                       (const_int 1) (const_int 0)))]
   ""
   [(set_attr "type" "multiple")]
 )
@@ -5138,14 +5622,14 @@
    (set (match_dup 0) (unspec:SI [(match_dup 0)] UNSPEC_NOP))]
 )
 
-(define_insn_and_split "iortfbisi3_v2"
+(define_insn_and_split "iortfbisi3"
   [(set (match_operand:SI 0 "gr_register_operand" "=Rg")
         (if_then_else:SI
           (ior:BI (not:BI (match_operand:BI 1 "pr_register_operand" "Rp"))
                   (match_operand:BI 2 "pr_register_operand" "Rp"))
           (const_int 1) (const_int 0)))
    (clobber (match_scratch:BI 3 "=Rp"))]
-  "TARGET_V2_FEATURES"
+  ""
   "#"
   "reload_completed"
   [(set (match_dup 3) (ior:BI (not:BI (match_dup 1)) (match_dup 2)))
@@ -5155,27 +5639,6 @@
   [(set_attr "type" "multiple")]
 )
 
-(define_insn_and_split "iortfbisi3"
-  [(set (match_operand:SI 0 "gr_register_operand" "=Rg")
-        (if_then_else:SI
-          (ior:BI (not:BI (match_operand:BI 1 "pr_register_operand" "Rp"))
-                  (match_operand:BI 2 "pr_register_operand" "Rp"))
-          (const_int 1) (const_int 0)))
-   (clobber (match_scratch:BI 3 "=Rp"))
-   (clobber (match_scratch:SI 4 "=Rg"))
-   (clobber (match_scratch:SI 5 "=Rg"))]
-  ""
-  "#"
-  "reload_completed"
-  [(set (match_dup 4) (const_int 1))
-   (set (match_dup 5) (const_int 0))
-   (set (match_dup 3) (and:BI (not:BI (match_dup 2)) (match_dup 1)))
-   (set (match_dup 0) (if_then_else:SI (eq:BI (match_dup 3) (const_int 0))
-                                       (match_dup 4) (match_dup 5)))]
-  ""
-  [(set_attr "type" "multiple")]
-)
-
 (define_split
   [(set (match_operand:BI 0 "pr_register_operand" "")
         (ne:BI
@@ -5185,23 +5648,8 @@
                        (match_operand:BI 2 "pr_register_operand" ""))
                (const_int 1) (const_int 0))] UNSPEC_NOP)
           (const_int 0)))]
-  "TARGET_V2_FEATURES"
+  ""
   [(set (match_dup 0) (ior:BI (not:BI (match_dup 1)) (match_dup 2)))]
-  ""
-)
-
-(define_split
-  [(set (match_operand:BI 0 "pr_register_operand" "")
-        (ne:BI
-          (unspec:SI
-            [(if_then_else:SI
-               (ior:BI (not:BI (match_operand:BI 1 "pr_register_operand" ""))
-                       (match_operand:BI 2 "pr_register_operand" ""))
-               (const_int 1) (const_int 0))] UNSPEC_NOP)
-          (const_int 0)))]
-  ""
-  [(set (match_dup 0) (and:BI (not:BI (match_dup 2)) (match_dup 1)))
-   (set (match_dup 0) (not:BI (match_dup 0)))]
   ""
 )
 
@@ -5236,40 +5684,19 @@
    (set (match_dup 0) (unspec:SI [(match_dup 0)] UNSPEC_NOP))]
 )
 
-(define_insn_and_split "iorffbisi3_v2"
-  [(set (match_operand:SI 0 "gr_register_operand" "=Rg")
-        (if_then_else:SI
-          (ior:BI (not:BI (match_operand:BI 1 "pr_register_operand" "Rp"))
-                  (not:BI (match_operand:BI 2 "pr_register_operand" "Rp")))
-          (const_int 1) (const_int 0)))
-   (clobber (match_scratch:BI 3 "=Rp"))]
-  "TARGET_V2_FEATURES"
-  "#"
-  "reload_completed"
-  [(set (match_dup 3) (and:BI (match_dup 1) (match_dup 2)))
-   (set (match_dup 0) (if_then_else:SI (eq:BI (match_dup 3) (const_int 0))
-                                       (const_int 1) (const_int 0)))]
-  ""
-  [(set_attr "type" "multiple")]
-)
-
 (define_insn_and_split "iorffbisi3"
   [(set (match_operand:SI 0 "gr_register_operand" "=Rg")
         (if_then_else:SI
           (ior:BI (not:BI (match_operand:BI 1 "pr_register_operand" "Rp"))
                   (not:BI (match_operand:BI 2 "pr_register_operand" "Rp")))
           (const_int 1) (const_int 0)))
-   (clobber (match_scratch:BI 3 "=Rp"))
-   (clobber (match_scratch:SI 4 "=Rg"))
-   (clobber (match_scratch:SI 5 "=Rg"))]
+   (clobber (match_scratch:BI 3 "=Rp"))]
   ""
   "#"
   "reload_completed"
-  [(set (match_dup 4) (const_int 1))
-   (set (match_dup 5) (const_int 0))
-   (set (match_dup 3) (and:BI (match_dup 1) (match_dup 2)))
+  [(set (match_dup 3) (and:BI (match_dup 1) (match_dup 2)))
    (set (match_dup 0) (if_then_else:SI (eq:BI (match_dup 3) (const_int 0))
-                                       (match_dup 4) (match_dup 5)))]
+                                       (const_int 1) (const_int 0)))]
   ""
   [(set_attr "type" "multiple")]
 )
@@ -5352,40 +5779,19 @@
   ""
 )
 
-(define_insn_and_split "xorttbisi3_v2"
-  [(set (match_operand:SI 0 "gr_register_operand" "=Rg")
-        (if_then_else:SI
-          (xor:BI (match_operand:BI 1 "pr_register_operand" "Rp")
-                  (match_operand:BI 2 "pr_register_operand" "Rp"))
-          (const_int 1) (const_int 0)))
-   (clobber (match_scratch:BI 3 "=Rp"))]
-  "TARGET_V2_FEATURES"
-  "#"
-  "reload_completed"
-  [(set (match_dup 3) (xor:BI (match_dup 1) (match_dup 2)))
-   (set (match_dup 0) (if_then_else:SI (ne:BI (match_dup 3) (const_int 0))
-                                       (const_int 1) (const_int 0)))]
-  ""
-  [(set_attr "type" "multiple")]
-)
-
 (define_insn_and_split "xorttbisi3"
   [(set (match_operand:SI 0 "gr_register_operand" "=Rg")
         (if_then_else:SI
           (xor:BI (match_operand:BI 1 "pr_register_operand" "Rp")
                   (match_operand:BI 2 "pr_register_operand" "Rp"))
           (const_int 1) (const_int 0)))
-   (clobber (match_scratch:BI 3 "=Rp"))
-   (clobber (match_scratch:SI 4 "=Rg"))
-   (clobber (match_scratch:SI 5 "=Rg"))]
+   (clobber (match_scratch:BI 3 "=Rp"))]
   ""
   "#"
   "reload_completed"
-  [(set (match_dup 4) (const_int 1))
-   (set (match_dup 5) (const_int 0))
-   (set (match_dup 3) (xor:BI (match_dup 1) (match_dup 2)))
+  [(set (match_dup 3) (xor:BI (match_dup 1) (match_dup 2)))
    (set (match_dup 0) (if_then_else:SI (ne:BI (match_dup 3) (const_int 0))
-                                       (match_dup 4) (match_dup 5)))]
+                                       (const_int 1) (const_int 0)))]
   ""
   [(set_attr "type" "multiple")]
 )
@@ -5461,36 +5867,17 @@
   ""
 )
 
-(define_insn_and_split "xortfbisi3_v2"
+(define_insn_and_split "xortfbisi3"
   [(set (match_operand:SI 0 "gr_register_operand" "=Rg")
         (eq:SI (match_operand:BI 1 "pr_register_operand" "Rp")
                (match_operand:BI 2 "pr_register_operand" "Rp")))
    (clobber (match_scratch:BI 3 "=Rp"))]
-  "TARGET_V2_FEATURES"
+  ""
   "#"
   "reload_completed"
   [(set (match_dup 3) (xor:BI (match_dup 1) (match_dup 2)))
    (set (match_dup 0) (if_then_else:SI (eq:BI (match_dup 3) (const_int 0))
                                        (const_int 1) (const_int 0)))]
-  ""
-  [(set_attr "type" "multiple")]
-)
-
-(define_insn_and_split "xortfbisi3"
-  [(set (match_operand:SI 0 "gr_register_operand" "=Rg")
-        (eq:SI (match_operand:BI 1 "pr_register_operand" "Rp")
-               (match_operand:BI 2 "pr_register_operand" "Rp")))
-   (clobber (match_scratch:BI 3 "=Rp"))
-   (clobber (match_scratch:SI 4 "=Rg"))
-   (clobber (match_scratch:SI 5 "=Rg"))]
-  ""
-  "#"
-  "reload_completed"
-  [(set (match_dup 4) (const_int 1))
-   (set (match_dup 5) (const_int 0))
-   (set (match_dup 3) (xor:BI (match_dup 1) (match_dup 2)))
-   (set (match_dup 0) (if_then_else:SI (eq:BI (match_dup 3) (const_int 0))
-                                       (match_dup 4) (match_dup 5)))]
   ""
   [(set_attr "type" "multiple")]
 )
@@ -5975,7 +6362,7 @@
           (plus:SI (match_operand:SI 1 "gr_register_operand"  "0")
                    (match_operand:SI 2 "gr_register_operand" "Rg"))
           (match_operand:SI 3 "gr_register_operand"          "Rg")))]
-  "TARGET_V2_FEATURES"
+  ""
   "%0 += sub(%2,%3)"
   [(set_attr "type" "X")]
 )
@@ -5988,7 +6375,7 @@
           (match_operand:SI 1 "gr_register_operand"            "0")
           (minus:SI (match_operand:SI 2 "gr_register_operand" "Rg")
                     (match_operand:SI 3 "gr_register_operand" "Rg"))))]
-  "TARGET_V2_FEATURES"
+  ""
   "%0 += sub(%3,%2)"
   [(set_attr "type" "X")]
 )
@@ -7166,7 +7553,7 @@
         (xor:DI (ashift:DI (match_operand:DI 1 "gr_register_operand"   "Rg")
                            (match_operand:SI 2 "u6_const_int_operand" "Iu6"))
                 (match_operand:DI 3 "gr_register_operand"               "0")))]
-  "TARGET_V2_FEATURES"
+  ""
   "%P0 ^= asl(%P1,#%2)"
   [(set_attr "type" "S")]
 )
@@ -7276,7 +7663,7 @@
         (xor:DI (lshiftrt:DI (match_operand:DI 1 "gr_register_operand"   "Rg")
                              (match_operand:SI 2 "u6_const_int_operand" "Iu6"))
                 (match_operand:DI 3 "gr_register_operand"                 "0")))]
-  "TARGET_V2_FEATURES"
+  ""
   "%P0 ^= lsr(%P1,#%2)"
   [(set_attr "type" "S")]
 )
@@ -7689,7 +8076,7 @@
   [(set (match_operand:BI 0 "pr_register_operand"                "=Rp")
         (ior:BI (not:BI (match_operand:BI 1 "pr_register_operand" "Rp"))
                 (match_operand:BI 2 "pr_register_operand"         "Rp")))]
-  "TARGET_V2_FEATURES"
+  ""
   "%0 = or(%2,!%1)"
   [(set_attr "type" "S")]
 )
@@ -7843,6 +8230,18 @@
   [(set_attr "type" "EStore")]
 )
 
+(define_insn "absstoresetbi_new_value"
+  [(parallel [(set (mem:BI (match_operand:SI 0 "absolute_address_operand" "Q"))
+                   (unspec:BI [(match_operand:BI 1 "gr_register_operand" "Rg")]
+                              UNSPEC_NEW_VALUE))
+              (set (match_operand:SI 2 "gr_register_operand"            "=Rg")
+                   (match_operand:SI 3 "absolute_address_operand"         "0"))])]
+  "TARGET_V4_FEATURES
+   && rtx_equal_p(operands[0], operands[3])"
+  "memb(%2=##%0) = %1.new"
+  [(set_attr "type" "ENewValue")]
+)
+
 (define_insn "absstoresetqi"
   [(parallel [(set (mem:QI (match_operand:SI 0 "absolute_address_operand" "Q"))
                    (match_operand:QI 1 "gr_register_operand"             "Rg"))
@@ -7854,6 +8253,18 @@
   [(set_attr "type" "EStore")]
 )
 
+(define_insn "absstoresetqi_new_value"
+  [(parallel [(set (mem:QI (match_operand:SI 0 "absolute_address_operand" "Q"))
+                   (unspec:QI [(match_operand:QI 1 "gr_register_operand" "Rg")]
+                              UNSPEC_NEW_VALUE))
+              (set (match_operand:SI 2 "gr_register_operand"            "=Rg")
+                   (match_operand:SI 3 "absolute_address_operand"         "0"))])]
+  "TARGET_V4_FEATURES
+   && rtx_equal_p(operands[0], operands[3])"
+  "memb(%2=##%0) = %1.new"
+  [(set_attr "type" "ENewValue")]
+)
+
 (define_insn "absstoresethi"
   [(parallel [(set (mem:HI (match_operand:SI 0 "absolute_address_operand" "Q"))
                    (match_operand:HI 1 "gr_register_operand"             "Rg"))
@@ -7863,6 +8274,18 @@
    && rtx_equal_p(operands[0], operands[3])"
   "memh(%2=##%0) = %1"
   [(set_attr "type" "EStore")]
+)
+
+(define_insn "absstoresethi_new_value"
+  [(parallel [(set (mem:HI (match_operand:SI 0 "absolute_address_operand" "Q"))
+                   (unspec:HI [(match_operand:HI 1 "gr_register_operand" "Rg")]
+                              UNSPEC_NEW_VALUE))
+              (set (match_operand:SI 2 "gr_register_operand"            "=Rg")
+                   (match_operand:SI 3 "absolute_address_operand"         "0"))])]
+  "TARGET_V4_FEATURES
+   && rtx_equal_p(operands[0], operands[3])"
+  "memh(%2=##%0) = %1.new"
+  [(set_attr "type" "ENewValue")]
 )
 
 (define_insn "absstorehsethi"
@@ -7888,6 +8311,18 @@
   [(set_attr "type" "EStore")]
 )
 
+(define_insn "absstoresetsi_new_value"
+  [(parallel [(set (mem:SI (match_operand:SI 0 "absolute_address_operand" "Q"))
+                   (unspec:SI [(match_operand:SI 1 "gr_register_operand" "Rg")]
+                              UNSPEC_NEW_VALUE))
+              (set (match_operand:SI 2 "gr_register_operand"            "=Rg")
+                   (match_operand:SI 3 "absolute_address_operand"         "0"))])]
+  "TARGET_V4_FEATURES
+   && rtx_equal_p(operands[0], operands[3])"
+  "memw(%2=##%0) = %1.new"
+  [(set_attr "type" "ENewValue")]
+)
+
 (define_insn "absstoresetdi"
   [(parallel [(set (mem:DI (match_operand:SI 0 "absolute_address_operand" "Q"))
                    (match_operand:DI 1 "gr_register_operand"             "Rg"))
@@ -7895,7 +8330,41 @@
                    (match_operand:SI 3 "absolute_address_operand"         "0"))])]
   "TARGET_V4_FEATURES
    && rtx_equal_p(operands[0], operands[3])"
-  "memd(%2=##%0) = %1"
+  "memd(%2=##%0) = %P1"
+  [(set_attr "type" "EStore")]
+)
+
+(define_insn "absstoresetsf"
+  [(parallel [(set (mem:SF (match_operand:SI 0 "absolute_address_operand" "Q"))
+                   (match_operand:SF 1 "gr_register_operand"             "Rg"))
+              (set (match_operand:SI 2 "gr_register_operand"            "=Rg")
+                   (match_operand:SI 3 "absolute_address_operand"         "0"))])]
+  "TARGET_V4_FEATURES
+   && rtx_equal_p(operands[0], operands[3])"
+  "memw(%2=##%0) = %1"
+  [(set_attr "type" "EStore")]
+)
+
+(define_insn "absstoresetsf_new_value"
+  [(parallel [(set (mem:SF (match_operand:SI 0 "absolute_address_operand" "Q"))
+                   (unspec:SF [(match_operand:SF 1 "gr_register_operand" "Rg")]
+                              UNSPEC_NEW_VALUE))
+              (set (match_operand:SI 2 "gr_register_operand"            "=Rg")
+                   (match_operand:SI 3 "absolute_address_operand"         "0"))])]
+  "TARGET_V4_FEATURES
+   && rtx_equal_p(operands[0], operands[3])"
+  "memw(%2=##%0) = %1.new"
+  [(set_attr "type" "ENewValue")]
+)
+
+(define_insn "absstoresetdf"
+  [(parallel [(set (mem:DF (match_operand:SI 0 "absolute_address_operand" "Q"))
+                   (match_operand:DF 1 "gr_register_operand"             "Rg"))
+              (set (match_operand:SI 2 "gr_register_operand"            "=Rg")
+                   (match_operand:SI 3 "absolute_address_operand"         "0"))])]
+  "TARGET_V4_FEATURES
+   && rtx_equal_p(operands[0], operands[3])"
+  "memd(%2=##%0) = %P1"
   [(set_attr "type" "EStore")]
 )
 
@@ -8330,7 +8799,8 @@
   [(return)]
   ""
   "jumpr r31"
-  [(set_attr "type" "JR")]
+  [(set_attr "type" "JR")
+   (set_attr "duplex" "yes")]
 )
 
 (define_expand "allocframe"
@@ -8358,13 +8828,14 @@
         (plus:SI (reg:SI SP_REGNUM) (const_int -8)))
    (set (reg:SI SP_REGNUM)
         (minus:SI (reg:SI SP_REGNUM)
-                  (match_operand 0 "const_int_operand" "i")))]
+                  (match_operand 0 "const_int_operand" "i,Ku5_3p8")))]
   ""
   {
     operands[0] = gen_int_mode(INTVAL (operands[0]) - 8, SImode);
     return "allocframe(#%0)";
   }
-  [(set_attr "type" "Store")]
+  [(set_attr "type" "Store,Store")
+   (set_attr "duplex" "no,yes")]
 )
 
 (define_expand "allocframe_and_save_r16"
@@ -8518,7 +8989,8 @@
         (mem:SI (reg:SI FP_REGNUM)))]
   ""
   "deallocframe"
-  [(set_attr "type" "Load")]
+  [(set_attr "type" "Load")
+   (set_attr "duplex" "yes")]
 )
 
 (define_insn "save_r24_through_r27"
@@ -8529,7 +9001,14 @@
    (clobber (reg:SI 28))
    (clobber (reg:SI LINK_REGNUM))]
   ""
-  "call __save_r24_through_r27"
+  {
+    if (flag_pic){
+      return "call __save_r24_through_r27@PLT";
+    }
+    else{
+      return "call __save_r24_through_r27";
+    }
+  }
   [(set_attr "type" "J")
    (set_attr "emulation_call" "yes")]
 )
@@ -8610,7 +9089,14 @@
    (clobber (reg:SI 28))
    (clobber (reg:SI LINK_REGNUM))]
   ""
-  "call __save_r16_through_r19"
+  {
+    if (flag_pic){
+      return "call __save_r16_through_r19@PLT";
+    }
+    else{
+      return "call __save_r16_through_r19";
+    }
+  }
   [(set_attr "type" "J")
    (set_attr "emulation_call" "yes")]
 )
@@ -8625,7 +9111,14 @@
    (clobber (reg:SI 28))
    (clobber (reg:SI LINK_REGNUM))]
   ""
-  "call __save_r16_through_r21"
+  {
+    if (flag_pic){
+      return "call __save_r16_through_r21@PLT";
+    }
+    else{
+      return "call __save_r16_through_r21";
+    }
+  }
   [(set_attr "type" "J")
    (set_attr "emulation_call" "yes")]
 )
@@ -8642,7 +9135,14 @@
    (clobber (reg:SI 28))
    (clobber (reg:SI LINK_REGNUM))]
   ""
-  "call __save_r16_through_r23"
+  {
+    if (flag_pic){
+      return "call __save_r16_through_r23@PLT";
+    }
+    else{
+      return "call __save_r16_through_r23";
+    }
+  }
   [(set_attr "type" "J")
    (set_attr "emulation_call" "yes")]
 )
@@ -8661,7 +9161,14 @@
    (clobber (reg:SI 28))
    (clobber (reg:SI LINK_REGNUM))]
   ""
-  "call __save_r16_through_r25"
+  {
+    if (flag_pic){
+      return "call __save_r16_through_r25@PLT";
+    }
+    else{
+      return "call __save_r16_through_r25";
+    }
+  }
   [(set_attr "type" "J")
    (set_attr "emulation_call" "yes")]
 )
@@ -8682,7 +9189,14 @@
    (clobber (reg:SI 28))
    (clobber (reg:SI LINK_REGNUM))]
   ""
-  "call __save_r16_through_r27"
+  {
+    if (flag_pic){
+      return "call __save_r16_through_r27@PLT";
+    }
+    else{
+      return "call __save_r16_through_r27";
+    }
+  }
   [(set_attr "type" "J")
    (set_attr "emulation_call" "yes")]
 )
@@ -8708,7 +9222,14 @@
         (mem:SI (reg:SI FP_REGNUM)))
    (clobber (reg:SI 28))]
   ""
-  "call __restore_r16_through_r27_and_deallocframe_before_tailcall"
+  {
+    if (flag_pic){
+      return "call __restore_r16_through_r27_and_deallocframe_before_tailcall@PLT";
+    }
+    else{
+      return "call __restore_r16_through_r27_and_deallocframe_before_tailcall";
+    }
+  }
   [(set_attr "type" "J")
    (set_attr "emulation_call" "yes")]
 )
@@ -8732,7 +9253,14 @@
         (mem:SI (reg:SI FP_REGNUM)))
    (clobber (reg:SI 28))]
   ""
-  "call __restore_r16_through_r25_and_deallocframe_before_tailcall"
+  {
+    if (flag_pic){
+      return "call __restore_r16_through_r25_and_deallocframe_before_tailcall@PLT";
+    }
+    else{
+      return "call __restore_r16_through_r25_and_deallocframe_before_tailcall";
+    }
+  }
   [(set_attr "type" "J")
    (set_attr "emulation_call" "yes")]
 )
@@ -8754,7 +9282,14 @@
         (mem:SI (reg:SI FP_REGNUM)))
    (clobber (reg:SI 28))]
   ""
-  "call __restore_r16_through_r23_and_deallocframe_before_tailcall"
+  {
+    if (flag_pic){
+      return "call __restore_r16_through_r23_and_deallocframe_before_tailcall@PLT";
+    }
+    else{
+      return "call __restore_r16_through_r23_and_deallocframe_before_tailcall";
+    }
+  }
   [(set_attr "type" "J")
    (set_attr "emulation_call" "yes")]
 )
@@ -8774,7 +9309,14 @@
         (mem:SI (reg:SI FP_REGNUM)))
    (clobber (reg:SI 28))]
   ""
-  "call __restore_r16_through_r21_and_deallocframe_before_tailcall"
+  {
+    if (flag_pic){
+      return "call __restore_r16_through_r21_and_deallocframe_before_tailcall@PLT";
+    }
+    else{
+      return "call __restore_r16_through_r21_and_deallocframe_before_tailcall";
+    }
+  }
   [(set_attr "type" "J")
    (set_attr "emulation_call" "yes")]
 )
@@ -8792,7 +9334,14 @@
         (mem:SI (reg:SI FP_REGNUM)))
    (clobber (reg:SI 28))]
   ""
-  "call __restore_r16_through_r19_and_deallocframe_before_tailcall"
+  {
+    if (flag_pic){
+      return "call __restore_r16_through_r19_and_deallocframe_before_tailcall@PLT";
+    }
+    else{
+      return "call __restore_r16_through_r19_and_deallocframe_before_tailcall";
+    }
+  }
   [(set_attr "type" "J")
    (set_attr "emulation_call" "yes")]
 )
@@ -8808,7 +9357,14 @@
         (mem:SI (reg:SI FP_REGNUM)))
    (clobber (reg:SI 28))]
   ""
-  "call __restore_r16_through_r17_and_deallocframe_before_tailcall"
+  {
+    if (flag_pic){
+      return "call __restore_r16_through_r17_and_deallocframe_before_tailcall@PLT";
+    }
+    else{
+      return "call __restore_r16_through_r17_and_deallocframe_before_tailcall";
+    }
+  }
   [(set_attr "type" "J")
    (set_attr "emulation_call" "yes")]
 )
@@ -8834,7 +9390,14 @@
    (set (reg:SI FP_REGNUM)
         (mem:SI (reg:SI FP_REGNUM)))]
   ""
-  "jump __restore_r16_through_r27_and_deallocframe"
+  {
+    if (flag_pic){
+      return "jump __restore_r16_through_r27_and_deallocframe@PLT";
+    }
+    else{
+      return "jump __restore_r16_through_r27_and_deallocframe";
+    }
+  }
   [(set_attr "type" "J")
    (set_attr "emulation_call" "yes")]
 )
@@ -8858,8 +9421,15 @@
    (set (reg:SI FP_REGNUM)
         (mem:SI (reg:SI FP_REGNUM)))]
   ""
-  "jump __restore_r16_through_r25_and_deallocframe"
-  [(set_attr "type" "J")
+  {
+    if (flag_pic){
+      return "jump __restore_r16_through_r25_and_deallocframe@PLT";
+    }
+    else{
+      return "jump __restore_r16_through_r25_and_deallocframe";
+    }
+  } 
+ [(set_attr "type" "J")
    (set_attr "emulation_call" "yes")]
 )
 
@@ -8880,7 +9450,14 @@
    (set (reg:SI FP_REGNUM)
         (mem:SI (reg:SI FP_REGNUM)))]
   ""
-  "jump __restore_r16_through_r23_and_deallocframe"
+  {
+    if (flag_pic){
+      return "jump __restore_r16_through_r23_and_deallocframe@PLT";
+    }
+    else{
+      return "jump __restore_r16_through_r23_and_deallocframe";
+    }
+  }
   [(set_attr "type" "J")
    (set_attr "emulation_call" "yes")]
 )
@@ -8900,7 +9477,14 @@
    (set (reg:SI FP_REGNUM)
         (mem:SI (reg:SI FP_REGNUM)))]
   ""
-  "jump __restore_r16_through_r21_and_deallocframe"
+  {
+    if (flag_pic){
+      return "jump __restore_r16_through_r21_and_deallocframe@PLT";
+    }
+    else{
+      return "jump __restore_r16_through_r21_and_deallocframe";
+    }
+  }
   [(set_attr "type" "J")
    (set_attr "emulation_call" "yes")]
 )
@@ -8918,7 +9502,14 @@
    (set (reg:SI FP_REGNUM)
         (mem:SI (reg:SI FP_REGNUM)))]
   ""
-  "jump __restore_r16_through_r19_and_deallocframe"
+  {
+    if (flag_pic){
+      return "jump __restore_r16_through_r19_and_deallocframe@PLT";
+    }
+    else{
+      return "jump __restore_r16_through_r19_and_deallocframe";
+    }
+  }
   [(set_attr "type" "J")
    (set_attr "emulation_call" "yes")]
 )
@@ -8934,7 +9525,14 @@
    (set (reg:SI FP_REGNUM)
         (mem:SI (reg:SI FP_REGNUM)))]
   ""
-  "jump __restore_r16_through_r17_and_deallocframe"
+  {
+    if (flag_pic){
+      return "jump __restore_r16_through_r17_and_deallocframe@PLT";
+    }
+    else{
+      return "jump __restore_r16_through_r17_and_deallocframe";
+    }
+  }
   [(set_attr "type" "J")
    (set_attr "emulation_call" "yes")]
 )
@@ -8949,7 +9547,8 @@
         (mem:SI (reg:SI FP_REGNUM)))]
   "TARGET_V4_FEATURES"
   "dealloc_return"
-  [(set_attr "type" "NewValue")]
+  [(set_attr "type" "NewValue")
+   (set_attr "duplex" "yes")]
 )
 
 (define_insn "deallocframe_function"
@@ -8961,7 +9560,14 @@
    (set (reg:SI FP_REGNUM)
         (mem:SI (reg:SI FP_REGNUM)))]
   "!TARGET_V4_FEATURES"
-  "jump __deallocframe"
+  {
+    if (flag_pic){
+      return "jump __deallocframe@PLT";
+    }
+    else{
+      return "jump  __deallocframe";
+    }
+  }
   [(set_attr "type" "J")
    (set_attr "emulation_call" "yes")]
 )
@@ -9074,15 +9680,15 @@
 ; Optimized case for r0 = mux(!p0, r0, r2)
 ; Change to if (p0) r0 = r2
 ; This form can be transformed to a dot-new transfer
-(define_peephole2 
-  [(set (match_operand:SI 0 "gr_register_operand"    "=Rg")
+(define_peephole2
+  [(set (match_operand:SI 0 "gr_register_operand" "")
         (if_then_else:SI
           (eq:BI
-            (match_operand:BI 1 "pr_register_operand" "Rp")
+            (match_operand:BI 1 "pr_register_operand" "")
             (const_int 0))
-	  (match_dup 0)
-          (match_operand:SI 2 "nonmemory_operand"     "Rg")))]
-  "TARGET_PRED_MUX"
+          (match_dup 0)
+          (match_operand:SI 2 "nonmemory_operand" "")))]
+  ""
   [(cond_exec
      (ne:BI (match_dup 1) (const_int 0))
      (set (match_dup 0) (match_dup 2)))]
@@ -9092,15 +9698,15 @@
 ; Optimized case for r0 = mux(!p0, r2, r0)
 ; Change to if (!p0) r0 = r2
 ; This form can be transformed to a dot-new transfer
-(define_peephole2 
-  [(set (match_operand:SI 0 "gr_register_operand"    "=Rg")
+(define_peephole2
+  [(set (match_operand:SI 0 "gr_register_operand" "")
         (if_then_else:SI
           (eq:BI
-            (match_operand:BI 1 "pr_register_operand" "Rp")
+            (match_operand:BI 1 "pr_register_operand" "")
             (const_int 0))
-	  (match_operand:SI 2 "nonmemory_operand"     "Rg")
+          (match_operand:SI 2 "nonmemory_operand" "")
           (match_dup 0)))]
-  "TARGET_PRED_MUX"
+  ""
   [(cond_exec
      (eq:BI (match_dup 1) (const_int 0))
      (set (match_dup 0) (match_dup 2)))]
@@ -9111,15 +9717,15 @@
 ; Optimized case for r0 = mux(p0, r0, r2)
 ; Change to if (!p0) r0 = r2
 ; This form can be transformed to a dot-new transfer
-(define_peephole2 
-  [(set (match_operand:SI 0 "gr_register_operand"    "=Rg")
+(define_peephole2
+  [(set (match_operand:SI 0 "gr_register_operand" "")
         (if_then_else:SI
           (ne:BI
-            (match_operand:BI 1 "pr_register_operand" "Rp")
+            (match_operand:BI 1 "pr_register_operand" "")
             (const_int 0))
-	  (match_dup 0)
-          (match_operand:SI 2 "nonmemory_operand"     "Rg")))]
-  "TARGET_PRED_MUX"
+          (match_dup 0)
+          (match_operand:SI 2 "nonmemory_operand" "")))]
+  ""
   [(cond_exec
      (eq:BI (match_dup 1) (const_int 0))
      (set (match_dup 0) (match_dup 2)))]
@@ -9129,15 +9735,15 @@
 ; Optimized case for r0 = mux(p0, r2, r0)
 ; Change to if (p0) r0 = r2
 ; This form can be transformed to a dot-new transfer
-(define_peephole2 
-  [(set (match_operand:SI 0 "gr_register_operand"    "=Rg")
+(define_peephole2
+  [(set (match_operand:SI 0 "gr_register_operand" "")
         (if_then_else:SI
           (ne:BI
-            (match_operand:BI 1 "pr_register_operand" "Rp")
+            (match_operand:BI 1 "pr_register_operand" "")
             (const_int 0))
-	  (match_operand:SI 2 "nonmemory_operand"     "Rg")
+          (match_operand:SI 2 "nonmemory_operand" "")
           (match_dup 0)))]
-  "TARGET_PRED_MUX"
+  ""
   [(cond_exec
      (ne:BI (match_dup 1) (const_int 0))
      (set (match_dup 0) (match_dup 2)))]
@@ -9308,10 +9914,10 @@
 
 
 (define_insn_and_split "combinesi_v4"
-  [(set (match_operand:SI 0 "gr_register_operand" "=Rg, Rg, Rg, Rg, Rg,Rg, Rg,Rg,Rg")
-        (match_operand:SI 1 "nonmemory_operand"    "Rg,Is8,Is8,  i, Rg,Rg,Is8, i, i"))
-   (set (match_operand:SI 2 "gr_register_operand" "=Rg, Rg, Rg, Rg, Rg,Rg, Rg,Rg,Rg")
-        (match_operand:SI 3 "nonmemory_operand"    "Rg,Is8,  i,Is8,Is8, i, Rg,Rg, i"))]
+  [(set (match_operand:SI 0 "gr_register_operand" "=Rg, Rg, Rg, Rg, Rg, Rg,Rg, Rg, Rg, Rg,Rg,Rg")
+        (match_operand:SI 1 "nonmemory_operand"    "Rg,Iu2,Is8,Is8,  i, Rg,Rg,Iu0, Rg,Is8, i, i"))
+   (set (match_operand:SI 2 "gr_register_operand" "=Rg, Rg, Rg, Rg, Rg, Rg,Rg, Rg, Rg, Rg,Rg,Rg")
+        (match_operand:SI 3 "nonmemory_operand"    "Rg,Iu2,Is8,  i,Is8,Is8, i, Rg,Iu0, Rg,Rg, i"))]
   "reload_completed && TARGET_V4_FEATURES"
   {
     HOST_WIDE_INT high, low;
@@ -9323,18 +9929,24 @@
         case 1:
           return "%P0 = combine(#%3,#%1)";
         case 2:
-          return "%P0 = combine(##%3,#%1)";
+          return "%P0 = combine(#%3,#%1)";
         case 3:
-          return "%P0 = combine(#%3,##%1)";
+          return "%P0 = combine(##%3,#%1)";
         case 4:
-          return "%P0 = combine(#%3,%1)";
+          return "%P0 = combine(#%3,##%1)";
         case 5:
-          return "%P0 = combine(##%3,%1)";
+          return "%P0 = combine(#%3,%1)";
         case 6:
-          return "%P0 = combine(%3,#%1)";
+          return "%P0 = combine(##%3,%1)";
         case 7:
-          return "%P0 = combine(%3,##%1)";
+          return "%P0 = combine(%3,#%1)";
         case 8:
+          return "%P0 = combine(#%3,%1)";
+        case 9:
+          return "%P0 = combine(%3,#%1)";
+        case 10:
+          return "%P0 = combine(%3,##%1)";
+        case 11:
           gcc_assert(TARGET_CONST64);
           gcc_assert(const_int_operand(operands[1], SImode));
           gcc_assert(const_int_operand(operands[3], SImode));
@@ -9354,18 +9966,24 @@
         case 1:
           return "%P2 = combine(#%1,#%3)";
         case 2:
-          return "%P2 = combine(#%1,##%3)";
+          return "%P2 = combine(#%1,#%3)";
         case 3:
-          return "%P2 = combine(##%1,#%3)";
+          return "%P2 = combine(#%1,##%3)";
         case 4:
-          return "%P2 = combine(%1,#%3)";
+          return "%P2 = combine(##%1,#%3)";
         case 5:
-          return "%P2 = combine(%1,##%3)";
+          return "%P2 = combine(%1,#%3)";
         case 6:
-          return "%P2 = combine(#%1,%3)";
+          return "%P2 = combine(%1,##%3)";
         case 7:
-          return "%P2 = combine(##%1,%3)";
+          return "%P2 = combine(#%1,%3)";
         case 8:
+          return "%P2 = combine(%1,#%3)";
+        case 9:
+          return "%P2 = combine(#%1,%3)";
+        case 10:
+          return "%P2 = combine(##%1,%3)";
+        case 11:
           gcc_assert(TARGET_CONST64);
           gcc_assert(const_int_operand(operands[1], SImode));
           gcc_assert(const_int_operand(operands[3], SImode));
@@ -9386,9 +10004,9 @@
   [(set (match_dup 0) (match_dup 1))
    (set (match_dup 2) (match_dup 3))]
   {
-    gcc_assert(!(   REG_P (operands[0]) && REG_P (operands[1]) 
-                    && REG_P (operands[2]) && REG_P (operands[3])  
-                    && REGNO (operands[0]) == REGNO (operands[3]) 
+    gcc_assert(!(   REG_P (operands[0]) && REG_P (operands[1])
+                    && REG_P (operands[2]) && REG_P (operands[3])
+                    && REGNO (operands[0]) == REGNO (operands[3])
                     && REGNO (operands[1]) == REGNO (operands[2]) ));
 
     /* When this condition is true, it is likely that we have
@@ -9400,24 +10018,25 @@
        If we do not have this king of assignment:
        parallel [ r0=r2; r2=r0]
        we can reverse the order of instructions in parallel
-       structure as we split it. 
-       See bug 3855 for details. */ 
+       structure as we split it.
+       See bug 3855 for details. */
 
     if((REG_P (operands[0]) && REG_P (operands[3])
         && REGNO (operands[0]) == REGNO (operands[3]))){
 
-        rtx tmp; 
+        rtx tmp;
 
-        tmp = operands[0];   
+        tmp = operands[0];
         operands[0] = operands[2];
-        operands[2] = tmp; 
+        operands[2] = tmp;
 
-        tmp = operands[1]; 
+        tmp = operands[1];
         operands[1] = operands[3];
-        operands[3] = tmp; 
+        operands[3] = tmp;
     }
   }
-  [(set_attr "type" "A,A,EA,EA,A,EA,A,EA,Load")]
+  [(set_attr "type" "A,A,A,EA,EA,A,EA,A,A,A,EA,Load")
+   (set_attr "duplex" "no,yes,no,no,no,no,no,yes,yes,no,no,no")]
 )
 
 (define_insn_and_split "combinesi"
@@ -9475,9 +10094,9 @@
   [(set (match_dup 0) (match_dup 1))
    (set (match_dup 2) (match_dup 3))]
   {
-    gcc_assert(!(   REG_P (operands[0]) && REG_P (operands[1]) 
-                    && REG_P (operands[2]) && REG_P (operands[3])  
-                    && REGNO (operands[0]) == REGNO (operands[3]) 
+    gcc_assert(!(   REG_P (operands[0]) && REG_P (operands[1])
+                    && REG_P (operands[2]) && REG_P (operands[3])
+                    && REGNO (operands[0]) == REGNO (operands[3])
                     && REGNO (operands[1]) == REGNO (operands[2]) ));
 
     /* When this condition is true, it is likely that we have
@@ -9489,36 +10108,210 @@
        If we do not have this king of assignment:
        parallel [ r0=r2; r2=r0]
        we can reverse the order of instructions in parallel
-       structure as we split it. 
-       See bug 3855 for details. */ 
+       structure as we split it.
+       See bug 3855 for details. */
 
     if((REG_P (operands[0]) && REG_P (operands[3])
         && REGNO (operands[0]) == REGNO (operands[3]))){
 
-        rtx tmp; 
+        rtx tmp;
 
-        tmp = operands[0];   
+        tmp = operands[0];
         operands[0] = operands[2];
-        operands[2] = tmp; 
+        operands[2] = tmp;
 
-        tmp = operands[1]; 
+        tmp = operands[1];
         operands[1] = operands[3];
-        operands[3] = tmp; 
+        operands[3] = tmp;
     }
   }
   [(set_attr "type" "A,A,Load")]
 )
 
+;;;---------------------------------
+;;; 32 bit floating point arithmetic
+;;;---------------------------------
+;
+;;;----------
+;;; add[sd]f3
+;;;----------
+;
+;(define_insn "addsf3"
+;  [(set (match_operand:SF 0 "gr_register_operand" "=r")
+;        (plus:SF (match_operand:SF 1 "gr_register_operand" "r")
+;                 (match_operand:SF 2 "gr_register_operand" "r")))]
+;  ""
+;  "%0 = sfadd(%1, %2)"
+;)
+;
+;(define_insn "adddf3"
+;  [(set (match_operand:DF 0 "gr_register_operand" "=r")
+;        (plus:DF (match_operand:DF 1 "gr_register_operand" "r")
+;                 (match_operand:DF 2 "gr_register_operand" "r")))]
+;  ""
+;  "%0 = dfadd(%1, %2)"
+;)
+;
+;;;----------
+;;; sub[sd]f3
+;;;----------
+;
+;(define_insn "subsf3"
+;  [(set (match_operand:SF 0 "gr_register_operand" "=r")
+;        (minus:SF (match_operand:SF 1 "gr_register_operand" "r")
+;                 (match_operand:SF 2 "gr_register_operand" "r")))]
+;  ""
+;  "%0 = sfsub(%1, %2)"
+;)
+;
+;(define_insn "subdf3"
+;  [(set (match_operand:DF 0 "gr_register_operand" "=r")
+;        (minus:DF (match_operand:DF 1 "gr_register_operand" "r")
+;                 (match_operand:DF 2 "gr_register_operand" "r")))]
+;  ""
+;  "%0 = dfsub(%1, %2)"
+;)
+;
+;
+;;; ----------
+;;; umax[sd]f3
+;;; ----------
+;
+;(define_insn "umaxsf3"
+;  [(set (match_operand:SF 0 "gr_register_operand"         "=Rg")
+;        (umax:SF (match_operand:SF 1 "gr_register_operand" "Rg")
+;                 (match_operand:SF 2 "gr_register_operand" "Rg")))]
+;  ""
+;  "%0 = sfmaxu(%1,%2)"
+;  [(set_attr "type" "X")]
+;)
+;
+;(define_insn "umaxdf3"
+;  [(set (match_operand:DF 0 "gr_register_operand"         "=Rg")
+;        (umax:DF (match_operand:DF 1 "gr_register_operand" "Rg")
+;                 (match_operand:DF 2 "gr_register_operand" "Rg")))]
+;  ""
+;  "%0 = dfmaxu(%1,%2)"
+;  [(set_attr "type" "X")]
+;)
+;
+;;; ----------
+;;; umin[sd]f3
+;;; ----------
+;
+;(define_insn "uminsf3"
+;  [(set (match_operand:SF 0 "gr_register_operand"         "=Rg")
+;        (umin:SF (match_operand:SF 1 "gr_register_operand" "Rg")
+;                 (match_operand:SF 2 "gr_register_operand" "Rg")))]
+;  ""
+;  "%0 = sfminu(%1,%2)"
+;  [(set_attr "type" "X")]
+;)
+;
+;(define_insn "umindf3"
+;  [(set (match_operand:DF 0 "gr_register_operand"         "=Rg")
+;        (umin:DF (match_operand:DF 1 "gr_register_operand" "Rg")
+;                 (match_operand:DF 2 "gr_register_operand" "Rg")))]
+;  ""
+;  "%0 = dfminu(%1,%2)"
+;  [(set_attr "type" "X")]
+;)
+;
+;;; --------
+;;; mul[sd]3
+;;; --------
+;
+;(define_insn "mulsf3"
+;  [(set (match_operand:SF 0 "register_operand" "=r")
+;        (mult:SF (match_operand:SF 1 "register_operand" "r")
+;                 (match_operand:SF 2 "register_operand" "r")))]
+;  ""
+;  "%0 = sfmpy(%1,%2)"
+;  [(set_attr "type" "X")]
+;)
+;
+;(define_insn "muldf3"
+;  [(set (match_operand:DF 0 "register_operand" "=r")
+;        (mult:DF (match_operand:DF 1 "register_operand" "r")
+;                 (match_operand:DF 2 "register_operand" "r")))]
+;  ""
+;  "%0 = dfmpy(%1,%2)"
+;  [(set_attr "type" "X")]
+;)
+;
+;;; -----------
+;;; cmp[fd]
+;;; -----------
+;
+;(define_expand "cmpsf"
+;  [(match_operand:SF 0 "gr_register_operand" "")
+;   (match_operand:SF 1 "gr_register_operand" "")] 
+;  ""
+;  {
+;    cfun->machine->compare_op0 = operands[0];
+;    cfun->machine->compare_op1 = operands[1];
+;    DONE;
+;  }
+;)
+;
+;
+;(define_expand "cmpdf"
+;  [(match_operand:DF 0 "gr_register_operand" "")
+;   (match_operand:DF 1 "gr_register_operand" "")] 
+;  ""
+;  {
+;    cfun->machine->compare_op0 = operands[0];
+;    cfun->machine->compare_op1 = operands[1];
+;    DONE;
+;  }
+;)
+;
+;(define_insn "cmpsf_gt"
+;  [(set (match_operand:BI 0 "pr_register_operand"       "=Rp")
+;        (gt:BI (match_operand:SF 1 "gr_register_operand" "Rg")
+;               (match_operand:SF 2 "gr_register_operand" "Rg")))]
+;  ""
+;  "%0 = sfcmp.gt(%1,%2)"
+;  [(set_attr "type" "X")]
+;)
+;
+;(define_insn "cmpdf_gt"
+;  [(set (match_operand:BI 0 "pr_register_operand"       "=Rp")
+;        (gt:BI (match_operand:DF 1 "gr_register_operand" "Rg")
+;               (match_operand:DF 2 "gr_register_operand" "Rg")))]
+;  ""
+;  "%0 = dfcmp.gt(%1,%2)"
+;  [(set_attr "type" "X")]
+;)
+;
+;(define_insn "cmpsf_eq"
+;  [(set (match_operand:BI 0 "pr_register_operand"       "=Rp")
+;        (eq:BI (match_operand:SF 1 "gr_register_operand" "Rg")
+;               (match_operand:SF 2 "gr_register_operand" "Rg")))]
+;  ""
+;  "%0 = sfcmp.eq(%1,%2)"
+;  [(set_attr "type" "X")]
+;)
+;
+;(define_insn "cmpdf_eq"
+;  [(set (match_operand:BI 0 "pr_register_operand"       "=Rp")
+;        (eq:BI (match_operand:DF 1 "gr_register_operand" "Rg")
+;               (match_operand:DF 2 "gr_register_operand" "Rg")))]
+;  ""
+;  "%0 = dfcmp.eq(%1,%2)"
+;  [(set_attr "type" "X")]
+;)
+
 (define_insn_and_split "cond_combinesi"
   [(cond_exec
      (match_operator:BI 4 "predicate_operator"
-       [(match_operand:BI 5 "pr_register_operand" "RpRnp")
+       [(match_operand:BI 5 "pr_register_operand"   "Rp")
         (const_int 0)])
    (parallel
-   [(set (match_operand:SI 0 "gr_register_operand"  "=Rg")
-         (match_operand:SI 1 "gr_register_operand"   "Rg"))
-    (set (match_operand:SI 2 "gr_register_operand"  "=Rg")
-         (match_operand:SI 3 "gr_register_operand"   "Rg"))]))]
+   [(set (match_operand:SI 0 "gr_register_operand" "=Rg")
+         (match_operand:SI 1 "gr_register_operand"  "Rg"))
+    (set (match_operand:SI 2 "gr_register_operand" "=Rg")
+         (match_operand:SI 3 "gr_register_operand"  "Rg"))]))]
   "reload_completed"
   {
     if(REGNO (operands[0]) % 2 == 0){
@@ -9535,9 +10328,9 @@
   [(cond_exec (match_op_dup 4 [(match_dup 5) (const_int 0)]) (set (match_dup 0) (match_dup 1)))
    (cond_exec (match_op_dup 4 [(match_dup 5) (const_int 0)]) (set (match_dup 2) (match_dup 3)))]
   {
-    gcc_assert(!(   REG_P (operands[0]) && REG_P (operands[1]) 
-                    && REG_P (operands[2]) && REG_P (operands[3])  
-                    && REGNO (operands[0]) == REGNO (operands[3]) 
+    gcc_assert(!(   REG_P (operands[0]) && REG_P (operands[1])
+                    && REG_P (operands[2]) && REG_P (operands[3])
+                    && REGNO (operands[0]) == REGNO (operands[3])
                     && REGNO (operands[1]) == REGNO (operands[2]) ));
 
     /* When this condition is true, it is likely that we have
@@ -9549,21 +10342,21 @@
        If we do not have this king of assignment:
        parallel [ r0=r2; r2=r0]
        we can reverse the order of instructions in parallel
-       structure as we split it. 
-       See bug 3855 for details. */ 
+       structure as we split it.
+       See bug 3855 for details. */
 
     if((REG_P (operands[0]) && REG_P (operands[3])
         && REGNO (operands[0]) == REGNO (operands[3]))){
 
-        rtx tmp; 
+        rtx tmp;
 
-        tmp = operands[0];   
+        tmp = operands[0];
         operands[0] = operands[2];
-        operands[2] = tmp; 
+        operands[2] = tmp;
 
-        tmp = operands[1]; 
+        tmp = operands[1];
         operands[1] = operands[3];
-        operands[3] = tmp; 
+        operands[3] = tmp;
     }
   }
   [(set_attr "type" "A")]
@@ -9576,6 +10369,19 @@
 ;; Other ;;
 ;;-------;;
 
+;;
+;; Instructions emitted in function prologue to compute GOT base
+;;
+(define_insn "compute_got_base"
+  [(set (match_operand:SI 0 "register_operand" "") (pc))
+   (use (label_ref (match_operand 1 "" "")))]
+   "flag_pic"
+   { 
+     return "\n# setup %0 as the GOT pointer\n%l1:\;%0 = pc\";
+   }
+  ;; We don't want this instruction to be packetized
+  [(set_attr "type" "multiple")]
+)
 
 
 ;; Pseudo instruction that prevents the scheduler from moving code above this

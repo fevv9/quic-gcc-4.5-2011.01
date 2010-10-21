@@ -32,7 +32,7 @@ const char bug_report_url[] = BUGURL;
    BASEVER, DATESTAMP, DEVPHASE, and REVISION are defined by the
    Makefile.  */
 
-#define HEXAGON_BUILD_VERSION " : Hexagon Build Version (UNKNOWN) UNKNOWN"
+#define HEXAGON_BUILD_VERSION " : Hexagon Build Version (NONE) BT_201010011310"
 
 const char version_string[] = BASEVER DATESTAMP DEVPHASE REVISION HEXAGON_BUILD_VERSION;
 const char pkgversion_string[] = PKGVERSION;

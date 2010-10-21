@@ -800,6 +800,8 @@ target_subdir
 host_subdir
 build_subdir
 build_libsubdir
+with_newlib
+with_dinkumware
 target_noncanonical
 target_os
 target_vendor

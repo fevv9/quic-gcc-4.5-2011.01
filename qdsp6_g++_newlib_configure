@@ -1,38 +1,36 @@
 #!/bin/bash
 ##################################################################
-# Copyright (c) $Date$ Qualcomm Innovation Center, Inc..
-# All Rights Reserved.
-# Modified by Qualcomm Innovation Center, Inc. on $Date$
-##################################################################
 
 # set value for --prefix option
 if [ "$1" != "" ]; then
   PREFIX=$1
 else
-  PLATFORM=`uname`
-  if [ "${PLATFORM}" = "CYGWIN_NT-5.1" ]; then
-    PREFIX=/usr/local/qdsp6
-  else
-    if [ "${PLATFORM}" = "Linux" ]; then
-      PREFIX=${HOME}/qdsp6
-    else
-      echo platform ${PLATFORM} not supported
-      exit 1
-    fi
-  fi
+  echo Missing prefix option
+  exit 1
 fi
 
-#export CFLAGS="-O0 -g"
-#export CXXFLAGS="-O0 -g"
+if [ "$2" != "" ]; then
+  WITH_HEADERS=$2
+else
+  echo Missing with-header option
+  exit 1
+fi
+
+export CFLAGS="-O0 -g -DUSING_NEWLIB"
+export CXXFLAGS="-O0 -g -DUSING_NEWLIB"
 
 bash `dirname $0`/configure \
   --prefix=${PREFIX} \
   --target=qdsp6 \
-  --program-prefix=qdsp6- \
   --enable-checking=assert,misc,tree,gc,rtlflag,runtime,df \
   --enable-languages=c,c++ \
+  --enable-lto \
   --without-fp \
   --disable-sjlj-exceptions \
   --disable-nls \
+  --with-headers=${WITH_HEADERS} \
   --disable-libssp \
-  --with-newlib
+  --disable-shared \
+  --with-newlib 
+
+#--program-prefix=qdsp6- \

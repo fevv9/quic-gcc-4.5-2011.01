@@ -1,10 +1,5 @@
-/*****************************************************************
-# Copyright (c) $Date$ Qualcomm Innovation Center, Inc..
-# All Rights Reserved.
-# Modified by Qualcomm Innovation Center, Inc. on $Date$
-*****************************************************************/
 
- /* QDSP6 specific functions
+/* QDSP6 specific functions
    Copyright (C) 1998, 1999, 2000, 2001, 2002 Free Software Foundation, Inc.
 
    This file is part of GCC.
@@ -43,9 +38,7 @@
 #include "flags.h"
 #include "recog.h"
 #include "tree.h"
-#if !GCC_3_4_6
 #include "tree-pass.h"
-#endif /* !GCC_3_4_6 */
 #include "output.h"
 #include "expr.h"
 #include "obstack.h"
@@ -65,73 +58,56 @@
 #include "langhooks.h"
 #include "df.h"
 #include "sched-int.h"
+#include "cfgloop.h"
 
 
 
 
 
 enum qdsp6_architecture qdsp6_arch = QDSP6_ARCH_UNSPECIFIED;
-#if GCC_3_4_6
-const char * qdsp6_arch_string = QDSP6_ARCH_DEFAULT_STRING;
-#endif /* GCC_3_4_6 */
 enum qdsp6_abi qdsp6_abi = QDSP6_ABI_UNSPECIFIED;
-#if GCC_3_4_6
-const char * qdsp6_abi_string = NULL;
-const char * qdsp6_oslib_string;
-#endif /* GCC_3_4_6 */
 int qdsp6_features;
 enum qdsp6_falign qdsp6_falign = QDSP6_FALIGN_UNSPECIFIED;
 bool qdsp6_dual_memory_accesses = true;
 
+static GTY(()) struct qdsp6_packet_info *qdsp6_head_packet;
+static GTY(()) struct qdsp6_packet_info *qdsp6_tail_packet;
+static struct qdsp6_bb_aux_info *qdsp6_head_bb_aux;
 
 
 
-#if !GCC_3_4_6
+
 static bool qdsp6_handle_option(size_t code, const char *arg, int value);
-#endif /* !GCC_3_4_6 */
 
 static struct machine_function *qdsp6_init_machine_status(void);
 
 static int qdsp6_array_alignment(tree type, int align);
 static bool qdsp6_align_anon_bitfield(void);
 
-#if !GCC_3_4_6
 static bool qdsp6_default_short_enums(void);
-#endif /* !GCC_3_4_6 */
 
-#if !GCC_3_4_6
 static enum reg_class qdsp6_secondary_reload(
                         bool in_p,
                         rtx x,
                         enum reg_class reload_class,
                         enum machine_mode reload_mode,
                         secondary_reload_info *sri);
-#endif /* !GCC_3_4_6 */
 
 static bool qdsp6_save_register_p(unsigned int regno);
 static void qdsp6_make_prologue_epilogue_decisions(
               struct qdsp6_frame_info *info);
 static struct qdsp6_frame_info *qdsp6_frame_info(void);
 
-#if !GCC_3_4_6
 static bool qdsp6_must_pass_in_stack(enum machine_mode mode, const_tree type);
-#endif /* !GCC_3_4_6 */
 
-#if !GCC_3_4_6
 static bool qdsp6_vector_mode_supported_p(enum machine_mode mode);
-#endif /* !GCC_3_4_6 */
 
-#if !GCC_3_4_6
 static rtx qdsp6_function_value(
              const_tree ret_type,
              const_tree fn_decl_or_type,
              bool outgoing);
-#endif /* !GCC_3_4_6 */
 
 static bool qdsp6_return_in_memory(const_tree type, const_tree fntype);
-#if GCC_3_4_6
-static rtx qdsp6_struct_value_rtx(tree fndecl, int incoming);
-#endif /* GCC_3_4_6 */
 
 static void qdsp6_asm_function_prologue(FILE *file, HOST_WIDE_INT size);
 
@@ -145,13 +121,9 @@ static bool qdsp6_legit_addr_const_p(
               HOST_WIDE_INT value,
               enum machine_mode mode,
               int num_bits);
-#if !GCC_3_4_6
 static bool qdsp6_reg_ok_for_base_p(rtx x, bool reg_ok_strict_p);
-#endif /* !GCC_3_4_6 */
 static bool qdsp6_reg_ok_for_index_p(rtx x, bool reg_ok_strict_p);
-#if !GCC_3_4_6
 static tree qdsp6_vectorize_builtin_mask_for_load(void);
-#endif /* !GCC_3_4_6 */
 
 static bool qdsp6_free_immediate(rtx x, int outer_code, int value);
 static bool qdsp6_rtx_costs(
@@ -160,35 +132,26 @@ static bool qdsp6_rtx_costs(
               int outer_code,
               int *total,
               bool speed);
-static bool qdsp6_rtx_costs_debug(
-              rtx x,
-              int code,
-              int outer_code,
-              int *total,
-              bool speed);
+bool qdsp6_rtx_costs_debug(
+       rtx x,
+       int code,
+       int outer_code,
+       int *total,
+       bool speed);
 static int qdsp6_address_cost(rtx address, bool speed);
-static int qdsp6_address_cost_debug(rtx address, bool speed);
+int qdsp6_address_cost_debug(rtx address, bool speed);
 
 static int qdsp6_sched_issue_rate(void);
 static void qdsp6_sched_dependencies_eval (rtx, rtx);
-#if GCC_3_4_6
-static int qdsp6_sched_use_dfa_pipeline_interface(void);
-#endif /* GCC_3_4_6 */
 static int qdsp6_sched_first_cycle_multipass_dfa_lookahead(void);
 
-#if GCC_3_4_6
-static void qdsp6_asm_select_rtx_section(
-              enum machine_mode mode,
-              rtx x,
-              unsigned HOST_WIDE_INT align);
-#else /* !GCC_3_4_6 */
 static section *qdsp6_asm_select_rtx_section(
                   enum machine_mode mode,
                   rtx x,
                   unsigned HOST_WIDE_INT align);
-#endif /* !GCC_3_4_6 */
 static section * qdsp6_select_section (tree decl, int reloc, unsigned HOST_WIDE_INT align ATTRIBUTE_UNUSED); 
 static bool qdsp6_in_small_data_p(const_tree exp);
+static void qpds6_load_pic_register (void);
 static void qdsp6_unique_section (tree decl, int reloc); 
 static void qdsp6_elf_asm_named_section (const char *name, unsigned int flags,tree decl ATTRIBUTE_UNUSED); 
 
@@ -215,18 +178,18 @@ static rtx qdsp6_expand_builtin(
              enum machine_mode mode,
              int ignore);
 static const char *qdsp6_invalid_within_doloop(const_rtx insn);
-static void qdsp6_print_jump(FILE *file, rtx x);
-static void qdsp6_print_transfer(FILE *file, rtx x);
-static void qdsp6_print_condition(FILE *file, rtx x, bool non_inverted);
-static void qdsp6_print_address(FILE *file, rtx x);
-static void qdsp6_print_unary_op(FILE *file, const char *op, rtx x);
-static void qdsp6_print_binary_op(FILE *file, const char *op, rtx x);
-static void qdsp6_print_swapped_binary_op(FILE *file, const char *op, rtx x);
-static void qdsp6_print_binary_op_with_option(FILE *file, const char *op, const char *option, rtx x);
-static void qdsp6_print_trinary_op(FILE *file, const char *op, rtx x);
-static void qdsp6_print_vecexp(FILE *file, const char *open, const char *separator, const char *close, rtx x);
-static void qdsp6_print_rtx(FILE *file, rtx x);
-static void qdsp6_print_rtl_pseudo_asm(FILE *stream, rtx x);
+static void qdsp6_print_jump(FILE *file, const_rtx x);
+static void qdsp6_print_transfer(FILE *file, const_rtx x);
+static void qdsp6_print_condition(FILE *file, const_rtx x, bool non_inverted);
+static void qdsp6_print_address(FILE *file, const_rtx x);
+static void qdsp6_print_unary_op(FILE *file, const char *op, const_rtx x);
+static void qdsp6_print_binary_op(FILE *file, const char *op, const_rtx x);
+static void qdsp6_print_swapped_binary_op(FILE *file, const char *op, const_rtx x);
+static void qdsp6_print_binary_op_with_option(FILE *file, const char *op, const char *option, const_rtx x);
+static void qdsp6_print_trinary_op(FILE *file, const char *op, const_rtx x);
+static void qdsp6_print_vecexp(FILE *file, const char *open, const char *separator, const char *close, const_rtx x);
+static void qdsp6_print_rtx(FILE *file, const_rtx x);
+static void qdsp6_print_rtl_pseudo_asm(FILE *stream, const_rtx x);
 
 static void qdsp6_compute_dwarf_frame_information(void);
 static void qdsp6_allocate_stack(
@@ -243,10 +206,202 @@ static void qdsp6_emit_special_case_memcpy_fn(
               bool tailcall);
 static void qdsp6_expand_movmem_inline(rtx operands[], bool volatile_p);
 
-static void qdsp6_packet_optimizations(void);
-static void qdsp6_final_pack_insns(void);
+void qdsp6_print_insn_info(FILE *file, struct qdsp6_insn_info *insn_info);
+void qdsp6_debug_insn_info(struct qdsp6_insn_info *insn_info);
+void qdsp6_print_packet(FILE *file, struct qdsp6_packet_info *packet);
+void qdsp6_print_packets(FILE *file, struct qdsp6_packet_info *packet);
+void qdsp6_debug_packet(struct qdsp6_packet_info *packet);
+void qdsp6_debug_packets(void);
+void qdsp6_print_bb_packets(FILE *file, basic_block bb);
+void qdsp6_debug_all_bb_packets(void);
+void qdsp6_debug_bb_packets(basic_block bb);
 
-static unsigned HOST_WIDE_INT  sdata_symbolic_operand_smallest_accessable_size(rtx);
+static int  qdsp6_get_flags(rtx insn);
+static struct qdsp6_reg_access *qdsp6_add_reg_access(
+                                  struct qdsp6_reg_access *accesses,
+                                  rtx reg,
+                                  int flags);
+static struct qdsp6_mem_access *qdsp6_add_mem_access(
+                                  struct qdsp6_mem_access *accesses,
+                                  rtx mem,
+                                  int flags);
+static int  qdsp6_record_writes(rtx *x, void *insn_info);
+static int  qdsp6_record_reads(rtx *x, void *insn_info);
+static struct qdsp6_insn_info *qdsp6_get_insn_info(rtx insn);
+static struct qdsp6_packet_info *qdsp6_start_new_packet(void);
+static void qdsp6_add_insn_to_packet(
+              struct qdsp6_packet_info *packet,
+              struct qdsp6_insn_info *insn_info,
+              bool add_to_beginning);
+static void qdsp6_remove_insn_from_packet(
+              struct qdsp6_packet_info *packet,
+              struct qdsp6_insn_info *insn_info);
+static bool qdsp6_can_speculate_p(
+              struct qdsp6_insn_info *insn_info,
+              basic_block bb);
+static void qdsp6_add_live_out(struct qdsp6_insn_info *insn_info, basic_block bb);
+static bool qdsp6_predicable_p(struct qdsp6_insn_info *insn_info);
+static struct qdsp6_insn_info *qdsp6_predicate_insn(
+                                 struct qdsp6_insn_info *insn_info,
+                                 struct qdsp6_insn_info *jump_insn_info,
+                                 bool invert_condition);
+static bool qdsp6_gpr_dot_newable_p(
+              struct qdsp6_insn_info *producer,
+              struct qdsp6_insn_info *consumer,
+              struct qdsp6_dependence *dependence);
+static struct qdsp6_insn_info *qdsp6_dot_newify_gpr(
+                                 struct qdsp6_insn_info *insn_info,
+                                 struct qdsp6_dependence *dependence);
+static int qdsp6_find_new_value(rtx *x, void *y);
+static void qdsp6_dot_oldify_gpr(struct qdsp6_insn_info *insn_info);
+static bool qdsp6_predicate_dot_newable_p(struct qdsp6_insn_info *insn_info);
+static struct qdsp6_insn_info *qdsp6_dot_newify_predicate(
+                                 struct qdsp6_insn_info *insn_info);
+static bool qdsp6_prologue_insn_p(struct qdsp6_insn_info *insn_info);
+static struct qdsp6_dependence *qdsp6_add_dependence(
+                                  struct qdsp6_dependence *dependencies,
+                                  enum qdsp6_dependence_type type,
+                                  rtx set,
+                                  rtx use);
+static struct qdsp6_dependence *qdsp6_remove_dependence(
+                                  struct qdsp6_dependence *dependencies,
+                                  struct qdsp6_dependence *dependence);
+static struct qdsp6_dependence *qdsp6_concat_dependencies(
+                                  struct qdsp6_dependence *a,
+                                  struct qdsp6_dependence *b);
+static struct qdsp6_dependence *qdsp6_control_dependencies(
+                                  struct qdsp6_insn_info *first,
+                                  struct qdsp6_insn_info *second);
+static struct qdsp6_dependence *qdsp6_true_dependencies(
+                                  struct qdsp6_insn_info *writer,
+                                  struct qdsp6_insn_info *reader);
+static struct qdsp6_dependence *qdsp6_output_dependencies(
+                                  struct qdsp6_insn_info *insn0,
+                                  struct qdsp6_insn_info *insn1);
+static struct qdsp6_dependence *qdsp6_anti_dependencies(
+                                  struct qdsp6_insn_info *earlier,
+                                  struct qdsp6_insn_info *later);
+static bool qdsp6_packet_insn_dependence_p(
+              struct qdsp6_packet_info *packet,
+              struct qdsp6_insn_info **insn_info,
+              bool ignore_jumps);
+static bool qdsp6_packet_insn_internal_dependence_p(
+              struct qdsp6_packet_info *packet,
+              struct qdsp6_insn_info *insn_info);
+static bool qdsp6_insn_fits_in_packet_p(
+              struct qdsp6_insn_info *insn,
+              struct qdsp6_packet_info *packet);
+static bool qdsp6_can_add_insn_to_packet_p(
+              struct qdsp6_insn_info **insn,
+              struct qdsp6_packet_info *packet);
+static rtx  qdsp6_bb_real_head_insn(basic_block bb);
+static rtx  qdsp6_bb_real_end_insn(basic_block bb);
+static void qdsp6_create_bb_sentinel_packet(struct qdsp6_packet_info *packet);
+static void qdsp6_finalize_transformations(
+              struct qdsp6_packet_info *first,
+              struct qdsp6_packet_info *last);
+static void qdsp6_pack_insns(bool need_bb_info);
+static void qdsp6_move_insn(
+              struct qdsp6_insn_info *old_insn,
+              struct qdsp6_packet_info *from_packet,
+              struct qdsp6_insn_info *new_insn,
+              struct qdsp6_packet_info *to_packet,
+              bool move_to_beginning);
+static void qdsp6_sanity_check_cfg_packet_info(void);
+static void qdsp6_pull_up_insns(void);
+static void qdsp6_init_packing_info(bool need_bb_info);
+static void qdsp6_remove_new_values(void);
+static void qdsp6_free_packing_info(bool free_bb_info);
+static void qdsp6_packet_optimizations(void);
+static bool qdsp6_move_insn_down_p(struct qdsp6_insn_info* insn, 
+             struct qdsp6_packet_info* pred_packet, 
+             struct qdsp6_packet_info* succ_packet);
+
+static void qdsp6_final_pack_insns(void);
+static void qdsp6_pack_duplex_insns(void);
+
+
+bool is_restrict_qualified (tree t);
+
+static bool qdsp6_can_be_new_value_store_p(
+  struct qdsp6_insn_info *producer, 
+  struct qdsp6_insn_info *consumer,
+  struct qdsp6_dependence *dependencer);
+
+static bool qdsp6_can_be_new_value_p(
+  struct qdsp6_insn_info *producer, 
+  struct qdsp6_insn_info *consumer,
+  struct qdsp6_dependence *dependencer);
+
+/*generate a new value nump for V4 */
+static bool qdsp6_can_be_new_value_jump_p(
+  struct qdsp6_insn_info *consumer,
+  struct qdsp6_dependence *dependencer);
+static void qdsp6_new_value_jump(void ); 
+static struct qdsp6_insn_info * qdsp6_nvj_query_jump(
+              struct qdsp6_packet_info *packet, 
+              bool *dot_new_predicate,
+              basic_block bb);
+static struct qdsp6_insn_info * qdsp6_nvj_query_compare (
+              struct qdsp6_packet_info *packet,
+              struct qdsp6_insn_info *jump_p_insn_info);
+static bool qdsp6_used_operands( 
+              struct qdsp6_packet_info *packet, 
+              struct qdsp6_insn_info *jump_p_insn_info,
+              struct qdsp6_insn_info *compare_insn_info);
+static bool qdsp6_register_defined(
+              struct qdsp6_insn_info *insn, 
+              unsigned int reg_no );
+static bool qdsp6_register_used(
+              struct qdsp6_insn_info *insn,
+              unsigned int reg_no  );
+static struct qdsp6_packet_info * qdsp6_get_source_packet(
+              struct qdsp6_packet_info *packet, 
+              rtx feeder_reg, 
+              struct qdsp6_insn_info *d_insn,
+              struct qdsp6_insn_info **s_insn);
+static bool qdsp6_move_insn_across_packet_down( 
+              struct qdsp6_packet_info *from_packet, 
+              struct qdsp6_packet_info *to_packet, 
+              struct qdsp6_insn_info *insn);
+static bool qdsp6_nvj_move_possible(
+              struct qdsp6_packet_info *candidate_packet,
+              struct qdsp6_packet_info *prev_packet,
+              struct qdsp6_insn_info *jump_p_insn_info, 
+              struct qdsp6_insn_info *compare_info_info, 
+              rtx *operator, 
+              rtx *pred,
+              rtx *op1, 
+              rtx *op2,
+              rtx *b_label,
+              struct qdsp6_packet_info **src_packet,
+              struct qdsp6_insn_info **src_insn,
+              int *op_cnt);
+
+static bool qdsp6_nvj_compare_p(rtx insn);
+static int  qdsp6_get_reads_count(struct qdsp6_insn_info *insn_info);
+
+static bool qdsp6_nvj_new_gpr_p(
+              struct qdsp6_insn_info *consumer,
+              struct qdsp6_dependence *dependence);
+static bool qdsp6_nvj_check_resources ( 
+              struct qdsp6_insn_info *q_insn, 
+              struct qdsp6_packet_info *nvj_packet,
+              struct qdsp6_insn_info *comp_insn, 
+              struct qdsp6_insn_info *jump_insn, 
+              rtx nvj_insn_rtx );
+static bool qdsp6_in_bb_live_out( 
+              basic_block bb, 
+              struct qdsp6_insn_info *q_insn);
+static void qdsp6_remove_empty_packet( 
+              basic_block bb,
+              struct qdsp6_packet_info *packet);
+static bool qdsp6_predicate_use_DImode( struct qdsp6_insn_info *insn_info);
+static rtx qdsp6_nvj_swap_operands(rtx insn);
+static rtx qdsp6_nvj_get_compare( rtx nvj_insn, int elem_num);
+static rtx qdsp6_nvj_get_operand( rtx insn, int op_count);
+void 
+qdsp6_duplicate_doloop_begin(basic_block condition_bb, struct loop *loop);
 
 
 /* Initialize the GCC target structure. */
@@ -255,27 +410,24 @@ static unsigned HOST_WIDE_INT  sdata_symbolic_operand_smallest_accessable_size(r
 Run-time Target Specification
 ---------------------------*/
 
-#if !GCC_3_4_6
 #undef TARGET_DEFAULT_TARGET_FLAGS
 #define TARGET_DEFAULT_TARGET_FLAGS \
   (MASK_LITERAL_POOL | MASK_LITERAL_POOL_ADDRESSES | MASK_HARDWARE_LOOPS \
-   | MASK_DOT_NEW | MASK_BASE_PLUS_INDEX | MASK_MEMOPS | MASK_SECTION_SORTING \
-   | MASK_SECTION_SORTING_CODE_SUPPORT)
-#endif /* !GCC_3_4_6 */
+   | MASK_NEW_PREDICATES | MASK_NEW_VALUE_STORES | MASK_BASE_PLUS_INDEX \
+   | MASK_MEMOPS | MASK_SECTION_SORTING | MASK_SECTION_SORTING_CODE_SUPPORT \
+   | MASK_DEEP_PHI_MATCH)
 
-#if !GCC_3_4_6
 #undef TARGET_HANDLE_OPTION
 #define TARGET_HANDLE_OPTION qdsp6_handle_option
-#endif /* !GCC_3_4_6 */
 
 
 /*------------
 Storage Layout
 ------------*/
 
-/* Integer arguments and return values should be sign- or zero-extended to a
+/* Integer arguments and return values should be sign- or zero-extended to a 
    full register or register pair before being passed/returned. */
-#undef  TARGET_PROMOTE_FUNCTION_MODE
+#undef TARGET_PROMOTE_FUNCTION_MODE
 #define TARGET_PROMOTE_FUNCTION_MODE default_promote_function_mode_always_promote
 
 #undef TARGET_ALIGN_ANON_BITFIELD
@@ -288,45 +440,35 @@ Storage Layout
 Layout of Source Language Data Types
 ----------------------------------*/
 
-#if !GCC_3_4_6
 #undef TARGET_DEFAULT_SHORT_ENUMS
 #define TARGET_DEFAULT_SHORT_ENUMS qdsp6_default_short_enums
-#endif /* !GCC_3_4_6 */
 
 
 /*--------------
 Register Classes
 --------------*/
 
-#if !GCC_3_4_6
 #undef TARGET_SECONDARY_RELOAD
 #define TARGET_SECONDARY_RELOAD qdsp6_secondary_reload
-#endif /* !GCC_3_4_6 */
 
 
 /*----------------------------
 Passing Arguments in Registers
 ----------------------------*/
 
-#if !GCC_3_4_6
 #undef TARGET_MUST_PASS_IN_STACK
 #define TARGET_MUST_PASS_IN_STACK qdsp6_must_pass_in_stack
-#endif /* !GCC_3_4_6 */
 
-#if !GCC_3_4_6
 #undef TARGET_VECTOR_MODE_SUPPORTED_P
 #define TARGET_VECTOR_MODE_SUPPORTED_P qdsp6_vector_mode_supported_p
-#endif /* !GCC_3_4_6 */
 
 
 /*-------------------------------------
 How Scalar Function Values Are Returned
 -------------------------------------*/
 
-#if !GCC_3_4_6
 #undef TARGET_FUNCTION_VALUE
 #define TARGET_FUNCTION_VALUE qdsp6_function_value
-#endif /* !GCC_3_4_6 */
 
 
 /*---------------------------
@@ -335,11 +477,6 @@ How Large Values Are Returned
 
 #undef TARGET_RETURN_IN_MEMORY
 #define TARGET_RETURN_IN_MEMORY qdsp6_return_in_memory
-
-#if GCC_3_4_6
-#undef TARGET_STRUCT_VALUE_RTX
-#define TARGET_STRUCT_VALUE_RTX qdsp6_struct_value_rtx
-#endif /* GCC_3_4_6 */
 
 
 /*---------------------
@@ -380,11 +517,9 @@ Implicit Calls to Library Routines
 Addressing Modes
 --------------*/
 
-#if !GCC_3_4_6
 #undef TARGET_VECTORIZE_BUILTIN_MASK_FOR_LOAD
 #define TARGET_VECTORIZE_BUILTIN_MASK_FOR_LOAD \
   qdsp6_vectorize_builtin_mask_for_load
-#endif /* !GCC_3_4_6 */
 
 
 /*-------------------------------------
@@ -404,12 +539,6 @@ Adjusting the Instruction Scheduler
 
 #undef TARGET_SCHED_ISSUE_RATE
 #define TARGET_SCHED_ISSUE_RATE qdsp6_sched_issue_rate
-
-#if GCC_3_4_6
-#undef TARGET_SCHED_USE_DFA_PIPELINE_INTERFACE
-#define TARGET_SCHED_USE_DFA_PIPELINE_INTERFACE \
-  qdsp6_sched_use_dfa_pipeline_interface
-#endif /* GCC_3_4_6 */
 
 #undef TARGET_SCHED_FIRST_CYCLE_MULTIPASS_DFA_LOOKAHEAD
 #define TARGET_SCHED_FIRST_CYCLE_MULTIPASS_DFA_LOOKAHEAD \
@@ -477,6 +606,9 @@ Miscellaneous Parameters
 #undef TARGET_PRINT_RTL_PSEUDO_ASM
 #define TARGET_PRINT_RTL_PSEUDO_ASM qdsp6_print_rtl_pseudo_asm
 
+#undef TARGET_LOOP_INVALID_FOR_FORCED_UNROLL
+#define TARGET_LOOP_INVALID_FOR_FORCED_UNROLL   qdsp6_loop_invalid_for_forced_unroll
+
 
 struct gcc_target targetm = TARGET_INITIALIZER;
 
@@ -498,7 +630,6 @@ static const struct qdsp6_arch_table_entry qdsp6_arch_table[NUM_QDSP6_ARCH] =
 static const struct qdsp6_abi_table_entry qdsp6_abi_table[NUM_QDSP6_ABI] =
   QDSP6_ABI_TABLE_INITIALIZER;
 
-#if !GCC_3_4_6
 /* Implements hook TARGET_HANDLE_OPTION
 
    Process command-line options such as -march. */
@@ -539,10 +670,12 @@ qdsp6_handle_option(size_t code, const char *arg, int value ATTRIBUTE_UNUSED)
     case OPT_mfalign_labels:
       qdsp6_falign = QDSP6_FALIGN_LABELS;
       return true;
+    case OPT_mfalign_all:
+      qdsp6_falign = QDSP6_FALIGN_ALL;
+      return true;
   }
   return true;
 }
-#endif /* !GCC_3_4_6 */
 
 
 
@@ -557,84 +690,47 @@ qdsp6_override_options(void)
   int arch_index;
   int abi_index;
 
-#if GCC_3_4_6
-  for(arch_index = 0; arch_index < NUM_QDSP6_ARCH; arch_index++){
-    if(strcmp(qdsp6_arch_string, qdsp6_arch_table[arch_index].name) == 0){
-      qdsp6_arch = qdsp6_arch_table[arch_index].arch;
-      qdsp6_features = qdsp6_arch_table[arch_index].features;
-      break;
-    }
-  }
-  if(arch_index == NUM_QDSP6_ARCH){
-    error("bad value (%s) for -march= option", qdsp6_arch_string);
-  }
-#else /* !GCC_3_4_6 */
   if(qdsp6_arch == QDSP6_ARCH_UNSPECIFIED){
     arch_index = QDSP6_ARCH_TABLE_DEFAULT_INDEX;
     qdsp6_arch = qdsp6_arch_table[arch_index].arch;
     qdsp6_features = qdsp6_arch_table[arch_index].features;
   }
-#endif /* !GCC_3_4_6 */
 
   if(qdsp6_arch == QDSP6_ARCH_V1){
     error("Architecture qdsp6v1 is no longer supported.");
   }
 
-#if GCC_3_4_6
-  if(qdsp6_abi_string != NULL){
-    for(abi_index = 0; abi_index < NUM_QDSP6_ABI; abi_index++){
-      if(strcmp(qdsp6_abi_string, qdsp6_abi_table[abi_index].name) == 0){
-        qdsp6_abi = qdsp6_abi_table[abi_index].abi;
-        break;
-      }
-    }
-    if(abi_index == NUM_QDSP6_ABI){
-      error("bad value (%s) for -mabi= option", qdsp6_abi_string);
-    }
-  }
-#endif /* GCC_3_4_6 */
   if(qdsp6_abi == QDSP6_ABI_UNSPECIFIED){
     abi_index = QDSP6_ABI_TABLE_DEFAULT_INDEX;
     qdsp6_abi = qdsp6_abi_table[abi_index].abi;
   }
-
-#if GCC_3_4_6
-  if(TARGET_NO_FALIGN){
-    qdsp6_falign = QDSP6_NO_FALIGN;
-  }
-  else if(TARGET_FALIGN_LOOPS){
-    qdsp6_falign = QDSP6_FALIGN_LOOPS;
-  }
-  else if(TARGET_FALIGN_LABELS){
-    qdsp6_falign = QDSP6_FALIGN_LABELS;
-  }
-#endif /* GCC_3_4_6 */
 
   if(TARGET_UNCACHED_DATA){
     if(qdsp6_arch == QDSP6_ARCH_V1 || qdsp6_arch == QDSP6_ARCH_V2){
       qdsp6_dual_memory_accesses = false;
     }
     else {
-#if GCC_3_4_6
-      warning("Ignoring the -mv1-v2-uncached-data option as it is only valid for V1 an V2.");
-#else /* !GCC_3_4_6 */
       warning(0, "Ignoring the -mv1-v2-uncached-data option as it is only valid for V1 an V2.");
-#endif /* !GCC_3_4_6 */
     }
-  }
-
-  if(!g_switch_set){
-    g_switch_value = 2 * UNITS_PER_WORD;
-  }
-
-  if(TARGET_COMPRESSED){
-    flag_schedule_insns = 0;
-    flag_schedule_insns_after_reload = 0;
-    target_flags &= ~MASK_PACKETS;
   }
 
   if(!TARGET_PACKETS){
     target_flags &= ~MASK_PULLUP;
+  }
+
+  if(!optimize){
+    target_flags &= ~MASK_PACKETS;
+    target_flags &= ~MASK_PULLUP;
+    qdsp6_falign = QDSP6_NO_FALIGN;
+  }
+
+  if(!g_switch_set){
+#ifdef LINUX
+  /* On Linux, use -G0 as the default */
+    g_switch_value = 0;
+#else
+    g_switch_value = 8;
+#endif
   }
 
   /* Align functions to 16-byte boundaries to prevent
@@ -643,11 +739,17 @@ qdsp6_override_options(void)
     align_functions = 16;
   }
 
-#if GCC_3_4_6
-  /* In GCC 3.4.6, when unswitching hardware loops, GCC does not duplicate the
-     loop setup instruction. */
-  flag_unswitch_loops = 0;
-#endif /* GCC_3_4_6 */
+  if(!TARGET_CONST32 || !TARGET_LITERAL_POOL_ADDRESSES || qdsp6_arch >= QDSP6_ARCH_V4)
+    target_flags &= ~MASK_AGGREGATE_ACCESS;
+
+  /* Taxis code degraded immensely because of the subreg1 pass.  The pass splits
+     double word opcodes into single words, which resulted in larger packet
+     size.  See Qualcomm Bugzilla #3659 for the details.  To enable the subreg1
+     pass, use -menable-subreg1 */
+  if(!TARGET_ENABLE_SUBREG1){
+    flag_split_wide_types = false;
+  }
+
 }
 
 
@@ -660,37 +762,25 @@ qdsp6_override_options(void)
 void
 qdsp6_optimization_options(int level, int size)
 {
+  if(size){
+    target_flags |= MASK_EXTENDED_CROSSJUMPING;
+    target_flags |= MASK_LOCAL_COMBINE;
+    target_flags |= MASK_DUPLEX_SCHEDULING;
+  }
+
   if(level >= 2){
     target_flags |= MASK_PACKETS;
     target_flags |= MASK_PULLUP;
-    flag_optimize_memset = 1;
+    target_flags |= MASK_AGGREGATE_ACCESS;
   }
 
   qdsp6_falign = QDSP6_NO_FALIGN;
-
-  if (level >= 1)
-    {
-      target_flags |= MASK_PRED_MUX;
-    }
-
-  if(size){
-    target_flags |= MASK_EXTENDED_CROSSJUMPING; 
-    target_flags |= MASK_LOCAL_COMBINE;
-  }
-
   if(level >= 3 && !size){
-    qdsp6_falign = QDSP6_FALIGN_LABELS;
+    qdsp6_falign = QDSP6_FALIGN_ALL;
   }
   else if(level >= 1 && !size){
     qdsp6_falign = QDSP6_FALIGN_LOOPS;
   }
-
-#if GCC_3_4_6
-  if(level >= 2){
-    flag_reduce_all_givs = 1;
-    flag_sched2_use_superblocks = 1;
-  }
-#endif /* GCC_3_4_6 */
 }
 
 
@@ -717,7 +807,7 @@ static struct machine_function *
 qdsp6_init_machine_status(void)
 {
   struct machine_function *mf;
-  mf = ggc_alloc_cleared(sizeof(struct machine_function));
+  mf = (struct machine_function *)ggc_alloc_cleared(sizeof(struct machine_function));
   return mf;
 }
 
@@ -731,7 +821,7 @@ Storage Layout
 /* Return the TYPE of the elements comprising
    the innermost dimension of ARRAY.  */
 
-tree
+static tree
 get_inner_array_type (const_tree array)
 {
   tree type = TREE_TYPE (array);
@@ -812,7 +902,7 @@ qdsp6_constant_alignment(tree constant, int align)
    Doubleword align arrays whose element size <= 4 bytes to facilitate
    vectorization. */
 
-int
+unsigned int
 qdsp6_local_alignment(tree type, int align)
 {
   if(TREE_CODE (type) == ARRAY_TYPE){
@@ -843,7 +933,6 @@ qdsp6_align_anon_bitfield(void)
 Layout of Source Language Data Types
 ----------------------------------*/
 
-#if !GCC_3_4_6
 /* Implements hook TARGET_DEFAULT_SHORT_ENUMS
 
    The default ABI specifies that enumerated types behave like the smallest
@@ -855,7 +944,6 @@ qdsp6_default_short_enums(void)
 {
   return qdsp6_abi != QDSP6_ABI_LINUX;
 }
-#endif /* !GCC_3_4_6 */
 
 
 
@@ -878,6 +966,12 @@ qdsp6_conditional_register_usage(void)
         call_used_regs[i] = 0;
       }
     }
+  }
+
+  /* For PIC, we reserve a register for the GOT pointer */
+  if (flag_pic) {
+    fixed_regs[PIC_OFFSET_TABLE_REGNUM] = 1;
+    call_used_regs[PIC_OFFSET_TABLE_REGNUM] = 1;
   }
 }
 
@@ -903,9 +997,7 @@ qdsp6_cannot_change_mode_class(
     return false;
   }
 
-  if((   rclass == PREDICATE_DOT_OLD_REGS
-      || rclass == PREDICATE_DOT_NEW_REGS
-      || rclass == PREDICATE_REGS)
+  if(rclass == PREDICATE_REGS
      && from == SImode
      && to == QImode){
     return true;
@@ -925,11 +1017,14 @@ qdsp6_cannot_change_mode_class(
    ImN means signed magnitude integers in [-(2^(N-1) - 1), 2^(N-1) - 1]
 
    J[sunm]N_M means I[sunm]N shifted left M bits
-
+   
+   K-1 means -1
+   K01 means  1
    K16 means 16
    K32 means 32
    Ku7p1 integers in [1, 128]
    Ks8p1 integers in [-127, 128]
+   Ku5_3p8 integers in [8, 256]
    Ku9p1 integers in [1, 512]
    Ks10p1 integers in [-511, 512]
    Ks8s8 means integers that can be formed using combine(#s8,#s8)
@@ -1005,7 +1100,13 @@ qdsp6_const_ok_for_constraint_p(HOST_WIDE_INT value, char c, const char *str)
       return low <= value && value <= high && scale_bits == 0;
 
     case 'K':
-      if(QDSP6_CONSTRAINT_P(str, 16)){
+      if(QDSP6_CONSTRAINT_P(str, -1)){
+        return value == -1;
+      }
+      else if(QDSP6_CONSTRAINT_P(str, 01)){
+        return value == 1;
+      }
+      else if(QDSP6_CONSTRAINT_P(str, 16)){
         return value == 16;
       }
       else if(QDSP6_CONSTRAINT_P(str, 32)){
@@ -1016,6 +1117,9 @@ qdsp6_const_ok_for_constraint_p(HOST_WIDE_INT value, char c, const char *str)
       }
       else if(QDSP6_CONSTRAINT_P(str, s8p1)){
         return IN_RANGE (value, -127, 128);
+      }
+      else if(QDSP6_CONSTRAINT_P(str, u5_3p8)){
+        return IN_RANGE (value, 8, 256);
       }
       else if(QDSP6_CONSTRAINT_P(str, u9p1)){
         return IN_RANGE (value, 1, 512);
@@ -1052,13 +1156,6 @@ qdsp6_const_ok_for_constraint_p(HOST_WIDE_INT value, char c, const char *str)
    Predicate registers can not be directly loaded from or stored to memory.
    The value must first be moved to a general purpose register. */
 
-#if GCC_3_4_6
-enum reg_class
-qdsp6_secondary_reload_class(
-  rtx x,
-  enum reg_class reload_class
-)
-#else /* !GCC_3_4_6 */
 static enum reg_class
 qdsp6_secondary_reload(
   bool in_p ATTRIBUTE_UNUSED,
@@ -1067,11 +1164,8 @@ qdsp6_secondary_reload(
   enum machine_mode reload_mode ATTRIBUTE_UNUSED,
   secondary_reload_info *sri ATTRIBUTE_UNUSED
 )
-#endif /* !GCC_3_4_6 */
 {
   switch(reload_class){
-    case PREDICATE_DOT_OLD_REGS:
-    case PREDICATE_DOT_NEW_REGS:
     case PREDICATE_REGS:
       if(true_regnum(x) < 0){
         return GENERAL_REGS;
@@ -1356,7 +1450,7 @@ qdsp6_make_prologue_epilogue_decisions(struct qdsp6_frame_info *info)
     }
     /* Use SP as the base if the offset would be small, making the loads and
        stores candidates for duplexes. */
-    if(!TARGET_COMPRESSED && info->frame_size <= 256){
+    if(info->frame_size <= 256){
       info->base_reg = stack_pointer_rtx;
       info->offset = info->frame_size;
     }
@@ -1374,7 +1468,7 @@ qdsp6_make_prologue_epilogue_decisions(struct qdsp6_frame_info *info)
      since the common prologue and epilogue functions only save registers as
      pairs and doubleword store subinstructions have larger offsets than word
      store subinstructions. */
-  if((use_common_functions || (optimize && TARGET_PACKETS))
+  if((use_common_functions || TARGET_PACKETS)
      && info->num_saved_singles % 2 == 1){
 
     /* Count the number of contiguous callee-save register pairs being saved. */
@@ -1447,7 +1541,7 @@ qdsp6_make_prologue_epilogue_decisions(struct qdsp6_frame_info *info)
 
   /* If possible, save one or more callee-save registers while allocating
      stack. */
-  if(optimize && TARGET_PACKETS
+  if(TARGET_PACKETS
      && (info->use_allocframe || info->sp_adjustment != 0)
      && info->num_function_saved_pairs == 0){
 
@@ -1617,7 +1711,7 @@ qdsp6_initial_elimination_offset(int from_reg, int to_reg)
   }
   else if( from_reg == FRAME_POINTER_REGNUM
           && to_reg == STACK_POINTER_REGNUM){
-    return frame->args_size;
+    return frame->args_size + frame->var_size;
   }
   else if( from_reg == HARD_FRAME_POINTER_REGNUM
           && to_reg == STACK_POINTER_REGNUM){
@@ -1629,7 +1723,7 @@ qdsp6_initial_elimination_offset(int from_reg, int to_reg)
   }
   else if( from_reg == FRAME_POINTER_REGNUM
           && to_reg == HARD_FRAME_POINTER_REGNUM){
-    return -(frame->reg_size + frame->var_size);
+    return -(frame->reg_size);
   }
 
   return 0;
@@ -1700,11 +1794,7 @@ qdsp6_function_arg(
      the stack)
    - if the type is > 8 bytes. */
 
-#if GCC_3_4_6
-bool
-#else /* !GCC_3_4_6 */
 static bool
-#endif /* !GCC_3_4_6 */
 qdsp6_must_pass_in_stack(enum machine_mode mode ATTRIBUTE_UNUSED, const_tree type)
 {
   return type && TYPE_SIZE (type)
@@ -1759,7 +1849,6 @@ qdsp6_function_arg_advance(
 
 
 
-#if !GCC_3_4_6
 /* Implements hook TARGET_VECTOR_MODE_SUPPORTED_P */
 
 static bool
@@ -1771,7 +1860,6 @@ qdsp6_vector_mode_supported_p(enum machine_mode mode)
          || mode == V2HImode
          || mode == V4QImode;
 }
-#endif /* !GCC_3_4_6 */
 
 
 
@@ -1782,14 +1870,10 @@ How Scalar Function Values Are Returned
 
 /* Implements hook TARGET_FUNCTION_VALUE */
 
-#if GCC_3_4_6
-rtx
-#else /* !GCC_3_4_6 */
 static rtx
-#endif /* !GCC_3_4_6 */
 qdsp6_function_value(
   const_tree ret_type,
-  const_tree func,
+  const_tree fn_decl_or_type ATTRIBUTE_UNUSED,
   bool outgoing ATTRIBUTE_UNUSED
 )
 {
@@ -1797,7 +1881,7 @@ qdsp6_function_value(
   int unsignedp ATTRIBUTE_UNUSED;
 
   mode = TYPE_MODE (ret_type);
-  mode = promote_function_mode(ret_type, mode, &unsignedp, func, 1);
+  mode = promote_mode(ret_type, mode, &unsignedp);
   return gen_rtx_REG (mode, RETURN_VALUE_REGNUM);
 }
 
@@ -1825,28 +1909,8 @@ qdsp6_return_in_memory(const_tree type, const_tree fntype ATTRIBUTE_UNUSED)
     byte_size = int_size_in_bytes(type);
   }
 
-  return !IN_RANGE (byte_size, 0, 2 * UNITS_PER_WORD);
+  return !IN_RANGE (byte_size, 0, 8);
 }
-
-
-
-
-#if GCC_3_4_6
-/* Implements hook TARGET_STRUCT_VALUE_RTX
-
-   If a function returns a struct that does not fit in a register, then the
-   address where the struct should be stored should be passed to the function
-   as if it were the first argument. */
-
-static rtx
-qdsp6_struct_value_rtx(
-  tree fndecl ATTRIBUTE_UNUSED,
-  int incoming ATTRIBUTE_UNUSED
-)
-{
-  return NULL_RTX;
-}
-#endif /* GCC_3_4_6 */
 
 
 
@@ -1933,20 +1997,60 @@ qdsp6_init_libfuncs(void)
   set_optab_libfunc(udivmod_optab, SImode, "__qdsp_udivmodsi4");
   set_optab_libfunc(udivmod_optab, DImode, "__qdsp_udivmoddi4");
 
+  if (flag_unsafe_math_optimizations)
+    {
+      set_optab_libfunc(add_optab, DFmode, "__qdsp_fast_adddf3");
+    }
+  else 
+    {
+      set_optab_libfunc(add_optab, DFmode, "__qdsp_adddf3");
+    }
+
   set_optab_libfunc(add_optab, SFmode, "__qdsp_addsf3");
-  set_optab_libfunc(add_optab, DFmode, "__qdsp_adddf3");
+
+  if (flag_unsafe_math_optimizations)
+    {
+      set_optab_libfunc(sub_optab, DFmode, "__qdsp_fast_subdf3");
+    }
+  else
+    {
+      set_optab_libfunc(sub_optab, DFmode, "__qdsp_subdf3");
+    }
 
   set_optab_libfunc(sub_optab, SFmode, "__qdsp_subsf3");
-  set_optab_libfunc(sub_optab, DFmode, "__qdsp_subdf3");
+
+  if (flag_unsafe_math_optimizations)
+    {
+      set_optab_libfunc(smul_optab, DFmode, "__qdsp_fast_muldf3");
+    }
+  else
+    {
+      set_optab_libfunc(smul_optab, DFmode, "__qdsp_muldf3");
+    }
 
   set_optab_libfunc(smul_optab, SFmode, "__qdsp_mulsf3");
-  set_optab_libfunc(smul_optab, DFmode, "__qdsp_muldf3");
+    
+  if (flag_unsafe_math_optimizations)
+    {
+      set_optab_libfunc(sdiv_optab, DFmode, "__qdsp_fast_divdf3");
+    }
+  else
+    {
+      set_optab_libfunc(sdiv_optab, DFmode, "__qdsp_divdf3");
+    }
 
   set_optab_libfunc(sdiv_optab, SFmode, "__qdsp_divsf3");
-  set_optab_libfunc(sdiv_optab, DFmode, "__qdsp_divdf3");
+  
+  if (flag_unsafe_math_optimizations)
+    {
+      set_optab_libfunc(neg_optab, DFmode, "__qdsp_fast_negdf2");
+    }
+  else
+    {
+      set_optab_libfunc(neg_optab, DFmode, "__qdsp_negdf2");
+    }
 
   set_optab_libfunc(neg_optab, SFmode, "__qdsp_negsf3");
-  set_optab_libfunc(neg_optab, DFmode, "__qdsp_negdf3");
 
   set_optab_libfunc(cmp_optab, SFmode, "__qdsp_cmpsf2");
   set_optab_libfunc(cmp_optab, DFmode, "__qdsp_cmpdf2");
@@ -1963,14 +2067,30 @@ qdsp6_init_libfuncs(void)
   set_optab_libfunc(ge_optab, SFmode, "__qdsp_gesf2");
   set_optab_libfunc(ge_optab, DFmode, "__qdsp_gedf2");
 
+  if (flag_unsafe_math_optimizations)
+    {
+      set_optab_libfunc(lt_optab, DFmode, "__qdsp_fast_ltdf2");
+    }
+  else
+    {
+      set_optab_libfunc(lt_optab, DFmode, "__qdsp_ltdf2");
+    }
+
   set_optab_libfunc(lt_optab, SFmode, "__qdsp_ltsf2");
-  set_optab_libfunc(lt_optab, DFmode, "__qdsp_ltdf2");
 
   set_optab_libfunc(le_optab, SFmode, "__qdsp_lesf2");
   set_optab_libfunc(le_optab, DFmode, "__qdsp_ledf2");
 
+  if (flag_unsafe_math_optimizations)
+    {
+      set_optab_libfunc(gt_optab, DFmode, "__qdsp_fast_gtdf2");
+    }
+  else 
+    {
+      set_optab_libfunc(gt_optab, DFmode, "__qdsp_gtdf2");
+    }
+
   set_optab_libfunc(gt_optab, SFmode, "__qdsp_gtsf2");
-  set_optab_libfunc(gt_optab, DFmode, "__qdsp_gtdf2");
 
   set_conv_libfunc(sext_optab, DFmode, SFmode, "__qdsp_extendsfdf2");
   set_conv_libfunc(trunc_optab, SFmode, DFmode, "__qdsp_truncdfsf2");
@@ -1993,13 +2113,16 @@ qdsp6_init_libfuncs(void)
   set_conv_libfunc(sfloat_optab, DFmode, SImode, "__qdsp_floatsidf");
   set_conv_libfunc(sfloat_optab, DFmode, DImode, "__qdsp_floatdidf");
 
-#if !GCC_3_4_6
+  if (flag_unsafe_math_optimizations)
+    {
+      set_optab_libfunc(sqrt_optab, DFmode, "__qdsp_fast_sqrt_df");
+    }
+
   set_conv_libfunc(ufloat_optab, SFmode, SImode, "__qdsp_floatunsisf");
   set_conv_libfunc(ufloat_optab, SFmode, DImode, "__qdsp_floatundisf");
 
   set_conv_libfunc(ufloat_optab, DFmode, SImode, "__qdsp_floatunsidf");
   set_conv_libfunc(ufloat_optab, DFmode, DImode, "__qdsp_floatundidf");
-#endif /* !GCC_3_4_6 */
 }
 #endif /* QDSP6_DINKUMWARE */
 
@@ -2045,15 +2168,9 @@ qdsp6_legit_addr_const_p(
 
 
 
-#if GCC_3_4_6
-/* Implements macro REG_OK_FOR_BASE_P */
-
-bool
-#else /* !GCC_3_4_6 */
 /* Helper function for qdsp6_legitimate_address_p */
 
 static bool
-#endif /* !GCC_3_4_6 */
 qdsp6_reg_ok_for_base_p(rtx x, bool reg_ok_strict_p)
 {
   if(reg_ok_strict_p){
@@ -2094,6 +2211,10 @@ qdsp6_reg_ok_for_index_p(rtx x, bool reg_ok_strict_p)
    values for the constraint string are:
 
    m       basic loads and stores, allowing an immediate extender
+   dm3     stores and loads for sub-instructions with an #u3 offset
+   dm4     stores and loads for sub-instructions with an #u4 offset
+   dmsp5   stores and loads for sub-instructions from SP with an #u5 offset
+   dmsp6   stores and loads for sub-instructions from SP with an #s6 offset
    noext   basic loads and stores
    cond    conditional loads and stores
    econd   conditional loads and stores, allowing an immediate extender
@@ -2130,7 +2251,52 @@ qdsp6_legitimate_address_p(
     allow_extension = true;
   }
 
-  if(!strcmp(constraint, "m") || !strcmp(constraint, "noext")){
+  if (TARGET_V4_FEATURES && !strcmp (constraint, "dmsp5")) {
+    /* For memw(r29 + #u5:2) and memd(r29+#u5:3) */
+    if (GET_CODE (x) == PLUS) {
+      xop0 = XEXP (x, 0);
+      xop1 = XEXP (x, 1);
+      if (REG_P (xop0)
+          && REGNO (xop0) == STACK_POINTER_REGNUM
+          && GET_CODE (xop1) == CONST_INT) {
+        offset_bits = 5;
+      }
+    }
+    else if (REG_P(x) && (REGNO (x) == STACK_POINTER_REGNUM)) {
+        offset_bits = 5;
+    }
+    else {
+      return false;
+    }
+  }
+  else if (TARGET_V4_FEATURES && !strcmp (constraint, "dm4")) {
+    /* For memw(Rs+#u4:2) */
+    offset_bits = 4;
+  }
+  else if (TARGET_V4_FEATURES && !strcmp (constraint, "dm3")) {
+    /* For Rd = memb(Rs+#u3:0) */
+    offset_bits = 3;
+  }
+  else if (TARGET_V4_FEATURES && !strcmp (constraint, "dmsp6")) {
+    if (GET_CODE (x) == PLUS) {
+      xop0 = XEXP (x, 0);
+      xop1 = XEXP (x, 1);
+      if (REG_P (xop0)
+          && REGNO (xop0) == STACK_POINTER_REGNUM 
+          && GET_CODE (xop1) == CONST_INT) {
+        /* For memd(r29+#s6:3) */
+        offset_bits = -6;
+      }
+    }
+    /* For memd(r29) */
+    else if (REG_P(x) && (REGNO (x) == STACK_POINTER_REGNUM)) {
+      offset_bits = -6;
+    }
+    else {
+      return false;
+    }
+  }
+  else if(!strcmp(constraint, "m") || !strcmp(constraint, "noext")){
     if(TARGET_V4_FEATURES){
       allow_absolute = true;
       allow_immediate_base = true;
@@ -2285,6 +2451,238 @@ qdsp6_legitimate_address_p(
   return false;
 }
 
+/*                                           
+ ---------------------------------------------
+    Begin Position Independent Code Support  
+ ---------------------------------------------
+*/                                          
+
+/* 
+ *  Helper function for qdsp6_legitimate_pic_operand_p()
+ *  Return TRUE if X references a symbol  
+ *  Simple proposition for now; can be expanded
+ */
+int
+symbol_mentioned_p (rtx x)
+{
+  return (GET_CODE (x) == SYMBOL_REF);
+}
+
+
+/* 
+ *  Helper function for qdsp6_legitimate_pic_operand_p()
+ *  Return TRUE if X references a label  
+ *  Simple proposition for now; can be expanded
+ */
+int
+label_mentioned_p (rtx x)
+{
+  return (GET_CODE (x) == LABEL_REF);
+}
+
+
+/*
+ * Implements macro LEGITIMATE_PIC_OPERAND_P
+ */
+bool
+qdsp6_legitimate_pic_operand_p(rtx operand) 
+{
+  /* Taken from the ARM code.  It recogonizes the case when a pic symbol
+   * is used within an expression, which we disallow because the symbol
+   * will not be generated with a @GOT/GOTOFF extension.
+   */
+  if (symbol_mentioned_p (operand) 
+	 || (GET_CODE (operand) == CONST
+	     && GET_CODE (XEXP (operand, 0)) == PLUS
+	     && symbol_mentioned_p (XEXP (XEXP (operand, 0), 0)))) {
+    return 0;
+  }
+
+  return (!(symbol_mentioned_p (operand)
+	    || label_mentioned_p (operand)
+	    || (GET_CODE (operand) == SYMBOL_REF
+		&& CONSTANT_POOL_ADDRESS_P (operand)
+		&& (symbol_mentioned_p (get_pool_constant (operand))
+		    || label_mentioned_p (get_pool_constant (operand))))));
+}
+
+
+/*
+ * Mark that the compiled function accesses the PIC register. This implies that
+ * code must be added in the prologue to set up the PIC register
+ */
+void
+require_pic_register (void)
+{
+  /* Set gcc global flag */
+  crtl->uses_pic_offset_table = 1;
+}
+
+
+/*
+  There must be a better way to do this. We need a register to use as a temporary
+  while saving and restoring gp. We cannot create a new virtual register since
+  the save and restore code is invoked after reload has finished. 
+  The temporary register must be a caller-saved register and not an argument
+  register
+*/
+#define NON_ARG_CALLER_SAVE_REGISTER_1 10
+
+/*
+ * Setup the pic register in the function prologue.  This function
+ * assumes the pic option has been set.
+ */
+static void
+qdsp6_load_pic_register() {
+  
+  rtx dummy_pic, pic_reg, label, seq;
+  
+  /* Materialize GOT base for PIC */
+
+  label = gen_label_rtx();    
+  rtx temp_reg = gen_rtx_REG (SImode, NON_ARG_CALLER_SAVE_REGISTER_1);
+  /* emit insn sequence for computing the GOT base */
+  emit_insn(gen_compute_got_base(pic_offset_table_rtx, label));
+  emit_insn(gen_pic_movsi_hi_gotoff(temp_reg, 
+				    gen_rtx_LABEL_REF(SImode, label)));
+  emit_insn(gen_pic_movsi_lo_gotoff(temp_reg, temp_reg,
+				    gen_rtx_LABEL_REF(SImode, label)));
+  emit_insn(gen_subsi3(pic_offset_table_rtx, pic_offset_table_rtx, temp_reg));
+}
+
+/*
+ * Helper function for qdsp6_legitimize_address() for PIC compilation
+ * Make addresses conform to PIC mode
+ */
+rtx
+legitimize_pic_address(rtx orig, enum machine_mode mode, rtx reg) 
+{
+
+  if (GET_CODE (orig) == SYMBOL_REF
+      || GET_CODE (orig) == LABEL_REF)
+    {
+      rtx pic_ref, address, dummy_pic, add_reg;
+      rtx insn;
+      rtx temp_physical_reg;
+ 
+      /* module_owns: set if this module owns the data (orig) */
+      int module_owns = 0;
+      int subregs = 0;
+
+      /* Record that we generate a pic reference  */
+      require_pic_register ();
+
+      /* TODO: why do we need the following 2 if clauses? */
+      if (reg == 0)
+	{
+	  gcc_assert (can_create_pseudo_p());
+	  reg = gen_reg_rtx (Pmode);
+
+	  subregs = 1;
+	}
+
+      if (subregs) 
+	{
+	  address = gen_reg_rtx (Pmode);
+	}
+      else
+	{
+	  address = reg;
+	}
+
+
+      /* 
+       * Normalize the address to a PIC address via @GOT or @GOTOFF
+       */
+
+      /* Check if the module owns this data. The module always owns a label */
+      module_owns = (GET_CODE (orig) == LABEL_REF) || SYMBOL_REF_LOCAL_P(orig);
+
+      /* 1. Load GOT-relative address */
+      if (module_owns) {
+	/* rx.h = #HI(addr@GOTOFF); rx.l = #LO(addr@GOTOFF) */
+	emit_insn (gen_pic_movsi_hi_gotoff(address, orig));
+	emit_insn (gen_pic_movsi_lo_gotoff(address, address, orig));
+	/* address = CONST32(#address@GOTOFF) */
+      }
+      else {
+	if (flag_pic == 1) {
+	  /* rx = #addr@GOT */
+	  emit_insn (gen_pic_movsi(address, gen_rtx_CONST(SImode, orig)));
+	} 
+	else {
+	  /* rx.h = #HI(addr@GOT); rx.l = #LO(addr@GOT) */
+	  emit_insn(gen_pic_movsi_hi_got(address, orig));
+	  emit_insn(gen_pic_movsi_lo_got(address, address, orig));
+	  /* address = CONST32(#address@GOT) */
+	}
+      }
+
+      /* 2. Add the absolute address of the GOT to the GOT-relative address */
+      /* reg = add(address, pic_reg) */
+      //      emit_insn(gen_addsi3(reg, pic_offset_table_rtx, address));
+      if (module_owns) {
+	/* If the module owns this data, then we are done. reg holds the
+	   gotoff-adjusted address */
+	pic_ref = gen_rtx_PLUS(Pmode, pic_offset_table_rtx, address);
+      }
+      else {
+       	/* reg = memw(address) */
+	// emit_move_insn(reg, gen_rtx_MEM(SImode, reg));
+	pic_ref = gen_const_mem (Pmode, 
+				 gen_rtx_PLUS (Pmode, pic_offset_table_rtx,
+					       address));
+      }
+      insn = emit_move_insn (reg, pic_ref);
+      set_unique_reg_note (insn, REG_EQUAL, orig);
+
+      return reg;
+    }
+  else if (CONSTANT_P(orig)) 
+    {
+     /* Taken from arm code */
+     if (GET_CODE (orig) == CONST)
+       {  
+         if (GET_CODE (XEXP (orig, 0)) == PLUS)
+	   {
+	     rtx base, offset;
+	     base = legitimize_pic_address (XEXP (XEXP (orig, 0), 0), Pmode, reg);
+	     offset = legitimize_pic_address (XEXP (XEXP (orig, 0), 1), Pmode,
+					      base == reg ? 0 : reg);
+	     return gen_rtx_PLUS (Pmode, base, offset);
+	   }
+       } 
+    }
+
+  return orig;
+}
+
+
+/*
+ * Implements macro LEGITIMIZE_ADDRESS
+ * Disabled for now. We may need to enable this
+ */
+rtx
+qdsp6_legitimize_address (rtx x, rtx old_x, enum machine_mode mode)
+{
+
+  if (flag_pic) 
+    {
+      rtx pic_x = legitimize_pic_address(old_x, mode, NULL_RTX);
+      if (old_x != pic_x) 
+	{
+	  x = pic_x;
+	}
+    }
+  return(x);
+}
+
+
+/*                                           
+ ---------------------------------------------
+    End Position Independent Code Support  
+ ---------------------------------------------
+*/                                          
 
 
 
@@ -2375,7 +2773,7 @@ default_unique_section_2 (tree decl, int reloc)
   name = targetm.strip_name_encoding (name);
   nlen = strlen (name);
 
-  string = alloca (nlen + plen + 1);
+  string = (char *) alloca (nlen + plen + 1);
   memcpy (string, prefix, plen);
   memcpy (string + plen, name, nlen + 1);
 
@@ -2396,7 +2794,7 @@ qdsp6_unique_section (tree decl, int reloc)
 
 /* _LSY_ Loks for smallest addressable entity in
    a declaration, not overall declaration size. */  
-static unsigned HOST_WIDE_INT 
+unsigned HOST_WIDE_INT 
 sdata_symbolic_operand_smallest_accessable_size(rtx op)
 {
   unsigned HOST_WIDE_INT size = 16;
@@ -2417,7 +2815,7 @@ sdata_symbolic_operand_smallest_accessable_size(rtx op)
         size = GET_MODE_SIZE (get_pool_mode(op));
       }
       else {
-        if(!SYMBOL_REF_SMALL_P (op))    size;
+        if(!SYMBOL_REF_SMALL_P (op))    return size;
         t = SYMBOL_REF_DECL (op);
 	/* if we want to take overall declaration size
 	   the following code will work just fine:
@@ -2439,130 +2837,8 @@ sdata_symbolic_operand_smallest_accessable_size(rtx op)
 
 
 
-/* copy of general_operand() rtl predicate plus memory sorting */  
-int
-qdsp6_GP_or_reg_operand_c (rtx op, enum machine_mode mode)
-{
-  enum rtx_code code = GET_CODE (op);
-  
-  if (mode == VOIDmode)	mode = GET_MODE (op);  
-
-  /* Don't accept CONST_INT or anything similar
-     if the caller wants something floating.  */
-  if (GET_MODE (op) == VOIDmode && mode != VOIDmode
-      && GET_MODE_CLASS (mode) != MODE_INT
-      && GET_MODE_CLASS (mode) != MODE_PARTIAL_INT)
-    return 0;
-
-  if (GET_CODE (op) == CONST_INT
-      && mode != VOIDmode
-      && trunc_int_for_mode (INTVAL (op), mode) != INTVAL (op))
-    return 0;
-
-  if (CONSTANT_P (op)){
-    return ((GET_MODE (op) == VOIDmode || GET_MODE (op) == mode
-             || mode == VOIDmode)
-            && (! flag_pic || LEGITIMATE_PIC_OPERAND_P (op))
-            && LEGITIMATE_CONSTANT_P (op));
-   }
-
-  /* Except for certain constants with VOIDmode, already checked for,
-     OP's mode must match MODE if MODE specifies a mode.  */
-  if (GET_MODE (op) != mode)	return 0; 
-
-  if (code == SUBREG){ 
-      rtx sub = SUBREG_REG (op);
-
-#ifdef INSN_SCHEDULING
-      /* On machines that have insn scheduling, we want all memory
-	 reference to be explicit, so outlaw paradoxical SUBREGs.
-	 However, we must allow them after reload so that they can
-	 get cleaned up by cleanup_subreg_operands.  */
-      if (!reload_completed && MEM_P (sub)
-	  && GET_MODE_SIZE (mode) > GET_MODE_SIZE (GET_MODE (sub)))
-	return 0;
-#endif
-      /* Avoid memories with nonzero SUBREG_BYTE, as offsetting the memory
-         may result in incorrect reference.  We should simplify all valid
-         subregs of MEM anyway.  But allow this after reload because we
-         might be called from cleanup_subreg_operands.
-         ??? This is a kludge.  */
-      if (!reload_completed && SUBREG_BYTE (op) != 0 && MEM_P (sub))	
-        return 0;
-
-      /* FLOAT_MODE subregs can't be paradoxical.  Combine will occasionally
-         create such rtl, and we must reject it.  */
-      if (SCALAR_FLOAT_MODE_P (GET_MODE (op))
-	  && GET_MODE_SIZE (GET_MODE (op)) > GET_MODE_SIZE (GET_MODE (sub)))
-	return 0;
-
-      op = sub;
-      code = GET_CODE (op);
-    }
-  if (code == REG) 
-    /* A register whose class is NO_REGS is not a general operand.  */
-    return (REGNO (op) >= FIRST_PSEUDO_REGISTER
-            || REGNO_REG_CLASS (REGNO (op)) != NO_REGS);
-
-  if (code == MEM){ 
-      rtx y = XEXP (op, 0);
-
-      if (! volatile_ok && MEM_VOLATILE_P (op))	return 0; 
-      /* _LSY_ if (GET_CODE (y) == ADDRESSOF)		return 1; */  
-
-      /* Use the mem's mode, since it will be reloaded thus.  */
-      mode = GET_MODE (op);
-
-      /* Catch GP relative MEM accesses */  
-      if(sdata_symbolic_operand(y, Pmode)){
-    	/* Will be GP relative */
-	unsigned HOST_WIDE_INT mem_size = 0; 
-
-	if((GET_CODE (op) == MEM) && MEM_SIZE (op))	
-		mem_size = INTVAL (MEM_SIZE (op)); 
-	/* Dev warning. if(GET_MODE_SIZE(mode) != mem_size)	
-           fprintf(stderr,"Warning. GET_MODE_SIZE(%d) != mem_size(%d)\n",
-	   GET_MODE_SIZE(mode),mem_size); 
-        */
-
-	/* This makes this predicate to reject GP relative 
-	   addressing if access unit is smaller than declaration unit*/ 
-	if(TARGET_SECTION_SORTING_CODE_SUPPORT 
-	&& TARGET_SECTION_SORTING 
-	/* There is a difference in approach possible here: In case of a struct
-           we can consider overal struct size as grounds for rejection, on the other
-           hand we can see what is the smallest accessable member of the struct is, and 
-           use that instead. Currently it makes no significant difference in performance
-           or size, but we can easily think of a theoretical example where it might.
-           Alternative code:
-           mem_size < sdata_symbolic_operand_size(y)
-        */
-	&& (mem_size < sdata_symbolic_operand_smallest_accessable_size(y))){ 
-	   if(reload_completed)	; /* Dev warning. fprintf(stderr,
-                                     "Warning. Skip late section sorting match\n"); */ 
-	   else	return 0;
-	}
-      }
-      if (memory_address_p (mode, y))	return 1;
-   }
-  return 0;
-}
-
-
-
-
-int
-qdsp6_nonimmediate_operand_with_GP_c (rtx op, enum machine_mode mode)
-{
-  return (! CONSTANT_P (op) && GP_or_reg_operand (op, mode));
-}
-
-
-
-
 static GTY(()) tree qdsp6_builtin_mask_for_load;
 
-#if !GCC_3_4_6
 /* Implements hook TARGET_VECTORIZE_BUILTIN_MASK_FOR_LOAD */
 
 static tree
@@ -2570,7 +2846,6 @@ qdsp6_vectorize_builtin_mask_for_load(void)
 {
   return qdsp6_builtin_mask_for_load;
 }
-#endif /* !GCC_3_4_6 */
 
 
 
@@ -2608,7 +2883,7 @@ qdsp6_store_by_pieces_p(unsigned HOST_WIDE_INT size, unsigned int alignment)
 /* Helper function for qdsp6_rtx_costs */
 
 static bool
-qdsp6_free_immediate(rtx x, int outer_code, int value)
+qdsp6_free_immediate(rtx x ATTRIBUTE_UNUSED, int outer_code ATTRIBUTE_UNUSED, int value ATTRIBUTE_UNUSED)
 {
   return true;
 }
@@ -2619,7 +2894,7 @@ qdsp6_free_immediate(rtx x, int outer_code, int value)
 /* Implements hook TARGET_RTX_COSTS */
 
 static bool
-qdsp6_rtx_costs(rtx x, int code, int outer_code, int *total, bool speed)
+qdsp6_rtx_costs(rtx x, int code, int outer_code, int *total, bool speed ATTRIBUTE_UNUSED)
 {
   enum machine_mode mode = GET_MODE (x);
 
@@ -2652,8 +2927,7 @@ qdsp6_rtx_costs(rtx x, int code, int outer_code, int *total, bool speed)
       if(mode == DFmode || mode == SFmode){
         *total = COSTS_N_INSNS (50);
       }
-      else if(TARGET_V2_FEATURES
-              && (outer_code == PLUS || outer_code == MINUS)){
+      else if(outer_code == PLUS || outer_code == MINUS){
         /* Add/Sub and Accumulate */
         /* OK, we'd like to tell GCC something here, but
          * It's a little bit tricky, because otherwise
@@ -2692,11 +2966,8 @@ qdsp6_rtx_costs(rtx x, int code, int outer_code, int *total, bool speed)
       return false;
 
     case CLZ:
-      *total = COSTS_N_INSNS(1);
-      return false;
-
     case FFS:
-      *total = TARGET_V2_FEATURES ? COSTS_N_INSNS (1) : COSTS_N_INSNS (10);
+      *total = COSTS_N_INSNS(1);
       return false;
 
     case NOT:
@@ -2819,7 +3090,7 @@ qdsp6_rtx_costs(rtx x, int code, int outer_code, int *total, bool speed)
 
 
 
-static bool
+bool
 qdsp6_rtx_costs_debug(rtx x, int code, int outer_code, int *total, bool speed)
 {
   bool retval;
@@ -2837,7 +3108,7 @@ qdsp6_rtx_costs_debug(rtx x, int code, int outer_code, int *total, bool speed)
 /* Implements hook TARGET_ADDRESS_COST */
 
 static int
-qdsp6_address_cost(rtx address, bool speed)
+qdsp6_address_cost(rtx address, bool speed ATTRIBUTE_UNUSED)
 {
   enum rtx_code code = GET_CODE(address);
   rtx mod;
@@ -2924,7 +3195,7 @@ qdsp6_address_cost(rtx address, bool speed)
 
 
 
-static int
+int
 qdsp6_address_cost_debug(rtx address, bool speed)
 {
   int retval;
@@ -3056,22 +3327,6 @@ get_usable_reg_num
 }
 
 
-#if GCC_3_4_6
-/* Implements hook TARGET_SCHED_USE_DFA_PIPELINE_INTERFACE
-
-   Yes, please actually use the automaton description
-   in the machine description for scheduling.  Thank you. */
-
-static int
-qdsp6_sched_use_dfa_pipeline_interface(void)
-{
-  return 1;
-}
-#endif /* GCC_3_4_6 */
-
-
-
-
 /* Implements hook TARGET_SCHED_FIRST_CYCLE_MULTIPASS_DFA_LOOKAHEAD */
 
 static int
@@ -3089,22 +3344,6 @@ Dividing the Output into Sections (Texts, Data, ...)
 
 /* Implements hook TARGET_ASM_SELECT_RTX_SECTION */
 
-#if GCC_3_4_6
-static void
-qdsp6_asm_select_rtx_section(
-  enum machine_mode mode,
-  rtx x,
-  unsigned HOST_WIDE_INT align
-)
-{
-  if(GET_MODE_SIZE (mode) > 0 && GET_MODE_SIZE (mode) <= g_switch_value){
-    named_section(NULL_TREE, ".sdata", 0);
-  }
-  else {
-    default_elf_select_rtx_section(mode, x, align);
-  }
-}
-#else /* !GCC_3_4_6 */
 static section *
 qdsp6_asm_select_rtx_section(
   enum machine_mode mode,
@@ -3113,13 +3352,25 @@ qdsp6_asm_select_rtx_section(
 )
 {
   if(GET_MODE_SIZE (mode) > 0 && GET_MODE_SIZE (mode) <= g_switch_value){
-    return sdata_section;
+      if(TARGET_SECTION_SORTING){ 
+          const char *sname;
+
+          switch(GET_MODE_SIZE (mode))
+            {
+            case 1: sname = ".sdata.1";	  break; 
+            case 2: sname = ".sdata.2";   break;
+            case 4: sname = ".sdata.4";   break;
+            case 8: sname = ".sdata.8";   break;	
+            default: sname = ".sdata";    break; 
+            }
+          return get_named_section (NULL_TREE, sname, 0);
+      } 
+      return sdata_section;
   }
   else {
-    return default_elf_select_rtx_section(mode, x, align);
+      return default_elf_select_rtx_section(mode, x, align);
   }
 }
-#endif /* !GCC_3_4_6 */
 
 
 
@@ -3165,7 +3416,7 @@ remember_this_tree(tree node){
 /* descent_smallest designed to identify the smallest addressable entity
    in a declaration. Used for sdata elements sorting */ 
 unsigned int 
-descent_smallest(const char *prefix, tree node, unsigned int smallest){
+descent_smallest(const char *prefix ATTRIBUTE_UNUSED, tree node, unsigned int smallest){
   unsigned int	new_smallest	= smallest; 
 
   if ((node == 0) || (smallest == 1))	return	new_smallest; 
@@ -3545,6 +3796,9 @@ qdsp6_elf_asm_named_section (const char *name, unsigned int flags,
 
       if (flags & SECTION_ENTSIZE)
 	fprintf (asm_out_file, ",%d", flags & SECTION_ENTSIZE);
+      if (HAVE_COMDAT_GROUP && (flags & SECTION_LINKONCE))
+	fprintf (asm_out_file, ",%s,comdat",
+		 lang_hooks.decls.comdat_group (decl));
     }
 
   putc ('\n', asm_out_file);
@@ -3562,11 +3816,6 @@ qdsp6_elf_asm_named_section (const char *name, unsigned int flags,
 static bool
 qdsp6_in_small_data_p(const_tree exp)
 {
-  /* GP relative addressing is a V2 feature. */
-  if(!TARGET_V2_FEATURES){
-    return false;
-  }
-
   /* We want to merge strings, so we never consider them small data. */
   if(TREE_CODE (exp) == STRING_CST){
     return false;
@@ -3718,7 +3967,7 @@ qdsp6_asm_output_opcode(FILE *f, const char *ptr)
   char opoutput[MAX_RECOG_OPERANDS];
   int ops = 0;
 
-  if(!(TARGET_PACKETS && optimize)){
+  if(!TARGET_PACKETS){
     return ptr;
   }
 
@@ -3733,6 +3982,11 @@ qdsp6_asm_output_opcode(FILE *f, const char *ptr)
   if(final_info->start_packet){
     fputs("{\n\t", f);
   }
+
+  if (TARGET_ANNOTATE_DUPLEX && final_info->duplex) {
+    fputs("//duplex\n\t", f);
+  }
+
   if(final_info->indent_insn){
     fputc('\t', f);
   }
@@ -3854,6 +4108,10 @@ qdsp6_asm_output_opcode(FILE *f, const char *ptr)
     fputs("\n\t}", f);
   }
 
+  if(final_info->print_falign){
+    fputs("\n\t.falign", f);
+  }
+
   return ptr;
 }
 
@@ -3873,15 +4131,20 @@ qdsp6_final_prescan_insn(
   int numops ATTRIBUTE_UNUSED
 )
 {
-  struct qdsp6_final_info *final_info;
-  rtx next_insn;
+  static struct qdsp6_packet_info *current_packet = NULL;
+  static int current_insn = 0;
 
-  if(!(TARGET_PACKETS && optimize)){
+  struct qdsp6_final_info *final_info;
+  int i;
+
+  if(!TARGET_PACKETS){
     return;
   }
 
   final_info = &cfun->machine->final_info;
 
+  final_info->duplex = (get_attr_duplex(insn) == DUPLEX_YES);
+    
   final_info->insn_ops = ops;
   final_info->start_packet = false;
   final_info->end_packet = false;
@@ -3889,29 +4152,52 @@ qdsp6_final_prescan_insn(
   final_info->print_insn = true;
   final_info->print_endloop0 = false;
   final_info->print_endloop1 = false;
+  final_info->print_falign = false;
+  final_info->dot_new_gpr_p = false;
+  final_info->dot_new_predicate_p = false;
 
-  if(!INSN_P (insn) || INSN_CODE (insn) == -1){
+  gcc_assert(qdsp6_head_packet && qdsp6_head_packet->num_insns > 0);
+
+  /* If CURRENT_PACKET is NULL, then we are at the start of a new function. */
+  if(!current_packet){
+    current_packet = qdsp6_head_packet;
+    current_insn = 0;
+  }
+
+  /* Skip ASM_INPUTs. */
+  while(GET_CODE (PATTERN (current_packet->insns[current_insn]->insn))
+        == ASM_INPUT){
+    /* Advance to the next insn. */
+    current_insn++;
+    if(current_insn == current_packet->num_insns){
+      /* Advance to the next packet. */
+      current_packet = current_packet->next;
+      current_insn = 0;
+    }
+    gcc_assert(current_packet);
+  }
+
+  if(!INSN_P (insn) || get_attr_type(insn) == TYPE_MULTIPLE){
+    final_info->indent_insn = false;
+  }
+
+  /* Skip over any insns not considered part of a packet. */
+  if(insn != current_packet->insns[current_insn]->insn){
     return;
   }
 
-  /* Check whether this insn starts a new packet. */
-  if(GET_MODE (insn) == TImode){
-    final_info->endloop0 = false;
-
-    /* If this is not actually a packet but a sequence of serial instructions,
-       then it should not be grouped with any other insns, and it should not
-       have curly brackets printed around it. */
-    if(get_attr_type(insn) == TYPE_MULTIPLE){
-      final_info->indent_insn = false;
-      return;
-    }
-
-    final_info->start_packet = true;
+  if(QDSP6_NEW_PREDICATE_P (current_packet->insns[current_insn])){
+    final_info->dot_new_predicate_p = true;
+  }
+  if(QDSP6_NEW_GPR_P (current_packet->insns[current_insn])){
+    final_info->dot_new_gpr_p = true;
   }
 
-  /* Insns that are actually sequences of serial instructions should always
-     start a packet. */
-  gcc_assert(get_attr_type(insn) != TYPE_MULTIPLE);
+  /* If this is the first insn in a packet, then start the packet. */
+  if(current_insn == 0){
+    final_info->start_packet = true;
+    final_info->endloop0 = false;
+  }
 
   /* Print endloops specially instead of using the template in the machine
      description. */
@@ -3930,13 +4216,50 @@ qdsp6_final_prescan_insn(
     final_info->endloop_label = ops[0];
   }
 
-  /* Advance and skip notes. */
-  for(next_insn = NEXT_INSN (insn);
-      next_insn && (!INSN_P (next_insn) || INSN_CODE (next_insn) == -1);
-      next_insn = NEXT_INSN (next_insn));
+  /* If we are fetch-aligning packets following calls, and this is the last insn
+     in the current packet, and this is not the end of the function, and the
+     next insn is not already an .falign, and the current packet contains a
+     call, then print an .falign directive after the current packet. */
+  if(qdsp6_falign == QDSP6_FALIGN_ALL
+     && current_insn + 1 == current_packet->num_insns
+     && current_packet->next
+     && INSN_CODE (current_packet->next->insns[0]->insn) != CODE_FOR_falign){
+    for(i = 0; i < current_packet->num_insns; i++){
+      if(QDSP6_CALL_P (current_packet->insns[i])
+         || QDSP6_EMULATION_CALL_P (current_packet->insns[i])){
+        final_info->print_falign = true;
+        break;
+      }
+    }
+  }
+
+  /* Advance to the next insn. */
+  current_insn++;
+
   /* If this is the last insn in a packet, then end the packet. */
-  if(!next_insn || GET_MODE (next_insn) == TImode){
+  if(current_insn == current_packet->num_insns){
     final_info->end_packet = true;
+
+    /* Advance to the next packet. */
+    current_packet = current_packet->next;
+    current_insn = 0;
+  }
+
+  /* If this is not actually a packet but a sequence of serial instructions,
+     then it should not be grouped with any other insns, and it should not
+     have curly brackets printed around it. */
+  if(get_attr_type(insn) == TYPE_MULTIPLE){
+    final_info->print_insn = true;
+    final_info->indent_insn = false;
+    final_info->start_packet = false;
+    final_info->end_packet = false;
+    final_info->print_endloop0 = false;
+    final_info->print_endloop1 = false;
+  }
+
+  /* If there is no next packet, then we are done with the current function. */
+  if(!current_packet){
+    qdsp6_free_packing_info(false);
   }
 }
 
@@ -3955,12 +4278,13 @@ static enum machine_mode qdsp6_address_mode;
 /* Implements macro PRINT_OPERAND */
 
 void
-qdsp6_print_operand(FILE *stream, rtx x, int code)
+qdsp6_print_operand(FILE *stream, const_rtx x, int code)
 {
   qdsp6_extended_constant = false;
 
   switch(code){
     case 'P':
+      /* Output a register pair. */
       if(G_REG_P (x) && REGNO (x) % 2 == 0){
         fprintf(stream, "%s:%d", reg_names[REGNO (x) + 1], REGNO (x));
       }
@@ -3970,7 +4294,7 @@ qdsp6_print_operand(FILE *stream, rtx x, int code)
       return;
 
     case 'H':
-      /* Output the second register of a 64 bit register pair. */
+      /* Output the second register of a register pair. */
       if(G_REG_P (x) && REGNO (x) % 2 == 0){
         fputs(reg_names[REGNO (x) + 1], stream);
       }
@@ -3980,7 +4304,7 @@ qdsp6_print_operand(FILE *stream, rtx x, int code)
       return;
 
     case 'L':
-      /* Output the first register of a 64 bit register pair. */
+      /* Output the first register of a register pair. */
       if(G_REG_P (x) && REGNO (x) % 2 == 0){
         fputs(reg_names[REGNO (x)], stream);
       }
@@ -3997,6 +4321,9 @@ qdsp6_print_operand(FILE *stream, rtx x, int code)
           fputc('!', stream);
         }
         fputs(reg_names[REGNO (XEXP (x, 0))], stream);
+        if(cfun->machine->final_info.dot_new_predicate_p){
+          fputs(".new", stream);
+        }
       }
       else {
         if(code == 'C'){
@@ -4008,95 +4335,22 @@ qdsp6_print_operand(FILE *stream, rtx x, int code)
       }
       return;
 
-    /* The four parts of a double */
-    case 'S':
-      if(GET_CODE (x) == CONST_DOUBLE){
-        rtx subword = operand_subword(x, 1, 1, DFmode);
-        HOST_WIDE_INT bits = INTVAL (subword);
-        unsigned short immValueHH = (bits & 0xffff0000UL) >> 16;
-        fprintf(stream, "%u", immValueHH);
+    case 'h':
+      /* Output a branch hint if the current insn is predicated on a newly
+         generated predicate or a compare with a newly generated value. */
+      if(GET_CODE (x) == CONST_INT){
+        if(   cfun->machine->final_info.dot_new_gpr_p
+           || cfun->machine->final_info.dot_new_predicate_p){
+          if(INTVAL (x)){
+            fputs(":t", stream);
+          }
+          else {
+            fputs(":nt", stream);
+          }
+        }
       }
       else {
-        output_operand_lossage("qdsp6_print_operand: invalid operand for %%S");
-      }
-      return;
-    case 'T':
-      if(GET_CODE (x) == CONST_DOUBLE){
-        rtx subword = operand_subword(x, 1, 1, DFmode);
-        HOST_WIDE_INT bits = INTVAL (subword);
-        unsigned short immValueHL = bits & 0x0000ffffUL;
-        fprintf(stream, "%u", immValueHL);
-      }
-      else {
-        output_operand_lossage("qdsp6_print_operand: invalid operand for %%T");
-      }
-      return;
-    case 'U':
-      if(GET_CODE (x) == CONST_DOUBLE){
-        rtx subword = operand_subword(x, 0, 1, DFmode);
-        HOST_WIDE_INT bits = INTVAL (subword);
-        unsigned short immValueLH = (bits & 0xffff0000UL) >> 16;
-        fprintf(stream, "%u", immValueLH);
-      }
-      else {
-        output_operand_lossage("qdsp6_print_operand: invalid operand for %%U");
-      }
-      return;
-    case 'V':
-      if(GET_CODE (x) == CONST_DOUBLE){
-        rtx subword = operand_subword(x, 0, 1, DFmode);
-        HOST_WIDE_INT bits = INTVAL (subword);
-        unsigned short immValueLL = bits & 0x0000ffffUL;
-        fprintf(stream, "%u", immValueLL);
-      }
-      else {
-        output_operand_lossage("qdsp6_print_operand: invalid operand for %%V");
-      }
-      return;
-
-    /* The four parts of a long long */
-    case 'W':
-      if(GET_CODE (x) == CONST_DOUBLE){
-        rtx subword = operand_subword(x, 1, 1, DImode);
-        HOST_WIDE_INT bits = INTVAL (subword);
-        unsigned short immValueHH = (bits & 0xffff0000UL) >> 16;
-        fprintf(stream, "%u", immValueHH);
-      }
-      else {
-        output_operand_lossage("qdsp6_print_operand: invalid operand for %%W");
-      }
-      return;
-    case 'X':
-      if(GET_CODE (x) == CONST_DOUBLE){
-        rtx subword = operand_subword(x, 1, 1, DImode);
-        HOST_WIDE_INT bits = INTVAL (subword);
-        unsigned short immValueHL = bits & 0x0000ffffUL;
-        fprintf(stream, "%u", immValueHL);
-      }
-      else {
-        output_operand_lossage("qdsp6_print_operand: invalid operand for %%X");
-      }
-      return;
-    case 'Y':
-      if(GET_CODE (x) == CONST_DOUBLE){
-        rtx subword = operand_subword(x, 0, 1, DImode);
-        HOST_WIDE_INT bits = INTVAL (subword);
-        unsigned short immValueLH = (bits & 0xffff0000UL) >> 16;
-        fprintf(stream, "%u", immValueLH);
-      }
-      else {
-        output_operand_lossage("qdsp6_print_operand: invalid operand for %%Y");
-      }
-      return;
-    case 'Z':
-      if(GET_CODE (x) == CONST_DOUBLE){
-        rtx subword = operand_subword(x, 0, 1, DImode);
-        HOST_WIDE_INT bits = INTVAL (subword);
-        unsigned short immValueLL = bits & 0x0000ffffUL;
-        fprintf(stream, "%u", immValueLL);
-      }
-      else {
-        output_operand_lossage("qdsp6_print_operand: invalid operand for %%Z");
+        output_operand_lossage("qdsp6_print_operand: invalid operand for %%h");
       }
       return;
 
@@ -4154,13 +4408,12 @@ qdsp6_print_operand(FILE *stream, rtx x, int code)
           output_operand_lossage("qdsp6_print_operand: invalid register");
         }
       }
-      break;
+      return;
 
     case MEM:
       qdsp6_address_mode = GET_MODE (x);
       output_address(XEXP (x, 0));
-
-      break;
+      return;
 
     case CONST_INT:
       if(INTVAL (x) < -0xFFFFFFFFLL){
@@ -4169,11 +4422,9 @@ qdsp6_print_operand(FILE *stream, rtx x, int code)
       else {
         fprintf(stream, HOST_WIDE_INT_PRINT_DEC, INTVAL (x));
       }
-      break;
+      return;
 
     case CONST_DOUBLE:
-      /* We handle floating point constants here because output_addr_const
-         doesn't. */
       if(GET_MODE (x) == SFmode){
         REAL_VALUE_TYPE rv;
         long l;
@@ -4182,7 +4433,7 @@ qdsp6_print_operand(FILE *stream, rtx x, int code)
         REAL_VALUE_TO_TARGET_SINGLE (rv, l);
         l &= 0xFFFFFFFFUL;
         fprintf(stream, "0x%08lx", l);
-        break;
+        return;
       }
       else if(GET_MODE (x) == DFmode){
         REAL_VALUE_TYPE rv;
@@ -4193,7 +4444,7 @@ qdsp6_print_operand(FILE *stream, rtx x, int code)
         l[0] &= 0xFFFFFFFFUL;
         l[1] &= 0xFFFFFFFFUL;
         fprintf(stream, "0x%08lx%08lx", l[1], l[0]);
-        break;
+        return;
       }
       /* FALL THROUGH.  Let output_addr_const deal with it. */
 
@@ -4201,8 +4452,6 @@ qdsp6_print_operand(FILE *stream, rtx x, int code)
       output_addr_const(stream, x);
       break;
   }
-
-  return;
 }
 
 
@@ -4213,7 +4462,7 @@ qdsp6_print_operand(FILE *stream, rtx x, int code)
    Print a memory address as an operand to reference that memory location. */
 
 void
-qdsp6_print_operand_address(FILE *stream, rtx x)
+qdsp6_print_operand_address(FILE *stream, const_rtx x)
 {
   switch(GET_CODE (x)){
     case REG:
@@ -4355,10 +4604,6 @@ qdsp6_print_operand_address(FILE *stream, rtx x)
 Miscellaneous Parameters
 ----------------------*/
 
-#if GCC_3_4_6
-#define dump_file rtl_dump_file
-#endif /* GCC_3_4_6 */
-
 static void
 qdsp6_fixup_cfg(void)
 {
@@ -4393,7 +4638,119 @@ qdsp6_fixup_cfg(void)
   }
 }
 
+/* If this is HW loop, we should not allow 
+   to unroll it forcefullt */ 
 
+bool
+qdsp6_loop_invalid_for_forced_unroll(rtx tail){
+
+    int tail_code;
+
+    if(!tail)   return false;
+
+    if(!INSN_P (tail)){
+        tail = prev_real_insn(tail);
+    }
+
+    if(tail){ 
+        tail_code = recog_memoized(tail);
+
+        if(tail_code == CODE_FOR_endloop0
+           || tail_code == CODE_FOR_endloop1)
+          return true;
+    }
+
+    return false;
+}
+
+
+/* ggan:
+ * Called in sms_schedule(), after loop_version.
+ */
+void
+qdsp6_duplicate_doloop_begin(basic_block condition_bb, struct loop *loop)
+{
+    
+    edge true_edge = NULL;
+    edge false_edge  = NULL;
+    rtx begin_loop_insn = NULL; 
+    rtx end_loop_insn = NULL;
+    rtx insn = NULL;
+    int opcode = 0;
+    int begin_tag = 0;
+    int end_tag = 0;
+    rtx new_begin_loop_insn = NULL;
+
+    gcc_assert (condition_bb != NULL);
+
+    /* Get TRUE edge and FALSE edge of the cond bb */
+    extract_cond_bb_edges (condition_bb, &true_edge, &false_edge);
+
+    gcc_assert (true_edge != NULL);
+    gcc_assert (false_edge != NULL);
+
+    /* Get the bb that has the doloop_begin insn */
+    basic_block loop_setup_bb = single_pred (condition_bb);
+
+    /* Get the loop body bb of the duplicated loop. Because it is a 
+     * single bb loop, so loop header bb is the loop body
+     */
+    basic_block new_loop_header = get_bb_copy (loop->header);
+    
+    /* Get the preheader bb of the duplicated loop */
+    basic_block new_loop_preheader = false_edge->dest;
+   
+    /* find out the endloop0 insn */
+    FOR_BB_INSNS_REVERSE(new_loop_header, insn) 
+    {
+        if (!INSN_P (insn)) continue;
+            
+        opcode = recog_memoized(insn);
+
+        /* SWP is only performed on Single BB Loop.
+         * It is not possible to have nested loops
+         */
+        if (opcode == CODE_FOR_endloop0)
+        {
+            end_loop_insn = insn;
+            break;
+        }
+    }		
+
+    gcc_assert (end_loop_insn != NULL);
+
+    /* find out the loop0 insn */
+    FOR_BB_INSNS_REVERSE(loop_setup_bb, insn) 
+    {
+        if (!INSN_P (insn)) continue;
+
+        if (INSN_CODE (insn) == CODE_FOR_doloop_begin0)
+        {
+            begin_loop_insn = insn;
+            break;
+        } 
+    }
+
+    gcc_assert (begin_loop_insn != NULL);
+
+    /* extract the tag for the original doloop */
+    begin_tag = INTVAL (SET_SRC (XVECEXP (PATTERN (begin_loop_insn), 0, 1)));
+    end_tag = INTVAL (XVECEXP (XVECEXP (PATTERN (end_loop_insn), 0, 2), 0, 1));
+    gcc_assert (begin_tag == end_tag);
+
+    /* insert the copy of the loop0 insn into the new preheader bb */
+    new_begin_loop_insn = emit_copy_of_insn_after (begin_loop_insn, BB_END(new_loop_preheader));
+
+#define DOLOOP_TAG_OFFSET   100000
+
+    /* adjust the tag to make sure it is unique 
+     * currently, we just offset the original tag by 100000
+     */
+    SET_SRC (XVECEXP (PATTERN (new_begin_loop_insn), 0, 1)) = GEN_INT (end_tag + DOLOOP_TAG_OFFSET);
+    XVECEXP (XVECEXP (PATTERN (end_loop_insn), 0, 2), 0, 1) = GEN_INT (end_tag + DOLOOP_TAG_OFFSET);
+
+    return;              
+}
 
 
 static void
@@ -4420,6 +4777,10 @@ qdsp6_fixup_doloops(void)
 
     if(!INSN_P (tail)){
       tail = prev_real_insn(tail);
+      if(tail == NULL_RTX){
+	continue;
+      }
+
     }
 
     tail_code = recog_memoized(tail);
@@ -4484,14 +4845,58 @@ qdsp6_fixup_doloops(void)
 }
 
 
+
+
+static void
+qdsp6_insert_faligns(void)
+{
+  rtx insn;
+  rtx next;
+  rtx label;
+
+  if(qdsp6_falign == QDSP6_FALIGN_LABELS || qdsp6_falign == QDSP6_FALIGN_ALL){
+    for(insn = get_insns(); insn; insn = NEXT_INSN (insn)){
+      if(LABEL_P (insn)){
+        if(!(next = next_real_insn(insn))){
+          break;
+        }
+        if(!JUMP_TABLE_DATA_P (next)){
+          emit_insn_before(gen_falign(), insn);
+        }
+        insn = next;
+      }
+    }
+  }
+  else if(qdsp6_falign == QDSP6_FALIGN_LOOPS){
+
+    /* Go backwards and falign only labels that are targets for backward
+       jumps. */
+    for(insn = get_last_insn(); insn; insn = PREV_INSN (insn)){
+      if(JUMP_P (insn)){
+        /* If label first seen in jump, mark it */
+        label = JUMP_LABEL (insn);
+        if(label){
+          LABEL_START_LOOP (label) = 1;
+        }
+      }
+      else if(LABEL_P (insn)){
+        if(LABEL_START_LOOP (insn)
+           && !JUMP_TABLE_DATA_P (next_real_insn(insn))){
+          emit_insn_before(gen_falign(), insn);
+        }
+      }
+    }
+  }
+}
+
+
+
+
 /* Implements hook TARGET_MACHINE_DEPENDENT_REORG */
 
 static void
 qdsp6_machine_dependent_reorg(void)
 {
-  rtx insn;
-  rtx next;
-
   compute_bb_for_insn();
 
 #if 0
@@ -4499,8 +4904,17 @@ qdsp6_machine_dependent_reorg(void)
 #endif /* 0 */
 
   if(cfun->machine->has_hardware_loops
-     || (TARGET_PULLUP && optimize)){
+     || TARGET_PACKET_OPTIMIZATIONS){
     qdsp6_fixup_cfg();
+  }
+
+  if (TARGET_LOCAL_COMBINE) 
+    {
+      qdsp6_local_combine_pass();
+    }
+
+  if(TARGET_PACKET_OPTIMIZATIONS){
+    qdsp6_packet_optimizations();
   }
 
   /* doloop fixups */
@@ -4508,74 +4922,20 @@ qdsp6_machine_dependent_reorg(void)
     qdsp6_fixup_doloops();
   }
   
-  if (TARGET_LOCAL_COMBINE) 
-    {
-      qdsp6_local_combine_pass();
-    }
-
-  if(TARGET_PULLUP && optimize){
-    qdsp6_packet_optimizations();
-  }
-
-  /* Performance degradation. Disable it.
-      schedule_ebbs ();  */ 
-
-  if(!optimize || optimize_size){
-    return;
-  }
-
   /* Insert .faligns. */
-  if(qdsp6_falign == QDSP6_FALIGN_LABELS){
-    insn = get_insns(); 
-    for(; insn; insn = NEXT_INSN (insn)){
-      if(GET_CODE (insn) == CODE_LABEL){
-        if(!(next = next_real_insn(insn))){
-          break;
-        }
-        if(!JUMP_TABLE_DATA_P (next)){
-          PUT_MODE (emit_insn_before(gen_falign(), insn), TImode);
-        }
-        insn = next;
-      }
-    }
-  }
-  else if(qdsp6_falign == QDSP6_FALIGN_LOOPS){
-    rtx label; 
-
-    /* _LSY_ Go backwards and falign only labels that are targets
-       for backward jumps */ 
-    insn = get_last_insn(); 
-    for(; insn; insn = PREV_INSN(insn)){ 
-  	if(JUMP_P(insn)){
-		/* If label first seen in jump, mark it */ 
-	  label = JUMP_LABEL(insn); 
-	  if(label)	LABEL_START_LOOP(label) = 1; 
-	}
-
-	if(LABEL_P(insn)){
-	  if(!(next = next_real_insn(insn)))	continue; 
-          if(!JUMP_TABLE_DATA_P (next)){
-		if(LABEL_START_LOOP(insn))
-          		PUT_MODE (emit_insn_before(gen_falign(), insn), TImode);
-          }
-	}
-    } 
+  if(qdsp6_falign != QDSP6_NO_FALIGN){
+    qdsp6_insert_faligns();
   }
 
 #if 0
   verify_flow_info();
 #endif /* 0 */
-
 }
 
 static GTY(()) tree qdsp6_builtins[(int) CODE_FOR_nothing];
 
 
-#if GCC_3_4_6
-#define def_builtin(NAME, TYPE, CODE) \
-  builtin_function(NAME, TYPE, END_BUILTINS + 1 + CODE, BUILT_IN_MD, NULL, \
-                   NULL_TREE)
-#else /* !GCC_3_4_6 */
+
 #define def_builtin(NAME, TYPE, CODE) \
   do { \
     tree t; \
@@ -4588,8 +4948,17 @@ static GTY(()) tree qdsp6_builtins[(int) CODE_FOR_nothing];
       qdsp6_builtin_mask_for_load = t; \
     } \
   } while (0);
-#endif /* !GCC_3_4_6 */
+#define def_builtin_nonconst(NAME, TYPE, CODE) \
+  do { \
+    tree t; \
+    t = add_builtin_function(NAME, TYPE, END_BUILTINS + 1 + CODE, \
+                             BUILT_IN_MD, NULL, NULL_TREE);  \
+    if (CODE == QDSP6_BUILTIN_val_for_valignb) { \
+      qdsp6_builtin_mask_for_load = t; \
+    } \
+  } while (0);
 
+#define PTR_type_node ptr_type_node
 #define BI_type_node boolean_type_node
 #define QI_type_node char_type_node
 #define HI_type_node short_integer_type_node
@@ -4653,6 +5022,20 @@ qdsp6_init_builtins(void)
   tree DI_ftype_QI       ATTRIBUTE_UNUSED;
   tree SI_ftype_QI       ATTRIBUTE_UNUSED;
   tree DI_ftype_DIDIQI   ATTRIBUTE_UNUSED;
+
+  tree PTR_ftype_PTRPTRSISI   ATTRIBUTE_UNUSED;
+
+  tree PTR_ftype_PTRDISISI   ATTRIBUTE_UNUSED;
+  tree PTR_ftype_PTRSISISI   ATTRIBUTE_UNUSED;
+  tree PTR_ftype_PTRHISISI   ATTRIBUTE_UNUSED;
+  tree PTR_ftype_PTRQISISI   ATTRIBUTE_UNUSED;
+
+  tree PTR_ftype_PTRPTRSI   ATTRIBUTE_UNUSED;
+
+  tree PTR_ftype_PTRDISI   ATTRIBUTE_UNUSED;
+  tree PTR_ftype_PTRSISI   ATTRIBUTE_UNUSED;
+  tree PTR_ftype_PTRHISI   ATTRIBUTE_UNUSED;
+  tree PTR_ftype_PTRQISI   ATTRIBUTE_UNUSED;
 
   endlink = void_list_node;
   QI_ftype_MEM =      build_function_type( QI_type_node,
@@ -4871,15 +5254,81 @@ qdsp6_init_builtins(void)
                         tree_cons(NULL_TREE, QI_type_node,
                         endlink))));
 
+  PTR_ftype_PTRPTRSISI =   build_function_type(   PTR_type_node,
+                        tree_cons(NULL_TREE, PTR_type_node,
+                        tree_cons(NULL_TREE, PTR_type_node,
+                        tree_cons(NULL_TREE, SI_type_node,
+                        tree_cons(NULL_TREE, SI_type_node,
+                        endlink)))));
+
+  PTR_ftype_PTRDISISI =   build_function_type(   PTR_type_node,
+                        tree_cons(NULL_TREE, PTR_type_node,
+                        tree_cons(NULL_TREE, DI_type_node,
+                        tree_cons(NULL_TREE, SI_type_node,
+                        tree_cons(NULL_TREE, SI_type_node,
+                        endlink)))));
+
+  PTR_ftype_PTRSISISI =   build_function_type(   PTR_type_node,
+                        tree_cons(NULL_TREE, PTR_type_node,
+                        tree_cons(NULL_TREE, SI_type_node,
+                        tree_cons(NULL_TREE, SI_type_node,
+                        tree_cons(NULL_TREE, SI_type_node,
+                        endlink)))));
+
+  PTR_ftype_PTRHISISI =   build_function_type(   PTR_type_node,
+                        tree_cons(NULL_TREE, PTR_type_node,
+                        tree_cons(NULL_TREE, HI_type_node,
+                        tree_cons(NULL_TREE, SI_type_node,
+                        tree_cons(NULL_TREE, SI_type_node,
+                        endlink)))));
+
+  PTR_ftype_PTRQISISI =   build_function_type(   PTR_type_node,
+                        tree_cons(NULL_TREE, PTR_type_node,
+                        tree_cons(NULL_TREE, QI_type_node,
+                        tree_cons(NULL_TREE, SI_type_node,
+                        tree_cons(NULL_TREE, SI_type_node,
+                        endlink)))));
+
+  PTR_ftype_PTRPTRSI =   build_function_type(   PTR_type_node,
+                        tree_cons(NULL_TREE, PTR_type_node,
+                        tree_cons(NULL_TREE, PTR_type_node,
+                        tree_cons(NULL_TREE, SI_type_node,
+                        endlink))));
+
+  PTR_ftype_PTRDISI =   build_function_type(   PTR_type_node,
+                        tree_cons(NULL_TREE, PTR_type_node,
+                        tree_cons(NULL_TREE, DI_type_node,
+                        tree_cons(NULL_TREE, SI_type_node,
+                        endlink))));
+
+  PTR_ftype_PTRSISI =   build_function_type(   PTR_type_node,
+                        tree_cons(NULL_TREE, PTR_type_node,
+                        tree_cons(NULL_TREE, SI_type_node,
+                        tree_cons(NULL_TREE, SI_type_node,
+                        endlink))));
+
+  PTR_ftype_PTRHISI =   build_function_type(   PTR_type_node,
+                        tree_cons(NULL_TREE, PTR_type_node,
+                        tree_cons(NULL_TREE, HI_type_node,
+                        tree_cons(NULL_TREE, SI_type_node,
+                        endlink))));
+
+  PTR_ftype_PTRQISI =   build_function_type(   PTR_type_node,
+                        tree_cons(NULL_TREE, PTR_type_node,
+                        tree_cons(NULL_TREE, QI_type_node,
+                        tree_cons(NULL_TREE, SI_type_node,
+                        endlink))));
+
 #define BUILTIN_INFO(TAG, TYPE, NARGS) \
   def_builtin("__builtin_" #TAG, TYPE, QDSP6_BUILTIN_##TAG);
+#define BUILTIN_INFO_NONCONST(TAG, TYPE, NARGS) \
+  def_builtin_nonconst("__builtin_" #TAG, TYPE, QDSP6_BUILTIN_##TAG);
 #include "builtins.def"
 #include "manual_builtins.def"
 #undef BUILTIN_INFO
+#undef BUILTIN_INFO_NONCONST
 
-#if !GCC_3_4_6
   gcc_assert(qdsp6_builtin_mask_for_load);
-#endif /* !GCC_3_4_6 */
 }
 
 static tree
@@ -5002,9 +5451,14 @@ qdsp6_expand_builtin(
     case QDSP6_BUILTIN_##TAG: \
       return expand_one_builtin(CODE_FOR_qdsp6_builtin_##TAG, \
                                 target, exp, NARGS);
+#define BUILTIN_INFO_NONCONST(TAG, TYPE, NARGS) \
+    case QDSP6_BUILTIN_##TAG: \
+      return expand_one_builtin(CODE_FOR_qdsp6_builtin_##TAG, \
+                                target, exp, NARGS);
 #include "builtins.def"
 #include "manual_builtins.def"
 #undef BUILTIN_INFO
+#undef BUILTIN_INFO_NONCONST
     default:
       abort();
       break;
@@ -5107,7 +5561,7 @@ qdsp6_invalid_within_doloop(const_rtx insn)
    (set (pc) (...)) */
 
 static void
-qdsp6_print_jump(FILE *stream, rtx x)
+qdsp6_print_jump(FILE *stream, const_rtx x)
 {
   /* (set (pc) (if_then_else (...) (...) (...))) */
   if(x && GET_CODE (x) == SET
@@ -5161,7 +5615,7 @@ qdsp6_print_jump(FILE *stream, rtx x)
    (set (...) (...)) */
 
 static void
-qdsp6_print_transfer(FILE *stream, rtx x)
+qdsp6_print_transfer(FILE *stream, const_rtx x)
 {
   if(!x){
     qdsp6_print_rtx(stream, x);
@@ -5282,7 +5736,7 @@ qdsp6_print_transfer(FILE *stream, rtx x)
 /* Helper function for qdsp6_print_rtl_pseudo_asm */
 
 static void
-qdsp6_print_condition(FILE *stream, rtx x, bool non_inverted)
+qdsp6_print_condition(FILE *stream, const_rtx x, bool non_inverted)
 {
   fputs("if (", stream);
   if(!x){
@@ -5384,7 +5838,7 @@ qdsp6_print_condition(FILE *stream, rtx x, bool non_inverted)
 /* Helper function for qdsp6_print_rtl_pseudo_asm */
 
 static void
-qdsp6_print_address(FILE *stream, rtx x)
+qdsp6_print_address(FILE *stream, const_rtx x)
 {
   /* (plus (...) (...)) */
   if(x && GET_CODE (x) == PLUS){
@@ -5405,7 +5859,7 @@ qdsp6_print_address(FILE *stream, rtx x)
    (op (...)) */
 
 static void
-qdsp6_print_unary_op(FILE *stream, const char *op, rtx x)
+qdsp6_print_unary_op(FILE *stream, const char *op, const_rtx x)
 {
   fputs(op, stream);
   fputc('(', stream);
@@ -5421,7 +5875,7 @@ qdsp6_print_unary_op(FILE *stream, const char *op, rtx x)
    (op (...) (...)) */
 
 static void
-qdsp6_print_binary_op(FILE *stream, const char *op, rtx x)
+qdsp6_print_binary_op(FILE *stream, const char *op, const_rtx x)
 {
   fputs(op, stream);
   fputc('(', stream);
@@ -5439,7 +5893,7 @@ qdsp6_print_binary_op(FILE *stream, const char *op, rtx x)
    (op (...) (...)) */
 
 static void
-qdsp6_print_swapped_binary_op(FILE *stream, const char *op, rtx x)
+qdsp6_print_swapped_binary_op(FILE *stream, const char *op, const_rtx x)
 {
   fputs(op, stream);
   fputc('(', stream);
@@ -5461,7 +5915,7 @@ qdsp6_print_binary_op_with_option(
   FILE *stream,
   const char *op,
   const char *option,
-  rtx x
+  const_rtx x
 )
 {
   fputs(op, stream);
@@ -5481,7 +5935,7 @@ qdsp6_print_binary_op_with_option(
    (op (...) (...) (...)) */
 
 static void
-qdsp6_print_trinary_op(FILE *stream, const char *op, rtx x)
+qdsp6_print_trinary_op(FILE *stream, const char *op, const_rtx x)
 {
   fputs(op, stream);
   fputc('(', stream);
@@ -5506,7 +5960,7 @@ qdsp6_print_vecexp(
   const char *open,
   const char *separator,
   const char *close,
-  rtx x
+  const_rtx x
 )
 {
   int i;
@@ -5526,10 +5980,9 @@ qdsp6_print_vecexp(
 /* Helper function for qdsp6_print_rtl_pseudo_asm */
 
 static void
-qdsp6_print_rtx(FILE *stream, rtx x)
+qdsp6_print_rtx(FILE *stream, const_rtx x)
 {
   const char *op;
-  int size_in_bytes;
   int i;
 
   if(!x){
@@ -5564,11 +6017,17 @@ qdsp6_print_rtx(FILE *stream, rtx x)
       qdsp6_print_vecexp(stream, "{ ", "; ", " }", x);
       break;
     case UNSPEC:
-      fprintf(stream, "unspec" HOST_WIDE_INT_PRINT_DEC, XINT (x, 1));
-      qdsp6_print_vecexp(stream, "(", ",", ")", x);
+      if(XINT (x, 1) == UNSPEC_NEW_VALUE){
+        qdsp6_print_rtx(stream, XVECEXP (x, 0, 0));
+        fputs(".new", stream);
+      }
+      else {
+        fprintf(stream, "unspec%d", XINT (x, 1));
+        qdsp6_print_vecexp(stream, "(", ",", ")", x);
+      }
       break;
     case UNSPEC_VOLATILE:
-      fprintf(stream, "unspec_volatile" HOST_WIDE_INT_PRINT_DEC, XINT (x, 1));
+      fprintf(stream, "unspec_volatile%d", XINT (x, 1));
       qdsp6_print_vecexp(stream, "(", ",", ")", x);
       break;
     case PREFETCH:
@@ -5661,7 +6120,7 @@ qdsp6_print_rtx(FILE *stream, rtx x)
           qdsp6_print_rtx(stream, XEXP (x, 0));
 /*
           fputc('.', stream);
-          size_in_bytes = 1;
+          int size_in_bytes = 1;
           switch(GET_MODE (x)){
             case DImode:
             case DFmode:
@@ -5694,14 +6153,14 @@ qdsp6_print_rtx(FILE *stream, rtx x)
       break;
     case MEM:
       fputs("mem", stream);
-      switch(GET_MODE (x)){
-        case DImode:
+      switch(GET_MODE_SIZE (GET_MODE (x))){
+        case 8:
           fputc('d', stream);
           break;
-        case HImode:
+        case 2:
           fputc('h', stream);
           break;
-        case QImode:
+        case 1:
           fputc('b', stream);
           break;
         default:
@@ -6015,7 +6474,7 @@ qdsp6_print_rtx(FILE *stream, rtx x)
 /* Implements hook TARGET_PRINT_RTL_PSEUDO_ASM */
 
 void
-qdsp6_print_rtl_pseudo_asm(FILE *stream, rtx x)
+qdsp6_print_rtl_pseudo_asm(FILE *stream, const_rtx x)
 {
   if(x && INSN_P (x)){
     qdsp6_print_rtx(stream, PATTERN (x));
@@ -6024,478 +6483,6 @@ qdsp6_print_rtl_pseudo_asm(FILE *stream, rtx x)
     qdsp6_print_rtx(stream, x);
   }
 }
-
-
-
-
-/*----------------------------
-Machine Description Predicates
-----------------------------*/
-
-#if GCC_3_4_6
-/*-------
-Registers
--------*/
-
-/* general purpose register */
-
-int
-gr_register_operand(rtx op, enum machine_mode mode)
-{
-  unsigned int regno;
-  if(!register_operand(op, mode)){
-    return false;
-  }
-  if(GET_CODE (op) == SUBREG){
-    op = SUBREG_REG (op);
-    /* Paradoxical SUBREGs where the smaller mode is BI are causing problems.
-       Try disallowing them here. */
-    if(GET_MODE (op) == BImode){
-      return false;
-    }
-  }
-  /* ??? Allow (subreg (mem))? */
-  if(!REG_P (op)){
-    return false;
-  }
-  regno = REGNO (op);
-  return G_REGNO_P (regno)
-         || regno == FRAME_POINTER_REGNUM
-         || regno == ARG_POINTER_REGNUM
-         || regno >= FIRST_PSEUDO_REGISTER;
-}
-
-
-
-
-/* predicate register */
-
-int
-pr_register_operand(rtx op, enum machine_mode mode)
-{
-  unsigned int regno;
-  if(!register_operand(op, mode)){
-    return false;
-  }
-  if(GET_CODE (op) == SUBREG){
-    op = SUBREG_REG (op);
-  }
-  /* ??? Allow (subreg (mem))? */
-  if(!REG_P (op)){
-    return false;
-  }
-  regno = REGNO (op);
-  return P_REGNO_P (regno) || regno >= FIRST_PSEUDO_REGISTER;
-}
-
-
-
-
-/* non-general purpose register */
-
-int
-nongr_register_operand(rtx op, enum machine_mode mode)
-{
-  if(!register_operand(op, mode)){
-    return false;
-  }
-  if(GET_CODE (op) == SUBREG){
-    op = SUBREG_REG (op);
-  }
-  /* ??? Allow (subreg (mem))? */
-  return REG_P (op) && !G_REG_P (op);
-}
-
-
-
-
-/* vector suitable for splatting */
-
-int
-splattable_vector(rtx op, enum machine_mode mode)
-{
-  int i;
-  if(!gr_register_operand(op, mode)){
-    return false;
-  }
-  for(i = 1; i < GET_MODE_NUNITS (mode); i++){
-    if(!rtx_equal_p(XVECEXP (op, 0, i), XVECEXP (op, 0, 0))){
-      return false;
-    }
-  }
-  return true;
-}
-
-
-
-
-/*---------------
-Memory/References
----------------*/
-
-/* memory with address in register */
-
-int
-indirect_memory_operand(rtx op, enum machine_mode mode)
-{
-  return memory_operand(op, mode) && REG_P (XEXP (op, 0));
-}
-
-
-
-
-/* call target */
-
-int
-call_target_operand(rtx op, enum machine_mode mode)
-{
-  return GET_CODE (op) == SYMBOL_REF || register_operand(op, mode);
-}
-
-
-
-
-/* small data reference */
-
-int
-sdata_symbolic_operand(rtx op, enum machine_mode mode ATTRIBUTE_UNUSED)
-{
-  HOST_WIDE_INT offset = 0, size = 0;
-  tree t;
-  switch(GET_CODE (op)){
-    case CONST:
-      op = XEXP (op, 0);
-      if(!(GET_CODE (op) == PLUS
-           && GET_CODE (XEXP (op, 0)) == SYMBOL_REF
-           && GET_CODE (XEXP (op, 1)) == CONST_INT)){
-        return false;
-      }
-      offset = INTVAL (XEXP (op, 1));
-      op = XEXP (op, 0);
-      /* FALL THROUGH */
-    case SYMBOL_REF:
-      if(CONSTANT_POOL_ADDRESS_P (op)){
-        size = GET_MODE_SIZE (get_pool_mode(op));
-        if((unsigned HOST_WIDE_INT) size > g_switch_value){
-          return false;
-        }
-      }
-      else {
-        if(!SYMBOL_REF_SMALL_P (op)){
-          return false;
-        }
-        t = SYMBOL_REF_DECL (op);
-        if(DECL_P (t)){
-          t = DECL_SIZE_UNIT (t);
-        }
-        else {
-          t = TYPE_SIZE_UNIT (TREE_TYPE (t));
-        }
-        if(t && host_integerp(t, 0)){
-          size = tree_low_cst(t, 0);
-          if(size < 0){
-            size = 0;
-          }
-        }
-      }
-      return offset >= 0 && offset <= size;
-    default:
-      return false;
-  }
-}
-
-
-
-
-/*-------
-Constants
--------*/
-
-/* s16 constant */
-
-int
-s16_const_int_operand(rtx op, enum machine_mode mode ATTRIBUTE_UNUSED)
-{
-  return GET_CODE (op) == CONST_INT && IN_RANGE (INTVAL (op), -32768, 32767);
-}
-
-
-
-
-/* s12 constant */
-
-int
-s12_const_int_operand(rtx op, enum machine_mode mode ATTRIBUTE_UNUSED)
-{
-  return GET_CODE (op) == CONST_INT && IN_RANGE (INTVAL (op), -2048, 2047);
-}
-
-
-
-
-/* s10 constant */
-
-int
-s10_const_int_operand(rtx op, enum machine_mode mode ATTRIBUTE_UNUSED)
-{
-  return GET_CODE (op) == CONST_INT && IN_RANGE (INTVAL (op), -512, 511);
-}
-
-
-
-
-/* s8 constant */
-
-int
-s8_const_int_operand(rtx op, enum machine_mode mode ATTRIBUTE_UNUSED)
-{
-  return GET_CODE (op) == CONST_INT && IN_RANGE (INTVAL (op), -128, 127);
-}
-
-
-
-
-/* u9 constant */
-
-int
-u9_const_int_operand(rtx op, enum machine_mode mode ATTRIBUTE_UNUSED)
-{
-  return GET_CODE (op) == CONST_INT && IN_RANGE (INTVAL (op), 0, 511);
-}
-
-
-
-
-/* u8 constant */
-
-int
-u8_const_int_operand(rtx op, enum machine_mode mode ATTRIBUTE_UNUSED)
-{
-  return GET_CODE (op) == CONST_INT && IN_RANGE (INTVAL (op), 0, 255);
-}
-
-
-
-
-/* u7 constant */
-
-int
-u7_const_int_operand(rtx op, enum machine_mode mode ATTRIBUTE_UNUSED)
-{
-  return GET_CODE (op) == CONST_INT && IN_RANGE (INTVAL (op), 0, 127);
-}
-
-
-
-
-/* u6 constant */
-
-int
-u6_const_int_operand(rtx op, enum machine_mode mode ATTRIBUTE_UNUSED)
-{
-  return GET_CODE (op) == CONST_INT && IN_RANGE (INTVAL (op), 0, 63);
-}
-
-
-
-
-/* u5 constant */
-
-int
-u5_const_int_operand(rtx op, enum machine_mode mode ATTRIBUTE_UNUSED)
-{
-  return GET_CODE (op) == CONST_INT && IN_RANGE (INTVAL (op), 0, 31);
-}
-
-
-
-
-/* u3 constant */
-
-int
-u3_const_int_operand(rtx op, enum machine_mode mode ATTRIBUTE_UNUSED)
-{
-  return GET_CODE (op) == CONST_INT && IN_RANGE (INTVAL (op), 0, 7);
-}
-
-
-
-
-/* u2 constant */
-
-int
-u2_const_int_operand(rtx op, enum machine_mode mode ATTRIBUTE_UNUSED)
-{
-  return GET_CODE (op) == CONST_INT && IN_RANGE (INTVAL (op), 0, 3);
-}
-
-
-
-
-/* u1 constant */
-
-int
-u1_const_int_operand(rtx op, enum machine_mode mode ATTRIBUTE_UNUSED)
-{
-  return GET_CODE (op) == CONST_INT && IN_RANGE (INTVAL (op), 0, 1);
-}
-
-
-
-
-/* u0 constant */
-
-int
-zero_constant(rtx op, enum machine_mode mode)
-{
-  return op == CONST0_RTX (mode);
-}
-
-
-
-
-/* m9 signed magnitude constant */
-
-int
-m9_const_int_operand(rtx op, enum machine_mode mode ATTRIBUTE_UNUSED)
-{
-  return GET_CODE (op) == CONST_INT && IN_RANGE (INTVAL (op), -255, 255);
-}
-
-
-
-
-/* constant == 2^N where N is an integer */
-
-int
-power_of_two_operand(rtx op, enum machine_mode mode ATTRIBUTE_UNUSED)
-{
-  return GET_CODE (op) == CONST_INT && exact_log2(INTVAL (op)) != -1;
-}
-
-
-
-
-/* constant == 2^N where N is an element of {0, 1, 2, 3, 4, 5, 6, 7} */
-
-int
-addasl_const_int_operand(rtx op, enum machine_mode mode ATTRIBUTE_UNUSED)
-{
-  return GET_CODE (op) == CONST_INT && (   INTVAL (op) == (1 << 0)
-                                        || INTVAL (op) == (1 << 1)
-                                        || INTVAL (op) == (1 << 2)
-                                        || INTVAL (op) == (1 << 3)
-                                        || INTVAL (op) == (1 << 4)
-                                        || INTVAL (op) == (1 << 5)
-                                        || INTVAL (op) == (1 << 6)
-                                        || INTVAL (op) == (1 << 7));
-}
-
-
-
-
-/* constant that might not fit in s16 */
-
-int
-immediate_not_s16_operand(rtx op, enum machine_mode mode)
-{
-  switch(GET_CODE (op)){
-    case CONST_INT:
-    case CONST_DOUBLE:
-    case CONST_VECTOR:
-    case CONST:
-    case LABEL_REF:
-    case SYMBOL_REF:
-      return immediate_operand(op, mode) && !s16_const_int_operand(op, mode);
-    default:
-      return false;
-  }
-}
-
-
-
-
-/*-----------------
-Memory or Registers
------------------*/
-
-/* non-general purpose register or memory */
-
-int
-nongr_reg_or_memory_operand(rtx op, enum machine_mode mode)
-{
-  return nongr_register_operand(op, mode) || memory_operand(op, mode);
-}
-
-
-
-
-/* conditional move destination */
-
-int
-conditional_dest_operand(rtx op, enum machine_mode mode)
-{
-  return !reload_completed ? nonimmediate_operand(op, mode)
-                           : (memory_operand(op, mode)
-                              && qdsp6_legitimate_address_p(GET_MODE (op),
-                                                            XEXP (op, 0),
-                                                            true, "cond"))
-                             || gr_register_operand(op, mode);
-}
-
-
-
-
-/*--------------------
-Registers or Constants
---------------------*/
-
-/* conditional add operand */
-
-int
-conditional_add_operand(rtx op, enum machine_mode mode)
-{
-  return !reload_completed ? nonmemory_operand(op, mode)
-                           : gr_register_operand(op, mode)
-                             || s8_const_int_operand(op, mode);
-}
-
-
-
-
-/*-----
-General
------*/
-
-/* conditional move source */
-
-int
-conditional_src_operand(rtx op, enum machine_mode mode)
-{
-  return !reload_completed ? general_operand(op, mode)
-                           : (memory_operand(op, mode)
-                              && qdsp6_legitimate_address_p(GET_MODE (op),
-                                                            XEXP (op, 0),
-                                                            true, "cond"))
-                             || gr_register_operand(op, mode)
-                             || s12_const_int_operand(op, mode);
-}
-
-
-
-
-/*-------
-Operators
--------*/
-
-/* operator used for predication */
-
-int
-predicate_operator(rtx op, enum machine_mode mode ATTRIBUTE_UNUSED)
-{
-  return GET_CODE (op) == NE || GET_CODE (op) == EQ;
-}
-#endif /* GCC_3_4_6 */
 
 
 
@@ -6513,7 +6500,7 @@ qdsp6_compute_dwarf_frame_information(void)
   struct qdsp6_frame_info *frame;
   HOST_WIDE_INT offset;
   char *label;
-  int i;
+  unsigned int i;
 
   if(!dwarf2out_do_frame()){
     return;
@@ -6639,6 +6626,10 @@ qdsp6_expand_prologue(void)
     offset -= UNITS_PER_WORD;
     emit_move_insn(gen_rtx_MEM (SImode, plus_constant(base_reg, offset)),
                    gen_rtx_REG (SImode, frame->saved_singles[i]));
+  }
+
+  if (flag_pic && crtl->uses_pic_offset_table) {
+    qdsp6_load_pic_register ();
   }
 
 }
@@ -6785,7 +6776,7 @@ qdsp6_expand_compare(enum rtx_code code)
   rtx op0 = cfun->machine->compare_op0;
   rtx op1 = cfun->machine->compare_op1;
   enum rtx_code compare_code, jump_code;
-  rtx p_reg, const_reg;
+  rtx p_reg;
   int offset = 0;
 
   if(GET_MODE (op0) == BImode){
@@ -6877,12 +6868,12 @@ qdsp6_expand_compare(enum rtx_code code)
   return gen_rtx_fmt_ee(jump_code, BImode, p_reg, const0_rtx);
 }
 
-
 rtx
 qdsp6_expand_compare2(enum rtx_code code, rtx op0, rtx op1)
 {
   enum rtx_code compare_code, jump_code;
   rtx p_reg, const_reg;
+  rtx cmp_rtx;
   int offset = 0;
 
   if(GET_MODE (op0) == BImode){
@@ -6975,7 +6966,7 @@ qdsp6_expand_compare2(enum rtx_code code, rtx op0, rtx op1)
                          gen_rtx_fmt_ee(compare_code, BImode, op0, op1)));
 
   /* return (eq/ne:BI (reg:BI p_reg) (const_int 0)) */
-  rtx cmp_rtx = gen_rtx_fmt_ee(jump_code, BImode, p_reg, const0_rtx);
+  cmp_rtx = gen_rtx_fmt_ee(jump_code, BImode, p_reg, const0_rtx);
   return cmp_rtx;
 
   /*
@@ -7343,9 +7334,6 @@ qdsp6_expand_setmem(rtx operands[])
   HOST_WIDE_INT align_intval, nbytes_intval, initval_intval;
   rtx destaddr, nbytes, initval, align;
 
-  if (!flag_optimize_memset)
-    return false;
-
   destaddr = operands[0];
   nbytes = operands[1];
   initval = operands[2];
@@ -7457,257 +7445,16 @@ qdsp6_expand_setmem(rtx operands[])
 }
 
 
-#if 0
-bool
-qdsp6_expand_clrstr(rtx operands[])
+/* Determine a static branch hint for INSN.  Return the hint in the form of a
+   CONST_INT rtx.  Non-zero means "predict taken" and zero means "predict not
+   taken". */
+
+rtx
+qdsp6_branch_hint(rtx insn)
 {
-  rtx str_0, str_reg, str_mem, zero_reg, label;
-  int count, loopcount, align;
-
-  align = INTVAL (operands[2]);
-  if((align & 3) != 0 || GET_CODE (operands[1]) != CONST_INT){
-    return false;
-  }
-
-  str_0 = operands[0];
-  str_reg = copy_to_mode_reg(SImode, XEXP (str_0, 0));
-  count = INTVAL (operands[1]);
-
-  if((align & 7) == 0){
-
-    loopcount = count >> 3;
-    if(loopcount){
-
-      zero_reg = gen_reg_rtx(DImode);
-      emit_move_insn(gen_highpart(SImode, zero_reg), const0_rtx);
-      emit_move_insn(gen_lowpart(SImode, zero_reg), const0_rtx);
-
-      if(loopcount > 3){
-        str_mem = gen_rtx_MEM (DImode, str_reg);
-        MEM_COPY_ATTRIBUTES (str_mem, str_0);
-        label = gen_label_rtx();
-        emit_insn(gen_loop0(gen_int_mode(loopcount, SImode), label));
-        emit_note(NOTE_INSN_LOOP_BEG);
-        emit_label(label);
-        emit_move_insn(str_mem, zero_reg);
-        emit_insn(gen_addsi3(str_reg, str_reg, gen_int_mode(8, SImode)));
-        emit_jump_insn(gen_endloop0(label));
-        emit_note(NOTE_INSN_LOOP_END);
-      }
-      else {
-        for(; loopcount; loopcount--){
-          str_mem = gen_rtx_MEM (DImode, str_reg);
-          MEM_COPY_ATTRIBUTES (str_mem, str_0);
-          emit_move_insn(str_mem, zero_reg);
-          emit_insn(gen_addsi3(str_reg, str_reg, gen_int_mode(8, SImode)));
-        }
-      }
-    }
-    if(count & 4){
-      zero_reg = gen_reg_rtx(SImode);
-      emit_move_insn(zero_reg, const0_rtx);
-      str_mem = gen_rtx_MEM (SImode, str_reg);
-      MEM_COPY_ATTRIBUTES (str_mem, str_0);
-      emit_move_insn(str_mem, zero_reg);
-      emit_insn(gen_addsi3(str_reg, str_reg, gen_int_mode(4, SImode)));
-    }
-
-  }
-  else {
-
-    loopcount = count >> 2;
-    if(loopcount){
-
-      zero_reg = gen_reg_rtx(SImode);
-      emit_move_insn(zero_reg, const0_rtx);
-
-      if(loopcount > 3){
-        str_mem = gen_rtx_MEM (SImode, str_reg);
-        MEM_COPY_ATTRIBUTES (str_mem, str_0);
-        label = gen_label_rtx();
-        emit_insn(gen_loop0(gen_int_mode(loopcount, SImode), label));
-        emit_note(NOTE_INSN_LOOP_BEG);
-        emit_label(label);
-        emit_move_insn(str_mem, zero_reg);
-        emit_insn(gen_addsi3(str_reg, str_reg, gen_int_mode(4, SImode)));
-        emit_jump_insn(gen_endloop0(label));
-        emit_note(NOTE_INSN_LOOP_END);
-      }
-      else {
-        for(; loopcount; loopcount--){
-          str_mem = gen_rtx_MEM (SImode, str_reg);
-          MEM_COPY_ATTRIBUTES (str_mem, str_0);
-          emit_move_insn(str_mem, zero_reg);
-          emit_insn(gen_addsi3(str_reg, str_reg, gen_int_mode(4, SImode)));
-        }
-      }
-    }
-
-  }
-  if(count & 2){
-    zero_reg = gen_reg_rtx(HImode);
-    emit_move_insn(zero_reg, const0_rtx);
-    str_mem = gen_rtx_MEM (HImode, str_reg);
-    MEM_COPY_ATTRIBUTES (str_mem, str_0);
-    emit_move_insn(str_mem, zero_reg);
-    emit_insn(gen_addsi3(str_reg, str_reg, gen_int_mode(2, SImode)));
-  }
-  if(count & 1){
-    zero_reg = gen_reg_rtx(QImode);
-    emit_move_insn(zero_reg, const0_rtx);
-    str_mem = gen_rtx_MEM (QImode, str_reg);
-    MEM_COPY_ATTRIBUTES (str_mem, str_0);
-    emit_move_insn(str_mem, zero_reg);
-  }
-
-  return true;
+  rtx note = find_reg_note(insn, REG_BR_PROB, 0);
+  return GEN_INT (note && INTVAL (XEXP (note, 0)) > REG_BR_PROB_BASE / 2);
 }
-
-
-
-
-bool
-qdsp6_expand_strlen(rtx operands[])
-{
-  rtx str_reg, str_mem, rtrn_reg, pat_reg, load_reg, p2, p3, cmp_reg, neg_reg, label;
-  unsigned int pattern;
-
-  if(INTVAL (operands[3]) != 8){
-    return false;
-  }
-
-  rtrn_reg = operands[0];
-  str_reg = copy_to_mode_reg(SImode, XEXP (operands[1], 0));
-  str_mem = gen_rtx_MEM (DImode, str_reg);
-  MEM_COPY_ATTRIBUTES (str_mem, operands[1]);
-  pattern = INTVAL (operands[2]);
-  pattern |= (pattern << 24) | (pattern << 16) | (pattern << 8);
-  pat_reg = gen_reg_rtx(DImode);
-  load_reg = gen_reg_rtx(DImode);
-  cmp_reg = gen_reg_rtx(SImode);
-  neg_reg = gen_reg_rtx(SImode);
-  p2 = gen_raw_REG (BImode, P2_REGNUM);
-  p3 = gen_raw_REG (BImode, P3_REGNUM);
-
-  emit_move_insn(rtrn_reg, gen_int_mode(23, SImode));  /* 23 == -8 + 31 */
-  if(pattern != 0){
-    emit_move_insn(gen_highpart(SImode, pat_reg), gen_int_mode(pattern, SImode));
-    emit_move_insn(gen_lowpart(SImode, pat_reg), gen_int_mode(pattern, SImode));
-  }
-
-  label = gen_label_rtx();
-
-  emit_note(NOTE_INSN_LOOP_BEG);
-  emit_label(label);
-  if(pattern == 0){
-    emit_move_insn(pat_reg, const0_rtx);
-  }
-  emit_move_insn(load_reg, str_mem);
-  emit_insn(gen_addsi3(str_reg, str_reg, gen_int_mode(8, SImode)));
-  emit_insn(gen_addsi3(rtrn_reg, rtrn_reg, gen_int_mode(8, SImode)));
-  emit_insn(gen_vcmpb_eq(p3, load_reg, pat_reg));
-  emit_insn(gen_any8(p2, p3));
-  emit_insn(gen_move_predicate_to_reg(cmp_reg, p3));
-  emit_jump_insn(gen_jump_if_false(p2, label));
-  emit_note(NOTE_INSN_LOOP_END);
-  emit_insn(gen_negsi2(neg_reg, cmp_reg));
-  emit_insn(gen_andsi3(cmp_reg, cmp_reg, neg_reg));
-  emit_insn(gen_clzsi2(cmp_reg, cmp_reg));
-  emit_insn(gen_subsi3(rtrn_reg, rtrn_reg, cmp_reg));
-
-  return true;
-}
-
-
-
-
-/* not currently working */
-
-bool
-qdsp6_expand_cmpstr(rtx operands[])
-{
-  rtx rtrn, str0_addr, str0_mem, str0, str1_addr, str1_mem, str1;
-  rtx gt_rtrn, lt_rtrn, null, end, nend, equal, nequal, grtr, ngrtr;
-  rtx p0, p1, p2, p3, label0, label1, label2;
-
-  fputs("\ncmpstr\n", stderr);
-  debug_rtx(operands[0]);
-  debug_rtx(operands[1]);
-  debug_rtx(operands[2]);
-  debug_rtx(operands[3]);
-  debug_rtx(operands[4]);
-  fputc('\n', stderr);
-
-  if(INTVAL (operands[4]) != 8){
-    return false;
-  }
-
-  rtrn = operands[0];
-  str0_addr = copy_to_mode_reg(SImode, XEXP (operands[1], 0));
-  str0_mem = gen_rtx_MEM (DImode, str0_addr);
-  MEM_COPY_ATTRIBUTES (str0_mem, operands[1]);
-  str0 = gen_reg_rtx(DImode);
-  str1_addr = copy_to_mode_reg(SImode, XEXP (operands[2], 0));
-  str1_mem = gen_rtx_MEM (DImode, str1_addr);
-  MEM_COPY_ATTRIBUTES (str1_mem, operands[1]);
-  str1 = gen_reg_rtx(DImode);
-  gt_rtrn = gen_reg_rtx(SImode);
-  lt_rtrn = gen_reg_rtx(SImode);
-  null = gen_reg_rtx(DImode);
-  end = gen_reg_rtx(SImode);
-  nend = gen_reg_rtx(SImode);
-  equal = gen_reg_rtx(SImode);
-  nequal = gen_reg_rtx(SImode);
-  grtr = gen_reg_rtx(SImode);
-  ngrtr = gen_reg_rtx(SImode);
-  p0 = gen_raw_REG (BImode, P0_REGNUM);
-  p1 = gen_raw_REG (BImode, P1_REGNUM);
-  p2 = gen_raw_REG (BImode, P2_REGNUM);
-  p3 = gen_raw_REG (BImode, P3_REGNUM);
-  label0 = gen_label_rtx();
-  label1 = gen_label_rtx();
-  label2 = gen_label_rtx();
-
-  emit_note(NOTE_INSN_LOOP_BEG);
-  emit_label(label0);
-  emit_move_insn(null, const0_rtx);
-  emit_move_insn(str0, str0_mem);
-  emit_insn(gen_addsi3(str0_addr, str0_addr, gen_int_mode(8, SImode)));
-  emit_move_insn(str1, str1_mem);
-  emit_insn(gen_addsi3(str1_addr, str1_addr, gen_int_mode(8, SImode)));
-  emit_insn(gen_vcmpb_eq(p0, str0, str1));
-  emit_insn(gen_vcmpb_eq(p1, str1, null));
-  emit_move_insn(gt_rtrn, const1_rtx);
-  emit_move_insn(lt_rtrn, constm1_rtx);
-  emit_move_insn(rtrn, const0_rtx);
-  emit_insn(gen_all8(p2, p0));
-  emit_jump_insn(gen_jump_if_false(p2, label1));
-  emit_insn(gen_any8(p3, p1));
-  emit_jump_insn(gen_jump_if_false(p3, label0));
-  emit_note(NOTE_INSN_LOOP_END);
-  emit_jump_insn(gen_jump(label2));
-  emit_label(label1);
-  emit_insn(gen_move_predicate_to_reg(end, p1));
-  emit_insn(gen_addsi3(end, end, gen_int_mode(256, SImode)));
-  emit_insn(gen_move_predicate_to_reg(equal, p0));
-  emit_insn(gen_vcmpb_gtu(p0, str0, str1));
-  emit_insn(gen_negsi2(nend, end));
-  emit_insn(gen_one_cmplsi2(nequal, equal));
-  emit_insn(gen_addsi3(equal, equal, const1_rtx));
-  emit_insn(gen_move_predicate_to_reg(grtr, p0));
-  emit_insn(gen_andsi3(end, end, nend));
-  emit_insn(gen_andsi3(equal, equal, nequal));
-  emit_insn(gen_negsi2(ngrtr, grtr));
-  emit_insn(gen_cmp_gtu(p0, equal, end));
-  emit_insn(gen_andsi3(grtr, grtr, ngrtr));
-  emit_insn(gen_cmp_eq(p1, equal, grtr));
-  emit_jump_insn(gen_jump_if_true(p0, label2));
-  emit_insn(gen_muxt(rtrn, p1, gt_rtrn, lt_rtrn));
-  emit_label(label2);
-
-  return true;
-}
-#endif /* 0 */
 
 
 
@@ -7725,240 +7472,6 @@ qdsp6_hardware_loop(void)
 Functions for forming and manipulating packets
 --------------------------------------------*/
 
-struct GTY((chain_next ("%h.next"))) qdsp6_reg_access {
-  unsigned int regno;
-  int flags;
-  struct qdsp6_reg_access *next;
-};
-
-struct GTY((chain_next ("%h.next"))) qdsp6_mem_access {
-  rtx mem;
-  int flags;
-  struct qdsp6_mem_access *next;
-};
-
-struct GTY(()) qdsp6_insn_info {
-  rtx insn;
-  struct qdsp6_reg_access *reg_reads;
-  struct qdsp6_reg_access *reg_writes;
-  struct qdsp6_mem_access *loads;
-  struct qdsp6_mem_access *stores;
-  int flags;
-};
-
-struct GTY((chain_prev ("%h.prev"), chain_next ("%h.next"))) qdsp6_packet_info {
-  struct qdsp6_insn_info *insns[QDSP6_MAX_INSNS_PER_PACKET];
-  int num_insns;
-  struct qdsp6_packet_info *prev;
-  struct qdsp6_packet_info *next;
-};
-
-struct GTY((chain_next ("%h.next"))) qdsp6_bb_aux_info {
-  struct qdsp6_packet_info *head_packet;
-  struct qdsp6_packet_info *end_packet;
-  struct qdsp6_bb_aux_info *next;
-};
-
-#define QDSP6_BB_AUX(BB) ((struct qdsp6_bb_aux_info *) (BB->aux))
-#define BB_HEAD_PACKET(BB) (QDSP6_BB_AUX (BB)->head_packet)
-#define BB_END_PACKET(BB) (QDSP6_BB_AUX (BB)->end_packet)
-
-enum qdsp6_transformation_type {
-  QDSP6_DOT_NEWIFY /* 0 */
-};
-
-struct GTY((chain_next ("%h.next"))) qdsp6_insn_transformation_list {
-  enum qdsp6_transformation_type type;
-  union qdsp6_transformation_union {
-    struct qdsp6_dot_newify {
-      rtx predicate;
-    } GTY((tag ("0"))) dot_newify;
-  } GTY((desc ("%1.type"))) info;
-  struct qdsp6_insn_transformation_list *next;
-};
-
-struct GTY((chain_next ("%h.prev"))) qdsp6_transformed_insn_stack {
-  struct qdsp6_insn_info *insn;
-  struct qdsp6_packet_info *packet;
-  struct qdsp6_transformed_insn_stack *prev;
-};
-
-
-
-
-void qdsp6_print_insn_info(FILE *file, struct qdsp6_insn_info *insn_info);
-void qdsp6_debug_insn_info(struct qdsp6_insn_info *insn_info);
-void qdsp6_print_packet(FILE *file, struct qdsp6_packet_info *packet);
-void qdsp6_print_packets(FILE *file, struct qdsp6_packet_info *packet);
-void qdsp6_debug_packet(struct qdsp6_packet_info *packet);
-void qdsp6_print_bb_packets(FILE *file, basic_block bb);
-void qdsp6_debug_bb_packets(basic_block bb);
-
-static bool qdsp6_wandered_too_far_p(rtx insn);
-static int  qdsp6_get_flags(rtx insn);
-static int  qdsp6_record_writes(rtx *x, void *insn_info);
-static int  qdsp6_record_reads(rtx *x, void *insn_info);
-static struct qdsp6_insn_info *qdsp6_get_insn_info(rtx insn);
-static struct qdsp6_packet_info *qdsp6_start_new_packet(
-                                   struct qdsp6_insn_info *insn_info);
-static void qdsp6_create_bb_sentinel_packet(struct qdsp6_packet_info *packet);
-static void qdsp6_remove_insn_from_packet(
-              struct qdsp6_packet_info *packet,
-              struct qdsp6_insn_info *insn_info);
-static void qdsp6_add_insn_to_packet(
-              struct qdsp6_packet_info *packet,
-              struct qdsp6_insn_info *insn_info);
-static bool qdsp6_control_conflict_p(
-              struct qdsp6_insn_info *first,
-              struct qdsp6_insn_info *second);
-static bool qdsp6_predicable(struct qdsp6_insn_info *insn_info);
-static bool qdsp6_dot_newable(struct qdsp6_insn_info *insn_info);
-static bool qdsp6_prologue_insn_p(struct qdsp6_insn_info *insn_info);
-static void qdsp6_insns_truly_dependent(
-              struct qdsp6_insn_info *writer,
-              struct qdsp6_insn_info *reader,
-              int *dependence);
-static void qdsp6_insns_output_dependent(
-              struct qdsp6_insn_info *insn0,
-              struct qdsp6_insn_info *insn1,
-              int *dependence);
-static void qdsp6_insns_anti_dependent(
-              struct qdsp6_insn_info *earlier,
-              struct qdsp6_insn_info *later,
-              int *dependence);
-static void qdsp6_packet_insn_dependence(
-              struct qdsp6_packet_info *packet,
-              struct qdsp6_insn_info *insn_info,
-              bool ignore_jump,
-              int *dependence);
-static void qdsp6_packet_insn_internal_dependence(
-              struct qdsp6_packet_info *packet,
-              struct qdsp6_insn_info *insn_info,
-              int *dependence);
-static struct qdsp6_insn_info *qdsp6_copy_insn_info(
-                                 struct qdsp6_insn_info *insn_info);
-static struct qdsp6_insn_info *qdsp6_predicate_insn(
-                                 struct qdsp6_insn_info *insn_info,
-                                 struct qdsp6_insn_info *jump_insn_info,
-                                 bool invert_condition);
-static int qdsp6_dot_newify_reg(rtx *x, void *y);
-static struct qdsp6_insn_info *qdsp6_dot_newify_insn(
-                                 struct qdsp6_insn_info *insn_info);
-static rtx  qdsp6_bb_real_head_insn(basic_block bb);
-static rtx  qdsp6_bb_real_end_insn(basic_block bb);
-static void qdsp6_pack_insns(void);
-static void qdsp6_push_insn(
-              struct qdsp6_insn_info *insn,
-              struct qdsp6_packet_info *packet);
-static struct qdsp6_insn_info *qdsp6_pop_insn(void);
-static bool qdsp6_insn_fits_in_packet(
-              struct qdsp6_insn_info *insn,
-              struct qdsp6_packet_info *packet);
-static void qdsp6_move_insn(
-              struct qdsp6_insn_info *old_insn,
-              struct qdsp6_packet_info *from_packet,
-              struct qdsp6_insn_info *new_insn,
-              struct qdsp6_packet_info *to_packet);
-static void qdsp6_sanity_check_cfg_packet_info(void);
-static void qdsp6_pull_up_insns(void);
-static void qdsp6_init_packing_info(void);
-static void qdsp6_free_packing_info(void);
-
-
-
-
-#define QDSP6_MASK(WIDTH, LOW) (((1 << (WIDTH)) - 1) << (LOW))
-
-#define QDSP6_PREDICATE_NUMBER_MASK QDSP6_MASK(2, 0)
-#define QDSP6_DOT_NEW               QDSP6_MASK(1, 2)
-#define QDSP6_IF_TRUE               QDSP6_MASK(1, 3)
-#define QDSP6_IF_FALSE              QDSP6_MASK(1, 4)
-#define QDSP6_PREDICATE_MASK \
-  (QDSP6_PREDICATE_NUMBER_MASK | QDSP6_DOT_NEW)
-#define QDSP6_CONDITION_MASK        (QDSP6_IF_TRUE | QDSP6_IF_FALSE)
-#define QDSP6_UNCONDITIONAL         QDSP6_CONDITION_MASK
-
-#define QDSP6_DIRECT_JUMP           QDSP6_MASK(1, 5)
-#define QDSP6_INDIRECT_JUMP         QDSP6_MASK(1, 6)
-#define QDSP6_ENDLOOP               QDSP6_MASK(1, 7)
-#define QDSP6_CALL                  QDSP6_MASK(1, 8)
-#define QDSP6_EMULATION_CALL        QDSP6_MASK(1, 9)
-#define QDSP6_CONTROL (QDSP6_CALL | QDSP6_JUMP)
-
-#define QDSP6_MEM                   QDSP6_MASK(1, 10)
-#define QDSP6_VOLATILE              QDSP6_MASK(1, 11)
-
-#define QDSP6_WANDERED              QDSP6_MASK(1, 12)
-#define QDSP6_REGCOND_JUMP          QDSP6_MASK(1, 13)
-
-#define QDSP6_JUMP \
-  (QDSP6_DIRECT_JUMP | QDSP6_INDIRECT_JUMP | QDSP6_ENDLOOP  | QDSP6_REGCOND_JUMP) 
-
-#define QDSP6_PREDICATE_NUMBER(INSN) \
-  ((INSN)->flags & QDSP6_PREDICATE_NUMBER_MASK)
-#define QDSP6_PREDICATE(INSN) ((INSN)->flags & QDSP6_PREDICATE_MASK)
-#define QDSP6_DOT_NEW_P(INSN) (((INSN)->flags & QDSP6_DOT_NEW) != 0)
-#define QDSP6_CONDITION(INSN) ((INSN)->flags & QDSP6_CONDITION_MASK)
-#define QDSP6_CONFLICT_P(ACCESS0, ACCESS1) \
-  (gcc_assert(QDSP6_CONDITION (ACCESS0) && QDSP6_CONDITION (ACCESS1)), \
-   ((ACCESS0)->flags & (ACCESS1)->flags & QDSP6_CONDITION_MASK \
-    || QDSP6_PREDICATE (ACCESS0) != QDSP6_PREDICATE (ACCESS1)))
-
-#define QDSP6_DIRECT_JUMP_P(INSN)    (((INSN)->flags & QDSP6_DIRECT_JUMP) != 0)
-#define QDSP6_INDIRECT_JUMP_P(INSN)  (((INSN)->flags & QDSP6_INDIRECT_JUMP) != 0)
-#define QDSP6_ENDLOOP_P(INSN)        (((INSN)->flags & QDSP6_ENDLOOP) != 0)
-#define QDSP6_CALL_P(INSN)           (((INSN)->flags & QDSP6_CALL) != 0)
-#define QDSP6_EMULATION_CALL_P(INSN) (((INSN)->flags & QDSP6_EMULATION_CALL) != 0)
-#define QDSP6_JUMP_P(INSN)           (((INSN)->flags & QDSP6_JUMP) != 0)
-#define QDSP6_CONTROL_P(INSN)        (((INSN)->flags & QDSP6_CONTROL) != 0)
-
-#define QDSP6_MEM_P(INSN)      (((INSN)->flags & QDSP6_MEM) != 0)
-#define QDSP6_VOLATILE_P(INSN) (((INSN)->flags & QDSP6_VOLATILE) != 0)
-
-#define QDSP6_WANDERED_P(INSN) (((INSN)->flags & QDSP6_WANDERED) != 0)
-
-/* PDB. True if ((insn_info*)INSN)->insn is a register conditional jump */
-#define QDSP6_REGCOND_JUMP_P(INSN) (((INSN)->flags & QDSP6_REGCOND_JUMP) != 0)
-
-#define QDSP6_CONFLICT_P(ACCESS0, ACCESS1) \
-  (gcc_assert(QDSP6_CONDITION (ACCESS0) && QDSP6_CONDITION (ACCESS1)), \
-   ((ACCESS0)->flags & (ACCESS1)->flags & QDSP6_CONDITION_MASK \
-    || QDSP6_PREDICATE (ACCESS0) != QDSP6_PREDICATE (ACCESS1)))
-
-/* PDB. Register conditional jump is also a conditional jump */
-#define QDSP6_CONDITIONAL_P(INSN) \
-  ((((INSN)->flags & QDSP6_CONDITION_MASK) != QDSP6_UNCONDITIONAL) || \
-  (((INSN)->flags & QDSP6_REGCOND_JUMP) != 0))
-
-#define QDSP6_DEP_NONE            0
-#define QDSP6_DEP_UNCONDITIONAL   QDSP6_MASK(1, 0)
-#define QDSP6_DEP_NOT_DOT_NEWABLE QDSP6_MASK(1, 1)
-#define QDSP6_DEP_DOT_NEWABLE     QDSP6_MASK(1, 2)
-/* PDB. Dual jump is a new special kind of dependence between two instructions. */
-#define QDSP6_DEP_DUALJUMP        QDSP6_MASK(1, 3)
-
-#define QDSP6_DEP_NONE_P(DEP) ((DEP) == 0)
-#define QDSP6_DEP_UNCONDITIONAL_P(DEP) (((DEP) & QDSP6_DEP_UNCONDITIONAL) != 0)
-#define QDSP6_DEP_NOT_DOT_NEWABLE_P(DEP) \
-  (((DEP) & QDSP6_DEP_NOT_DOT_NEWABLE) != 0)
-#define QDSP6_DEP_DOT_NEWABLE_P(DEP) (((DEP) & QDSP6_DEP_DOT_NEWABLE) != 0)
-/* PDB. True if the dependence DEP is a dual jump dependence. Put the instructions that depend in terms of DEP in one packet. */
-#define QDSP6_DEP_DUALJUMP_P(DEP) (((DEP) & QDSP6_DEP_DUALJUMP) != 0)
-
-
-
-
-static bool final_packing = false;
-static state_t qdsp6_state;
-
-static GTY(()) struct qdsp6_packet_info *qdsp6_head_packet;
-static GTY(()) struct qdsp6_packet_info *qdsp6_tail_packet;
-static GTY(()) struct qdsp6_bb_aux_info *qdsp6_head_bb_aux;
-static GTY(()) struct qdsp6_transformed_insn_stack *qdsp6_insn_stack;
-
-
-
-
 void
 qdsp6_print_insn_info(FILE *file, struct qdsp6_insn_info *insn_info)
 {
@@ -7972,18 +7485,21 @@ qdsp6_print_insn_info(FILE *file, struct qdsp6_insn_info *insn_info)
   }
 
   fputs(";; condition: ", file);
-  if(QDSP6_CONDITION (insn_info) == QDSP6_UNCONDITIONAL){
+  if(QDSP6_GPR_CONDITION_P (insn_info)){
+    fputs("gpr", file);
+  }
+  else if(QDSP6_SENSE (insn_info) == QDSP6_UNCONDITIONAL){
     fputs("unconditional", file);
   }
-  else if(QDSP6_CONDITION (insn_info) == 0){
+  else if(QDSP6_SENSE (insn_info) == 0){
     fputs("never", file);
   }
   else {
-    if(QDSP6_CONDITION (insn_info) == QDSP6_IF_FALSE){
+    if(QDSP6_SENSE (insn_info) == QDSP6_IF_FALSE){
       fputc('!', file);
     }
-    fputs(reg_names[P0_REGNUM + QDSP6_PREDICATE_NUMBER (insn_info)], file);
-    if(QDSP6_DOT_NEW_P (insn_info)){
+    fputs(reg_names[P0_REGNUM + QDSP6_PREDICATE (insn_info)], file);
+    if(QDSP6_NEW_PREDICATE_P (insn_info)){
       fputs(".new", file);
     }
   }
@@ -7997,8 +7513,11 @@ qdsp6_print_insn_info(FILE *file, struct qdsp6_insn_info *insn_info)
     if(QDSP6_INDIRECT_JUMP_P (insn_info)){
       fputs("indirect jump", file);
     }
-    if(QDSP6_CALL_P (insn_info)){
+    if(QDSP6_DIRECT_CALL_P (insn_info)){
       fputs("call", file);
+    }
+    if(QDSP6_INDIRECT_CALL_P (insn_info)){
+      fputs("indirect call", file);
     }
     if(QDSP6_ENDLOOP_P (insn_info)){
       fputs("endloop", file);
@@ -8029,11 +7548,11 @@ qdsp6_print_insn_info(FILE *file, struct qdsp6_insn_info *insn_info)
     fputs("mem", file);
     first = false;
   }
-  if(QDSP6_WANDERED_P (insn_info)){
+  if(QDSP6_NEW_GPR_P (insn_info)){
     if(!first){
       fputs(", ", file);
     }
-    fputs("wandered", file);
+    fputs("gpr.new", file);
   }
   fputs(")\n", file);
 
@@ -8154,6 +7673,21 @@ qdsp6_print_packets(FILE *file, struct qdsp6_packet_info *packet)
 
 
 
+void 
+qdsp6_debug_packets(void)
+{
+  basic_block bb;
+  FOR_EACH_BB(bb)
+  {
+    struct qdsp6_packet_info *packet;
+    packet = BB_HEAD_PACKET(bb);
+    qdsp6_print_packets(stderr, packet);
+  }
+}
+
+
+
+
 void
 qdsp6_debug_packet(struct qdsp6_packet_info *packet)
 {
@@ -8166,7 +7700,6 @@ qdsp6_debug_packet(struct qdsp6_packet_info *packet)
 void
 qdsp6_print_bb_packets(FILE *file, basic_block bb)
 {
-#if !GCC_3_4_6
   struct qdsp6_packet_info *packet;
 
   dump_bb_info(bb, true, false, TDF_DETAILS, ";; ", file);
@@ -8183,7 +7716,6 @@ qdsp6_print_bb_packets(FILE *file, basic_block bb)
   qdsp6_print_packet(file, packet);
   dump_bb_info(bb, false, true, TDF_DETAILS, ";; ", file);
   fputs("\n\n", file);
-#endif /* !GCC_3_4_6 */
 }
 
 
@@ -8192,53 +7724,20 @@ qdsp6_print_bb_packets(FILE *file, basic_block bb)
 void
 qdsp6_debug_bb_packets(basic_block bb)
 {
-#if !GCC_3_4_6
   qdsp6_print_bb_packets(stderr, bb);
-#endif /* !GCC_3_4_6 */
 }
 
 
 
 
-/* Return true if INSN references a label out of range and consequently was
-   expanded into multiple dependent instructions. */
-
-static bool
-qdsp6_wandered_too_far_p(rtx insn)
+void
+qdsp6_debug_all_bb_packets(void)
 {
-  if(!final_packing){
-    return false;
+  basic_block bb;
+
+  FOR_EACH_BB (bb){
+   qdsp6_debug_bb_packets(bb);
   }
-
-  switch(INSN_CODE (insn)){
-    case CODE_FOR_cond_jump:
-    case CODE_FOR_loop0:
-    case CODE_FOR_loop1:
-    case CODE_FOR_gpr_cond_jump:
-      if(get_attr_length(insn) > 4){
-        return true;
-      }
-      else {
-        return false;
-      }
-    default:
-      return false;
-  }
-}
-
-
-
-
-/* Return true if TEST is a valid relational operator for a conditional jump */
-static int
-qdsp6_cond_jump_compare_operator (rtx test)
-{
-  enum rtx_code code = GET_CODE (test);
-  /* v3 has more compare codes because of the register conditional jumps. */
-  if (TARGET_V3_FEATURES)
-    return (code == NE || code == EQ || code == LE || code == GE || code == GT || code == LT);
-  else
-    return (code == NE || code == EQ);
 }
 
 
@@ -8247,11 +7746,10 @@ qdsp6_cond_jump_compare_operator (rtx test)
 static int
 qdsp6_get_flags(rtx insn)
 {
-  int flags;
+  int flags = 0;
   rtx pattern;
   rtx test;
-
-  flags = 0;
+  rtx target;
 
   pattern = PATTERN (insn);
   if(GET_CODE (pattern) == PARALLEL){
@@ -8276,56 +7774,55 @@ qdsp6_get_flags(rtx insn)
   }
 
   if(test){
-    if (TARGET_V3_FEATURES)
-      gcc_assert (qdsp6_cond_jump_compare_operator (test)
-		  && XEXP (test,1 ) == const0_rtx);
-    else
-      gcc_assert(qdsp6_cond_jump_compare_operator (test)
-               && P_REG_P (XEXP (test, 0))
-               && XEXP (test, 1) == const0_rtx);
-    if (P_REG_P (XEXP (test, 0)))
-      {
-	flags |= REGNO (XEXP (test, 0)) - P0_REGNUM;
-	flags |= GET_CODE (test) == NE ? QDSP6_IF_TRUE : QDSP6_IF_FALSE;
-      }
-    else
-      {
-	/* This is a speculative-register-conditional jump. */
-	flags |= QDSP6_REGCOND_JUMP;
-
-	/* PDB.  **IMPORTANT**.This really is a condition instruction, but here it means that it is not 
-	   predicated on a predicate register. To check whether an instruction is conditional
-	   use QDSP6_CONDITIONAL_P, _not_ QDSP6_UNCONDITIONAL. The latter only tell us if a '!'
-	   needs to be added before a predicate register, if used. */
-	flags |= QDSP6_UNCONDITIONAL;
-      }
+    if(P_REG_P (XEXP (test, 0))){
+      flags |= REGNO (XEXP (test, 0)) - P0_REGNUM;
+      flags |= GET_CODE (test) == NE ? QDSP6_IF_TRUE : QDSP6_IF_FALSE;
+    }
+    else {
+      flags |= QDSP6_GPR_CONDITION | QDSP6_UNCONDITIONAL;
+    }
   }
   else {
     flags |= QDSP6_UNCONDITIONAL;
   }
 
-  if(JUMP_P (insn) && !(flags & QDSP6_ENDLOOP)){
-    if(GET_CODE (pattern) == SET){
-      if(GET_CODE (SET_SRC (pattern)) == IF_THEN_ELSE){
-        if(GET_CODE (XEXP (SET_SRC (pattern), 1)) == LABEL_REF){
-          flags |= QDSP6_DIRECT_JUMP;
-        }
-        else {
-          flags |= QDSP6_INDIRECT_JUMP;
-        }
+  if ( INSN_CODE (insn) == CODE_FOR_compare_and_jump1 ||
+       INSN_CODE (insn) == CODE_FOR_compare_and_jump2 )
+  {
+    flags |= QDSP6_NEW_PREDICATE;
+  }
+
+  if(JUMP_P (insn) && !(flags & QDSP6_ENDLOOP) ){
+    if(GET_CODE (pattern) == RETURN){
+      flags |= QDSP6_INDIRECT_JUMP;
+    }
+    else {
+      gcc_assert(GET_CODE (pattern) == SET);
+      target = SET_SRC (pattern);
+      if(GET_CODE (target) == IF_THEN_ELSE){
+        target = XEXP (target, 1);
+      }
+
+      if(GET_CODE (target) == LABEL_REF){
+        flags |= QDSP6_DIRECT_JUMP;
       }
       else {
-        if(GET_CODE (SET_SRC (pattern)) == LABEL_REF){
-          flags |= QDSP6_DIRECT_JUMP;
-        }
-        else {
-          flags |= QDSP6_INDIRECT_JUMP;
-        }
+        flags |= QDSP6_INDIRECT_JUMP;
       }
     }
   }
   else if(CALL_P (insn)){
-    flags |= QDSP6_CALL;
+    if(GET_CODE (pattern) == SET){
+      pattern = SET_SRC (pattern);
+    }
+
+    gcc_assert(GET_CODE (pattern) == CALL && MEM_P (XEXP (pattern, 0)));
+    if(REG_P (XEXP (XEXP (pattern, 0), 0))){
+      flags |= QDSP6_INDIRECT_CALL;
+    }
+    else {
+      flags |= QDSP6_DIRECT_CALL;
+    }
   }
   /* Ignore instructions that do nothing */
   else if ((GET_CODE (PATTERN (insn)) == CLOBBER) ||
@@ -8339,11 +7836,59 @@ qdsp6_get_flags(rtx insn)
     flags |= QDSP6_EMULATION_CALL;
   }
 
-  if(qdsp6_wandered_too_far_p(insn)){
-    flags |= QDSP6_WANDERED;
+  return flags;
+}
+
+
+
+
+static struct qdsp6_reg_access *
+qdsp6_add_reg_access(struct qdsp6_reg_access *accesses, rtx reg, int flags)
+{
+  struct qdsp6_reg_access *access;
+  unsigned int regno;
+  unsigned int next_hard_regno;
+
+  /* Ignore duplicates. */
+  for(access = accesses; access; access = access->next){
+    if(rtx_equal_p(reg, access->reg)){
+      return accesses;
+    }
   }
 
-  return flags;
+  regno = REGNO (reg);
+  next_hard_regno = regno + HARD_REGNO_NREGS (regno, GET_MODE (reg));
+  for(; regno < next_hard_regno; regno++){
+    access = (struct qdsp6_reg_access *)ggc_alloc_cleared(sizeof(struct qdsp6_reg_access));
+    access->reg = reg;
+    access->regno = regno;
+    access->flags = flags;
+    access->next = accesses;
+    accesses = access;
+  }
+  return accesses;
+}
+
+
+
+
+static struct qdsp6_mem_access *
+qdsp6_add_mem_access(struct qdsp6_mem_access *accesses, rtx mem, int flags)
+{
+  struct qdsp6_mem_access *access;
+
+  /* Ignore duplicates. */
+  for(access = accesses; access; access = access->next){
+    if(rtx_equal_p(mem, access->mem)){
+      return accesses;
+    }
+  }
+
+  access = (struct qdsp6_mem_access *)ggc_alloc_cleared(sizeof(struct qdsp6_mem_access));
+  access->mem = mem;
+  access->flags = flags;
+  access->next = accesses;
+  return access;
 }
 
 
@@ -8354,21 +7899,15 @@ qdsp6_record_writes(rtx *y, void *info)
 {
   rtx x;
   struct qdsp6_insn_info *insn_info;
-  struct qdsp6_reg_access *reg_access;
-  struct qdsp6_mem_access *mem_access;
-  unsigned int regno;
-  unsigned int next_hard_regno;
 
   x = *y;
   insn_info = (struct qdsp6_insn_info *) info;
 
   switch(GET_CODE (x)){
     case MEM:
-      mem_access = ggc_alloc_cleared(sizeof(struct qdsp6_mem_access));
-      mem_access->mem = x;
-      mem_access->flags = insn_info->flags;
-      mem_access->next = insn_info->stores;
-      insn_info->stores = mem_access;
+      insn_info->stores = qdsp6_add_mem_access(insn_info->stores,
+                                               x,
+                                               insn_info->flags);
       insn_info->flags |= QDSP6_MEM;
       if(MEM_VOLATILE_P (x)){
         insn_info->flags |= QDSP6_VOLATILE;
@@ -8376,15 +7915,9 @@ qdsp6_record_writes(rtx *y, void *info)
       for_each_rtx(&XEXP (x, 0), qdsp6_record_reads, insn_info);
       return -1;
     case REG:
-      regno = REGNO (x);
-      next_hard_regno = regno + HARD_REGNO_NREGS (regno, GET_MODE (x));
-      for(; regno < next_hard_regno; regno++){
-        reg_access = ggc_alloc_cleared(sizeof(struct qdsp6_reg_access));
-        reg_access->regno = PN_REGNO_P (regno) ? regno - DOT_NEW_OFFSET : regno;
-        reg_access->flags = insn_info->flags;
-        reg_access->next = insn_info->reg_writes;
-        insn_info->reg_writes = reg_access;
-      }
+      insn_info->reg_writes = qdsp6_add_reg_access(insn_info->reg_writes,
+                                                   x,
+                                                   insn_info->flags);
       return 0;
     default:
       return 0;
@@ -8399,11 +7932,7 @@ qdsp6_record_reads(rtx *y, void *info)
 {
   rtx x;
   struct qdsp6_insn_info *insn_info;
-  struct qdsp6_reg_access *reg_access;
-  struct qdsp6_mem_access *mem_access;
   int saved_flags;
-  unsigned int regno;
-  unsigned int next_hard_regno;
 
   x = *y;
   insn_info = (struct qdsp6_insn_info *) info;
@@ -8417,6 +7946,14 @@ qdsp6_record_reads(rtx *y, void *info)
       for_each_rtx(&COND_EXEC_CODE (x), qdsp6_record_reads, insn_info);
       return -1;
     case SET:
+      /* V2/V3/V4 insert instruction is unusual in the way that it reads and
+         writes its destination, so we need to record reads here
+         as a special case.
+         (set (zero_extract (...) (...) (...)) (...)) */
+      if(XEXP (x, 0) && GET_CODE (XEXP (x, 0)) == ZERO_EXTRACT){
+          for_each_rtx(&XEXP (x, 0), qdsp6_record_reads, insn_info);
+      }
+      /* fall through */
     case POST_MODIFY:
       if(GET_CODE (XEXP (x, 1)) != CALL){
         for_each_rtx(&XEXP (x, 0), qdsp6_record_writes, insn_info);
@@ -8435,34 +7972,25 @@ qdsp6_record_reads(rtx *y, void *info)
       for_each_rtx(&XEXP (x, 0), qdsp6_record_writes, insn_info);
       return 0;
     case MEM:
-      mem_access = ggc_alloc_cleared(sizeof(struct qdsp6_mem_access));
-      mem_access->mem = x;
-      mem_access->flags = insn_info->flags;
-      mem_access->next = insn_info->loads;
-      insn_info->loads = mem_access;
+      insn_info->loads = qdsp6_add_mem_access(insn_info->loads,
+                                              x,
+                                              insn_info->flags);
       insn_info->flags |= QDSP6_MEM;
       if(MEM_VOLATILE_P (x)){
         insn_info->flags |= QDSP6_VOLATILE;
       }
       return 0;
     case REG:
-      regno = REGNO (x);
-      next_hard_regno = regno + HARD_REGNO_NREGS (regno, GET_MODE (x));
-      for(; regno < next_hard_regno; regno++){
-        reg_access = ggc_alloc_cleared(sizeof(struct qdsp6_reg_access));
-        reg_access->regno = PN_REGNO_P (regno) ? regno - DOT_NEW_OFFSET : regno;
-        reg_access->flags = insn_info->flags;
-        reg_access->next = insn_info->reg_reads;
-        insn_info->reg_reads = reg_access;
-      }
+      insn_info->reg_reads = qdsp6_add_reg_access(insn_info->reg_reads,
+                                                  x,
+                                                  insn_info->flags);
       return 0;
     case RETURN:
       if(!QDSP6_CALL_P (insn_info)){
-        reg_access = ggc_alloc_cleared(sizeof(struct qdsp6_reg_access));
-        reg_access->regno = LINK_REGNUM;
-        reg_access->flags = insn_info->flags;
-        reg_access->next = insn_info->reg_reads;
-        insn_info->reg_reads = reg_access;
+        insn_info->reg_reads = qdsp6_add_reg_access(insn_info->reg_reads,
+                                                    gen_rtx_REG (word_mode,
+                                                                 LINK_REGNUM),
+                                                    insn_info->flags);
       }
       return 0;
     default:
@@ -8478,11 +8006,12 @@ qdsp6_get_insn_info(rtx insn)
 {
   struct qdsp6_insn_info *insn_info;
 
-  insn_info = ggc_alloc_cleared(sizeof(struct qdsp6_insn_info));
+  insn_info = (struct qdsp6_insn_info *)ggc_alloc_cleared(sizeof(struct qdsp6_insn_info));
 
   insn_info->insn = insn;
   insn_info->flags = qdsp6_get_flags(insn);
 
+  /* Record accesses. */
   for_each_rtx(&PATTERN (insn), qdsp6_record_reads, insn_info);
 
   /* Transfers of immediate values that cannot be encoded in a transfer
@@ -8663,7 +8192,7 @@ qdsp6_local_combine_pass(void)
 	      dest_pair_regno = get_pair_reg(dest_regno);
 	      if ((dest_pair_insn = VEC_index(rtx, transfer_source, dest_pair_regno)))
 		{
-		  enum machine_mode dummy_mode;
+		  enum machine_mode dummy_mode = VOIDmode;
 		  source_pair = SET_SRC (single_set (dest_pair_insn));
 
 		  /* Check if the sources for transfer instructions defining the pair are either:
@@ -8753,16 +8282,11 @@ qdsp6_local_combine_pass(void)
 
 
 static struct qdsp6_packet_info *
-qdsp6_start_new_packet(struct qdsp6_insn_info *insn_info)
+qdsp6_start_new_packet(void)
 {
   struct qdsp6_packet_info *new_packet;
 
-  gcc_assert(insn_info);
-
-  state_reset(qdsp6_state);
-  state_transition(qdsp6_state, insn_info->insn);
-
-  new_packet = ggc_alloc_cleared(sizeof(struct qdsp6_packet_info));
+  new_packet = (struct qdsp6_packet_info *)ggc_alloc_cleared(sizeof(struct qdsp6_packet_info));
 
   if(qdsp6_head_packet == NULL){
     qdsp6_head_packet = new_packet;
@@ -8780,28 +8304,39 @@ qdsp6_start_new_packet(struct qdsp6_insn_info *insn_info)
 
 
 
+/* Add INSN_INFO to PACKET.  If ADD_TO_BEGINNING is true, the add INSN_INFO to
+   the beginning of PACKET.  If ADD_TO_BEGINNING is false and INSN_INFO is not a
+   control insn, then add INSN_INFO above any jump insns already in PACKET.  If
+   ADD_TO_BEGINNING is false and INSN_INFO is a control insn, then add INSN_INFO
+   above any unconditional jumps in PACKET, but below any conditional jumps in
+   PACKET. */
+
 static void
-qdsp6_create_bb_sentinel_packet(struct qdsp6_packet_info *packet)
+qdsp6_add_insn_to_packet(
+  struct qdsp6_packet_info *packet,
+  struct qdsp6_insn_info *insn_info,
+  bool add_to_beginning
+)
 {
-  struct qdsp6_packet_info *sentinel_packet;
-  struct qdsp6_insn_info *sentinel_insn;
+  int i;
 
-  sentinel_packet = ggc_alloc_cleared(sizeof(struct qdsp6_packet_info));
-  sentinel_insn = ggc_alloc_cleared(sizeof(struct qdsp6_insn_info));
+  gcc_assert(packet->num_insns < QDSP6_MAX_INSNS_PER_PACKET);
 
-  sentinel_insn->insn = PREV_INSN (packet->insns[0]->insn);
-  sentinel_packet->insns[0] = sentinel_insn;
-  sentinel_packet->num_insns = 1;
-  sentinel_packet->prev = packet->prev;
-  sentinel_packet->next = packet;
-
-  if(packet->prev){
-    packet->prev->next = sentinel_packet;
+  if(!packet->location){
+    packet->location = insn_info->insn;
   }
-  else {
-    qdsp6_head_packet = sentinel_packet;
+
+  for(i = packet->num_insns;
+      i > 0
+      && ((QDSP6_JUMP_P (packet->insns[i - 1])
+           && (!QDSP6_CONDITIONAL_P (packet->insns[i - 1])
+               || !QDSP6_CONTROL_P (insn_info)))
+          || add_to_beginning);
+      i--){
+    packet->insns[i] = packet->insns[i - 1];
   }
-  packet->prev = sentinel_packet;
+  packet->insns[i] = insn_info;
+  packet->num_insns++;
 }
 
 
@@ -8836,60 +8371,22 @@ qdsp6_remove_insn_from_packet(
 
 
 
-static void
-qdsp6_add_insn_to_packet(
-  struct qdsp6_packet_info *packet,
-  struct qdsp6_insn_info *insn_info
-)
-{
-  if(packet->num_insns == 0){
-    PUT_MODE (insn_info->insn, TImode);
-    packet->insns[0] = insn_info;
-  }
-  else {
-    if(JUMP_P (packet->insns[packet->num_insns - 1]->insn)
-       && !JUMP_P (insn_info->insn)){
-      if(packet->num_insns == 1){
-        PUT_MODE (insn_info->insn, TImode);
-        PUT_MODE (packet->insns[0]->insn, VOIDmode);
-      }
-      else {
-        PUT_MODE (insn_info->insn, VOIDmode);
-      }
-      packet->insns[packet->num_insns] = packet->insns[packet->num_insns - 1];
-      packet->insns[packet->num_insns - 1] = insn_info;
-    }
-    else {
-      PUT_MODE (insn_info->insn, VOIDmode);
-      packet->insns[packet->num_insns] = insn_info;
-    }
-  }
-
-  gcc_assert(packet->num_insns < QDSP6_MAX_INSNS_PER_PACKET);
-  packet->num_insns++;
-}
-
-
-
-
 static bool
-qdsp6_control_conflict_p(
-  struct qdsp6_insn_info *first,
-  struct qdsp6_insn_info *second
-)
+qdsp6_can_speculate_p(struct qdsp6_insn_info *insn_info, basic_block bb)
 {
-  if(!QDSP6_CONTROL_P (first) || !QDSP6_CONTROL_P (second)){
+  struct qdsp6_reg_access *write;
+
+  /* Don't speculate any control insns, stores, or insns that might trap. */
+  if(QDSP6_CONTROL_P (insn_info)
+     || insn_info->stores
+     || may_trap_p(PATTERN (insn_info->insn))){
     return false;
   }
 
-  if(!TARGET_V2_FEATURES){
-    return true;
-  }
-
-  if(QDSP6_CONDITIONAL_P (first)
-     && !QDSP6_DOT_NEW_P (first) && QDSP6_DIRECT_JUMP_P (first)
-     && !QDSP6_DOT_NEW_P (second) && QDSP6_DIRECT_JUMP_P (second)){
-    return false;
+  for(write = insn_info->reg_writes; write; write = write->next){
+    if(TEST_HARD_REG_BIT (BB_LIVE_OUT (bb), write->regno)){
+      return false;
+    }
   }
 
   return true;
@@ -8898,71 +8395,487 @@ qdsp6_control_conflict_p(
 
 
 
-static bool
-qdsp6_predicable(struct qdsp6_insn_info *insn_info)
+static void
+qdsp6_add_live_out(struct qdsp6_insn_info *insn_info, basic_block bb)
 {
-  rtx cond_exec;
-  rtx cond_exec_wrapper; 
+  struct qdsp6_reg_access *write;
 
-  /* Ignore calls for now, which are predicable in V1. */
-  if(!TARGET_V2_FEATURES){
-    return false;
+  for(write = insn_info->reg_writes; write; write = write->next){
+    SET_HARD_REG_BIT (BB_LIVE_OUT (bb), write->regno);
   }
-
-  /* Ignore calls for now. */
-  if(QDSP6_CALL_P (insn_info)){
-    return false;
-  }
-
-  /* Form a COND_EXEC wrapper to test for predicability. */
-  cond_exec = gen_rtx_COND_EXEC (VOIDmode,
-    gen_rtx_NE (BImode,
-                gen_rtx_REG (BImode, P0_REGNUM),
-                const0_rtx),
-                NULL_RTX);
-  start_sequence();
-  emit_insn(cond_exec);
-  cond_exec_wrapper = get_insns();
-  end_sequence();
-
-  /* Wrap the pattern of the insn in a COND_EXEC. */
-  COND_EXEC_CODE (PATTERN (cond_exec_wrapper))
-    = PATTERN (insn_info->insn);
-
-  /* If the COND_EXEC version exists, then the original insn is predicable. 
-          Must check both instruction and operand constraints */
-		  
-   if(MEM_P (cond_exec_wrapper)){
-	if (! memory_address_p (GET_MODE (cond_exec_wrapper), 
-		XEXP (cond_exec_wrapper, 0)))
-		return 0; 
-   }
-   else if(insn_invalid_p(cond_exec_wrapper)){
-     	return 0; 
-   }
-   return 1; 
-
 }
 
 
 
 
 static bool
-qdsp6_dot_newable(struct qdsp6_insn_info *insn_info)
+qdsp6_predicable_p(struct qdsp6_insn_info *insn_info)
 {
-  rtx x;
+  rtx cond_exec;
 
-  if(!TARGET_DOT_NEW){
+  /* Form a COND_EXEC wrapper around the pattern of the insn to test for
+     predicability. */
+  cond_exec = gen_rtx_COND_EXEC (VOIDmode,
+                                 gen_rtx_NE (BImode,
+                                             gen_rtx_REG (BImode, P0_REGNUM),
+                                             const0_rtx),
+                                 PATTERN (insn_info->insn));
+  start_sequence();
+  if(JUMP_P (insn_info->insn)){
+    emit_jump_insn(cond_exec);
+  }
+  else if(CALL_P (insn_info->insn)){
+    emit_call_insn(cond_exec);
+  }
+  else {
+    emit_insn(cond_exec);
+  }
+  cond_exec = get_insns();
+  end_sequence();
+
+  /* If the predicated version is valid, then the original insn is
+     predicable. */
+  return !insn_invalid_p(cond_exec);
+}
+
+
+
+
+static struct qdsp6_insn_info *
+qdsp6_predicate_insn(
+  struct qdsp6_insn_info *insn_info,
+  struct qdsp6_insn_info *jump_insn_info,
+  bool invert_condition
+)
+{
+  struct qdsp6_insn_info *new_insn_info;
+  rtx insn;
+  rtx pattern;
+  rtx test;
+  enum rtx_code test_code;
+
+  pattern = PATTERN (jump_insn_info->insn);
+  if(GET_CODE (pattern) == PARALLEL){
+    pattern = XVECEXP (pattern, 0, 0);
+  }
+  test = XEXP (SET_SRC (pattern), 0);
+  test_code = GET_CODE (test);
+  gcc_assert(test_code == EQ || test_code == NE);
+  if(invert_condition){
+    test_code = test_code == EQ ? NE : EQ;
+  }
+
+  pattern = copy_rtx(PATTERN (insn_info->insn));
+  pattern = gen_rtx_COND_EXEC (VOIDmode,
+                               gen_rtx_fmt_ee(test_code,
+                                              GET_MODE (test),
+                                              XEXP (test, 0),
+                                              XEXP (test, 1)),
+                               pattern);
+
+  start_sequence();
+  if(JUMP_P (insn_info->insn)){
+    emit_jump_insn(pattern);
+  }
+  else if(CALL_P (insn_info->insn)){
+    emit_call_insn(pattern);
+  }
+  else {
+    emit_insn(pattern);
+  }
+  insn = get_insns();
+  end_sequence();
+
+  new_insn_info = qdsp6_get_insn_info(insn);
+  new_insn_info->stack = insn_info;
+
+  if(QDSP6_NEW_PREDICATE_P (insn_info)){
+    new_insn_info->flags |= QDSP6_NEW_PREDICATE;
+  }
+  if(QDSP6_NEW_GPR_P (insn_info)){
+    new_insn_info->flags |= QDSP6_NEW_GPR;
+  }
+  if(QDSP6_MOVED_P (insn_info)){
+    new_insn_info->flags |= QDSP6_MOVED;
+  }
+  set_block_for_insn(new_insn_info->insn, BLOCK_FOR_INSN (insn_info->insn));
+
+  return new_insn_info;
+}
+
+
+static bool 
+qdsp6_can_be_new_value_p(
+  struct qdsp6_insn_info *producer, 
+  struct qdsp6_insn_info *consumer,
+  struct qdsp6_dependence *dependence
+)
+{
+  rtx pattern;
+  rtx set;
+
+  /* If the producer is conditional, then consumer must have the same
+     condition. */
+  if(QDSP6_CONDITIONAL_P (producer)
+     && (QDSP6_CONDITION (consumer) != QDSP6_CONDITION (producer)
+         || (QDSP6_NEW_PREDICATE_P (consumer)
+             && !QDSP6_NEW_PREDICATE_P (producer))))
+  {
     return false;
   }
 
-  /* .new is a V2 feature. */
-  if(!TARGET_V2_FEATURES){
+  /* The new value must not come from or be a register pair. */
+  if(GET_MODE_SIZE (GET_MODE (dependence->set)) > UNITS_PER_WORD
+     || GET_MODE_SIZE (GET_MODE (dependence->use)) > UNITS_PER_WORD){
     return false;
   }
 
-  /* Insns must already be conditional to be .newable. */
-  if(!QDSP6_CONDITIONAL_P (insn_info) || QDSP6_DOT_NEW_P (insn_info)){
+  /* The producer may be conditional. */
+  pattern = PATTERN (producer->insn);
+  if(GET_CODE (pattern) == COND_EXEC){
+    pattern = COND_EXEC_CODE (pattern);
+  }
+
+  /* The new value must not come from a post-update address. */
+  if(GET_CODE (pattern) != SET){
+    return false;
+  }
+  set = SET_DEST (pattern);
+  if(GET_CODE (set) == ZERO_EXTRACT){
+    set = XEXP (set, 0);
+  }
+  if(set != dependence->set){
+    return false;
+  }
+
+  return true;
+}
+
+
+static bool 
+qdsp6_can_be_new_value_store_p(
+  struct qdsp6_insn_info *producer, 
+  struct qdsp6_insn_info *consumer,
+  struct qdsp6_dependence *dependence
+)
+{
+  if(!TARGET_NEW_VALUE_STORES)
+  {
+    return false;
+  }
+
+  if (!qdsp6_can_be_new_value_p(producer, consumer, dependence))
+  {
+    return false;
+  }
+
+  return true;
+}
+
+static bool 
+qdsp6_can_be_new_value_jump_p(
+  struct qdsp6_insn_info *consumer,
+  struct qdsp6_dependence *dependence
+)
+{
+
+  if(!(TARGET_V4_FEATURES && TARGET_NEW_VALUE_JUMP))
+  {
+    return false;
+  }
+
+  if (QDSP6_DIRECT_JUMP_P(consumer) &&
+      (INSN_CODE(consumer->insn) == CODE_FOR_new_value_jump1 ||
+       INSN_CODE(consumer->insn) == CODE_FOR_new_value_jump2 ||
+       INSN_CODE(consumer->insn) == CODE_FOR_new_value_jump_tstbit) &&
+      qdsp6_nvj_new_gpr_p(consumer, dependence))
+  {
+    return true;
+  }
+
+  return false;
+}
+
+
+static bool
+qdsp6_gpr_dot_newable_p(
+  struct qdsp6_insn_info *producer,
+  struct qdsp6_insn_info *consumer,
+  struct qdsp6_dependence *dependence
+)
+{
+  rtx insn;
+  rtx pattern;
+
+  if (qdsp6_can_be_new_value_jump_p( consumer, dependence))
+  {
+    return true;
+  }
+
+  if (!qdsp6_can_be_new_value_store_p( producer, consumer, dependence))
+  {
+     return false;
+  }
+      
+  /* Try wrapping all uses of the register in the consumer in a NEW_VALUE
+     unspec. */
+  pattern = copy_rtx(PATTERN (consumer->insn));
+  pattern = replace_rtx(pattern,
+                        dependence->use,
+                        gen_rtx_UNSPEC (GET_MODE (dependence->use),
+                                        gen_rtvec(1, dependence->use),
+                                        UNSPEC_NEW_VALUE));
+
+  start_sequence();
+  if(JUMP_P (consumer->insn)){
+    emit_jump_insn(pattern);
+  }
+  else if(CALL_P (consumer->insn)){
+    emit_call_insn(pattern);
+  }
+  else {
+    emit_insn(pattern);
+  }
+  insn = get_insns();
+  end_sequence();
+
+  /* If the resulting insn is valid, then the original insn is .new-able. */
+  return !insn_invalid_p(insn);
+}
+
+  /* get compare portion of the nvj*/
+  /* get compare - cmp.XX(Ns.new, YY) */
+static rtx 
+qdsp6_nvj_get_compare(rtx nvj_insn, int elem_num)
+{
+  rtx pattern; 
+  rtx condition;
+  rtx compare;
+
+  pattern = PATTERN(nvj_insn);
+
+  /* get condition code - if(cmp.XX(Ns.new,YY)) */
+  gcc_assert(PARALLEL==GET_CODE(pattern));
+  condition = XVECEXP(pattern, 0, elem_num);
+
+  if (GET_CODE(XEXP(condition,1)) == IF_THEN_ELSE) 
+  {
+    /* get compare - cmp.XX(Ns.new, YY) */
+    compare  = XEXP(XEXP(condition, 1),0);
+  }
+  else 
+  {
+    compare  = XEXP(condition, 1);
+  }
+
+  return compare;
+}
+
+static rtx 
+qdsp6_nvj_get_operand( rtx insn, int op_count)
+{
+  return XEXP(insn, op_count-1);
+}
+
+
+/* first get the first element and see it's
+   EQ, if yes, swap it and get the second element
+   insn, and swap that as well */
+static rtx
+qdsp6_nvj_swap_operands( rtx insn )
+{
+  rtx compare;
+  rtx operand1;
+  rtx operand2;
+
+  /*first element insn of nvj insn set*/
+  compare = qdsp6_nvj_get_compare(insn,0);
+
+  if (!(GET_CODE(compare) == EQ || 
+        GET_CODE(compare) == NE ))
+    return NULL;
+
+  operand1 = qdsp6_nvj_get_operand(compare, 1);
+  operand2 = qdsp6_nvj_get_operand(compare, 2);
+
+  if ( GET_CODE(operand2) == UNSPEC &&  
+       XINT(operand2,1) == UNSPEC_NEW_VALUE )
+  {
+    /*now swap the operands correctly*/
+    XEXP(compare, 0)=operand2;
+    XEXP(compare, 1)=operand1;
+    /*first element of the nvj instruction is swapped*/
+
+    /*now get the second pair, and swap them 
+      as well. .new property of the first 
+      and the second instruction will always 
+      be the same*/
+    compare = qdsp6_nvj_get_compare(insn,1);
+    operand1 = qdsp6_nvj_get_operand(compare, 1);
+    operand2 = qdsp6_nvj_get_operand(compare, 2);
+
+    XEXP(compare, 0)=operand2;
+    XEXP(compare, 1)=operand1;
+    /*second element of the nvj instruction is swapped*/
+  }
+  return insn;
+}
+
+
+static struct qdsp6_insn_info *
+qdsp6_dot_newify_gpr(
+  struct qdsp6_insn_info *insn_info,
+  struct qdsp6_dependence *dependence
+)
+{
+  struct qdsp6_insn_info *new_insn_info;
+  rtx insn;
+  rtx pattern;
+
+  pattern = copy_rtx(PATTERN (insn_info->insn));
+  pattern = replace_rtx(pattern,
+                        dependence->use,
+                        gen_rtx_UNSPEC (GET_MODE (dependence->use),
+                                        gen_rtvec(1, dependence->use),
+                                        UNSPEC_NEW_VALUE));
+
+  start_sequence();
+  if(JUMP_P (insn_info->insn)){
+    emit_jump_insn(pattern);
+  }
+  else if(CALL_P (insn_info->insn)){
+    emit_call_insn(pattern);
+  }
+  else {
+    emit_insn(pattern);
+  }
+  insn = get_insns();
+  end_sequence();
+
+  /* Make assembler happy and swap the operands */
+  if (TARGET_NEW_VALUE_JUMP && 
+      (INSN_CODE(insn_info->insn) == CODE_FOR_new_value_jump1   ||
+       INSN_CODE(insn_info->insn) == CODE_FOR_new_value_jump2   ||
+       INSN_CODE(insn_info->insn) == CODE_FOR_compare_and_jump1 || 
+       INSN_CODE(insn_info->insn) == CODE_FOR_new_value_jump2)
+     ) 
+  {
+    rtx original_insn = insn;
+    if ((insn = qdsp6_nvj_swap_operands(original_insn))==NULL);
+      insn = original_insn;
+  }
+
+  new_insn_info = qdsp6_get_insn_info(insn);
+  new_insn_info->stack = insn_info;
+  new_insn_info->flags |= QDSP6_NEW_GPR;
+
+
+  if (TARGET_NEW_VALUE_JUMP && 
+      (INSN_CODE(insn_info->insn) == CODE_FOR_new_value_jump1   ||
+       INSN_CODE(insn_info->insn) == CODE_FOR_new_value_jump2   ||
+       INSN_CODE(insn_info->insn) == CODE_FOR_compare_and_jump1 || 
+       INSN_CODE(insn_info->insn) == CODE_FOR_new_value_jump2   ||
+       INSN_CODE(insn_info->insn) == CODE_FOR_new_value_jump_tstbit   ||
+       INSN_CODE(insn_info->insn) == CODE_FOR_compare_and_jump_tstbit )) 
+  {
+    JUMP_LABEL(insn) = JUMP_LABEL(insn_info->insn);
+  }
+
+  if(QDSP6_NEW_PREDICATE_P (insn_info)){
+    new_insn_info->flags |= QDSP6_NEW_PREDICATE;
+  }
+  if(QDSP6_MOVED_P (insn_info)){
+    new_insn_info->flags |= QDSP6_MOVED;
+  }
+  set_block_for_insn(new_insn_info->insn, BLOCK_FOR_INSN (insn_info->insn));
+
+  return new_insn_info;
+}
+
+
+
+
+static int
+qdsp6_find_new_value(rtx *x, void *y)
+{
+  rtx *new_value = (rtx *) y;
+  if(GET_CODE (*x) == UNSPEC && XINT (*x, 1) == UNSPEC_NEW_VALUE){
+    *new_value = *x;
+    return -1;
+  }
+  return 0;
+}
+
+
+
+
+static void
+qdsp6_dot_oldify_gpr(struct qdsp6_insn_info *insn_info)
+{
+  rtx insn;
+  rtx pattern;
+  rtx new_value;
+
+  if (TARGET_NEW_VALUE_JUMP && 
+      (INSN_CODE(insn_info->insn) == CODE_FOR_new_value_jump1 ||
+       INSN_CODE(insn_info->insn) == CODE_FOR_new_value_jump2 ||
+       INSN_CODE(insn_info->insn) == CODE_FOR_new_value_jump_tstbit )) {
+    pattern = copy_rtx(PATTERN(insn_info->insn));
+
+    /* new value jump patterns have two instructions */
+    /* eg. if (cmp.XX(r0.new,#-1)) jump; p0 = cmp.XX(r0.new, #-1) */
+    /* one is the actual new value jump - get the .new new operand from the first one*/
+    for_each_rtx(&XVECEXP(pattern,0,0), qdsp6_find_new_value, &new_value);
+    XVECEXP(pattern,0,0) = replace_rtx(XVECEXP(pattern,0,0), new_value, XVECEXP (new_value, 0, 0));
+
+    /* the other one is actually restricting the use of the predicate, in case we have to fall 
+       out to the original jump (non new value jump) - get the .new new operand from the second one*/
+    for_each_rtx(&XVECEXP(pattern,0,1), qdsp6_find_new_value, &new_value);
+    XVECEXP(pattern,0,1) = replace_rtx(XVECEXP(pattern,0,1), new_value, XVECEXP (new_value, 0, 0));
+
+  } else 
+  {
+    pattern = copy_rtx(PATTERN (insn_info->insn));
+    for_each_rtx(&pattern, qdsp6_find_new_value, &new_value);
+    pattern = replace_rtx(pattern, new_value, XVECEXP (new_value, 0, 0));
+  }
+
+
+  if(JUMP_P (insn_info->insn)){
+    insn = emit_jump_insn_after(pattern, insn_info->insn);
+    if (INSN_CODE(insn_info->insn) == CODE_FOR_new_value_jump1 ||
+        INSN_CODE(insn_info->insn) == CODE_FOR_new_value_jump2 ||
+        INSN_CODE(insn_info->insn) == CODE_FOR_new_value_jump_tstbit )
+    {
+      JUMP_LABEL(insn) = JUMP_LABEL(insn_info->insn);
+    }
+  }
+  else if(CALL_P (insn_info->insn)){
+    insn = emit_call_insn_after(pattern, insn_info->insn);
+  }
+  else {
+    insn = emit_insn_after(pattern, insn_info->insn);
+  }
+  set_block_for_insn(insn, BLOCK_FOR_INSN (insn_info->insn));
+  delete_insn(insn_info->insn);
+}
+
+
+
+
+static bool
+qdsp6_predicate_dot_newable_p(struct qdsp6_insn_info *insn_info)
+{
+  rtx pattern;
+  rtx address;
+
+  if(!TARGET_NEW_PREDICATES){
+    return false;
+  }
+
+  /* Insns must already be conditional on a predicate condition to be
+     new-predicable. */
+  if(!QDSP6_CONDITIONAL_P (insn_info) || QDSP6_GPR_CONDITION_P (insn_info)){
     return false;
   }
 
@@ -8970,8 +8883,7 @@ qdsp6_dot_newable(struct qdsp6_insn_info *insn_info)
      jumps. In V4, all control instructions can be .new predicated except calls
      and register-condition jumps. */
   if(QDSP6_CONTROL_P (insn_info)
-     && (QDSP6_REGCOND_JUMP_P (insn_info)
-         || QDSP6_CALL_P (insn_info)
+     && (QDSP6_CALL_P (insn_info)
          || (!TARGET_V4_FEATURES && !QDSP6_DIRECT_JUMP_P (insn_info)))){
     return false;
   }
@@ -8981,19 +8893,19 @@ qdsp6_dot_newable(struct qdsp6_insn_info *insn_info)
     return true;
   }
 
-  x = PATTERN (insn_info->insn);
-  if(GET_CODE (x) == COND_EXEC){
-    x = COND_EXEC_CODE (x);
-    if(GET_CODE (x) == SET){
+  pattern = PATTERN (insn_info->insn);
+  if(GET_CODE (pattern) == COND_EXEC){
+    pattern = COND_EXEC_CODE (pattern);
+    if(GET_CODE (pattern) == SET){
       /* Stores are not .newable. */
-      if(MEM_P (SET_DEST (x))){
+      if(MEM_P (SET_DEST (pattern))){
         return false;
       }
       /* loads */
-      if(MEM_P (SET_SRC (x))){
-        x = XEXP (SET_SRC (x), 0);
+      if(MEM_P (SET_SRC (pattern))){
+        address = XEXP (SET_SRC (pattern), 0);
         /* Only base + offset loads are .newable. */
-        if(G_REG_P (x) || (GET_CODE (x) == PLUS && G_REG_P (XEXP (x, 0)))){
+        if(G_REG_P (address) || GET_CODE (address) == PLUS){
           return true;
         }
         return false;
@@ -9002,6 +8914,20 @@ qdsp6_dot_newable(struct qdsp6_insn_info *insn_info)
   }
 
   return true;
+}
+
+
+
+
+static struct qdsp6_insn_info *
+qdsp6_dot_newify_predicate(struct qdsp6_insn_info *insn_info)
+{
+  struct qdsp6_insn_info *new_insn_info;
+  new_insn_info = (struct qdsp6_insn_info *)ggc_alloc(sizeof(struct qdsp6_insn_info));
+  memcpy(new_insn_info, insn_info, sizeof(struct qdsp6_insn_info));
+  new_insn_info->stack = insn_info;
+  new_insn_info->flags |= QDSP6_NEW_PREDICATE;
+  return new_insn_info;
 }
 
 
@@ -9049,88 +8975,182 @@ qdsp6_prologue_insn_p(struct qdsp6_insn_info *insn_info)
 
 
 
-#define QDSP6_LOOP_INSN(INSN) (   INSN_CODE (INSN->insn) == CODE_FOR_loop0 \
-                               || INSN_CODE (INSN->insn) == CODE_FOR_loop1)
-
-static void
-qdsp6_insns_truly_dependent(
-  struct qdsp6_insn_info *writer,
-  struct qdsp6_insn_info *reader,
-  int *dependence
+static struct qdsp6_dependence *
+qdsp6_add_dependence(
+  struct qdsp6_dependence *dependencies,
+  enum qdsp6_dependence_type type,
+  rtx set,
+  rtx use
 )
 {
+  struct qdsp6_dependence *new_dependence;
+  new_dependence = (struct qdsp6_dependence *)ggc_alloc(sizeof(struct qdsp6_dependence));
+  new_dependence->type = type;
+  new_dependence->set = set;
+  new_dependence->use = use;
+  new_dependence->next = dependencies;
+  return new_dependence;
+}
+
+
+
+
+static struct qdsp6_dependence *
+qdsp6_remove_dependence(
+  struct qdsp6_dependence *dependencies,
+  struct qdsp6_dependence *dependence
+)
+{
+  struct qdsp6_dependence *dep;
+
+  gcc_assert(dependence);
+
+  if(dependencies == dependence){
+    return dependencies->next;
+  }
+
+  for(dep = dependencies; dep->next != dependence; dep = dep->next){
+    /* The dependence to be removed must be in the list. */
+    gcc_assert(dep->next);
+  }
+  dep->next = dep->next->next;
+
+  return dependencies;
+}
+
+
+
+
+static struct qdsp6_dependence *
+qdsp6_concat_dependencies(
+  struct qdsp6_dependence *a,
+  struct qdsp6_dependence *b
+)
+{
+  struct qdsp6_dependence *c;
+  if(!a){
+    return b;
+  }
+  for(c = a; c->next; c = c->next);
+  c->next = b;
+  return a;
+}
+
+
+
+
+static struct qdsp6_dependence *
+qdsp6_control_dependencies(
+  struct qdsp6_insn_info *first,
+  struct qdsp6_insn_info *second
+)
+{
+  struct qdsp6_dependence *dependencies = NULL;
+
+  if(QDSP6_CONTROL_P (first)){
+    /* Allow dual jumps by not adding a control dependence between two jumps
+       that are allowed to be in the same packet. */
+    if(!((TARGET_V3_FEATURES
+          /* The first jump must be conditional. */
+          && QDSP6_CONDITIONAL_P (first)
+          /* Indirect jumps are not allowed to be dual jumps. */
+          && QDSP6_DIRECT_JUMP_P (first) && QDSP6_DIRECT_JUMP_P (second)
+          /* In V3, dot-new jumps are not allowed to be dual jumps. */
+          && !QDSP6_NEW_PREDICATE_P (second) && !QDSP6_NEW_PREDICATE_P (first)
+          /* Register-condition jumps are not allowed to be dual jumps. */
+          && !QDSP6_GPR_CONDITION_P (second) && !QDSP6_GPR_CONDITION_P (first))
+         || (TARGET_V4_FEATURES
+             /* The first jump must be conditional. */
+             && QDSP6_CONDITIONAL_P (first)
+             /* Indirect jumps are not allowed to be dual jumps. */
+             && (QDSP6_DIRECT_JUMP_P (first) || QDSP6_DIRECT_CALL_P (first))
+             && (QDSP6_DIRECT_JUMP_P (second) || QDSP6_DIRECT_CALL_P (second))
+             /* Register-condition jumps are not allowed to be dual jumps. */
+             && !QDSP6_GPR_CONDITION_P (first)
+             && !QDSP6_GPR_CONDITION_P (second)))){
+      dependencies = qdsp6_add_dependence(dependencies,
+                                          QDSP6_DEP_CONTROL,
+                                          first->insn,
+                                          second->insn);
+    }
+  }
+
+  /* Both insns are actually calls. */
+  if(QDSP6_EMULATION_CALL_P (first) && QDSP6_EMULATION_CALL_P (second)){
+    dependencies = qdsp6_add_dependence(dependencies,
+                                        QDSP6_DEP_CONTROL,
+                                        first->insn,
+                                        second->insn);
+  }
+
+  /* When generating exception handling information, do not put a call in the
+     same packet as a prologue insn. */
+  if(flag_exceptions && QDSP6_CALL_P (second) && qdsp6_prologue_insn_p(first)){
+    dependencies = qdsp6_add_dependence(dependencies,
+                                        QDSP6_DEP_CONTROL,
+                                        first->insn,
+                                        second->insn);
+  }
+
+  return dependencies;
+}
+
+
+
+
+static struct qdsp6_dependence *
+qdsp6_true_dependencies(
+  struct qdsp6_insn_info *writer,
+  struct qdsp6_insn_info *reader
+)
+{
+  struct qdsp6_dependence *dependencies;
   struct qdsp6_mem_access *store;
   struct qdsp6_mem_access *load;
   struct qdsp6_reg_access *write;
   struct qdsp6_reg_access *read;
 
-  if(QDSP6_CONTROL_P (writer)){
-    /* need to handle calls and multiple jumps */
-    if (TARGET_V3_FEATURES) {
-      if (QDSP6_CONDITIONAL_P(writer) && QDSP6_DIRECT_JUMP_P(writer) &&
-          QDSP6_CONDITIONAL_P(reader) && QDSP6_DIRECT_JUMP_P(reader) &&
-          /* not a dot-new jump */
-          (!QDSP6_DOT_NEW_P(reader) && !QDSP6_DOT_NEW_P(writer)) &&
-          /* not a register-condition jump */
-          (!QDSP6_REGCOND_JUMP_P(reader) && !QDSP6_REGCOND_JUMP_P(writer)) &&
-          (!QDSP6_LOOP_INSN(reader) && !QDSP6_LOOP_INSN(writer))) {
-        *dependence |= QDSP6_DEP_DUALJUMP;
-      }
-    }
-    *dependence = QDSP6_DEP_UNCONDITIONAL;
-    return;
-  }
+  dependencies = NULL;
 
   if(QDSP6_EMULATION_CALL_P (writer)){
     /* For an emulation call followed by another insn, consider anti
        dependencies to be true dependencies since emulation calls do not read
        their inputs until after all results in the current packet have been
        written. */
-    qdsp6_insns_anti_dependent(writer, reader, dependence);
+    dependencies = qdsp6_concat_dependencies(dependencies,
+                                             qdsp6_anti_dependencies(writer,
+                                                                     reader));
   }
   else if(QDSP6_EMULATION_CALL_P (reader)){
     /* For an emulation call following another insn, ignore true dependencies
        since emulation calls do not read their inputs until after all results in
        the current packet have been written. */
-    return;
+    return dependencies;
   }
 
-  /* When generating exception handling information, do not put a call in the
-     same packet as a prologue insn. */
-  if(flag_exceptions
-     && QDSP6_CALL_P (reader) && qdsp6_prologue_insn_p(writer)){
-    *dependence = QDSP6_DEP_UNCONDITIONAL;
-    return;
-  }
-
-  /* If a memory access is volatile, then it should be the only memory access in
-     a packet.  (not really a dependency, but oh well) */
-  if((QDSP6_VOLATILE_P (writer) || QDSP6_VOLATILE_P (reader))
-     && (QDSP6_MEM_P (writer) && QDSP6_MEM_P (reader))){
-    *dependence = QDSP6_DEP_UNCONDITIONAL;
-    return;
+  if (!TARGET_V4_FEATURES || !TARGET_PACKETIZE_VOLATILES){
+    /* If a memory access is volatile, then it should be the only memory access in
+       a packet.  (not really a dependency, but oh well) */
+    if((QDSP6_VOLATILE_P (writer) || QDSP6_VOLATILE_P (reader))
+       && (QDSP6_MEM_P (writer) && QDSP6_MEM_P (reader))){
+      dependencies = qdsp6_add_dependence(dependencies,
+                                          QDSP6_DEP_VOLATILE,
+                                          writer->insn,
+                                          reader->insn);
+    }
   }
 
   /* Check for possible true memory dependencies. */
   for(store = writer->stores; store; store = store->next){
     for(load = reader->loads; load; load = load->next){
-      if(true_dependence(store->mem, VOIDmode, load->mem, rtx_varies_p)){
-        if(QDSP6_DEP_DOT_NEWABLE_P (*dependence)){
-          load->flags |= QDSP6_DOT_NEW;
-        }
-        if(QDSP6_CONFLICT_P (store, load)){
-          if(QDSP6_DEP_DOT_NEWABLE_P (*dependence)){
-            load->flags &= ~QDSP6_DOT_NEW;
-          }
-          *dependence = QDSP6_DEP_UNCONDITIONAL;
-          return;
-        }
-        else if(!QDSP6_DOT_NEW_P (writer)){
-          *dependence |= QDSP6_DEP_NOT_DOT_NEWABLE;
-        }
-        if(QDSP6_DEP_DOT_NEWABLE_P (*dependence)){
-          load->flags &= ~QDSP6_DOT_NEW;
-        }
+      if((QDSP6_CONFLICT_P (store, load)
+          || (QDSP6_NEW_PREDICATE_P (reader)
+              && !QDSP6_NEW_PREDICATE_P (writer)))
+         && true_dependence(store->mem, VOIDmode, load->mem, rtx_varies_p)){
+        dependencies = qdsp6_add_dependence(dependencies,
+                                            QDSP6_DEP_MEMORY,
+                                            store->mem,
+                                            load->mem);
       }
     }
   }
@@ -9138,50 +9158,31 @@ qdsp6_insns_truly_dependent(
   /* Check for true register dependencies. */
   for(write = writer->reg_writes; write; write = write->next){
     for(read = reader->reg_reads; read; read = read->next){
-      if(write->regno == read->regno){
-        if(QDSP6_DEP_DOT_NEWABLE_P (*dependence)){
-          read->flags |= QDSP6_DOT_NEW;
-        }
-        if(QDSP6_CONFLICT_P (write, read)){
-          if(PO_REGNO_P (read->regno)
-             && qdsp6_dot_newable(reader)){
-            *dependence |= QDSP6_DEP_DOT_NEWABLE;
-          }
-          else {
-            if(QDSP6_DEP_DOT_NEWABLE_P (*dependence)){
-              read->flags &= ~QDSP6_DOT_NEW;
-            }
-            *dependence = QDSP6_DEP_UNCONDITIONAL;
-            return;
-          }
-        }
-        else if(!QDSP6_DOT_NEW_P (writer)){
-          *dependence |= QDSP6_DEP_NOT_DOT_NEWABLE;
-        }
-        if(QDSP6_DEP_DOT_NEWABLE_P (*dependence)){
-          read->flags &= ~QDSP6_DOT_NEW;
-        }
+      if((QDSP6_CONFLICT_P (write, read)
+          || (QDSP6_NEW_PREDICATE_P (reader)
+              && !QDSP6_NEW_PREDICATE_P (writer)))
+         && write->regno == read->regno){
+        dependencies = qdsp6_add_dependence(dependencies,
+                                            QDSP6_DEP_REGISTER,
+                                            write->reg,
+                                            read->reg);
       }
     }
   }
 
-  if(QDSP6_DEP_DOT_NEWABLE_P (*dependence)
-     && QDSP6_DEP_NOT_DOT_NEWABLE_P (*dependence)){
-    *dependence = QDSP6_DEP_UNCONDITIONAL;
-  }
-
+  return dependencies;
 }
 
 
 
 
-static void
-qdsp6_insns_output_dependent(
+static struct qdsp6_dependence *
+qdsp6_output_dependencies(
   struct qdsp6_insn_info *insn0,
-  struct qdsp6_insn_info *insn1,
-  int *dependence
+  struct qdsp6_insn_info *insn1
 )
 {
+  struct qdsp6_dependence *dependencies = NULL;
   struct qdsp6_reg_access *write0;
   struct qdsp6_reg_access *write1;
 
@@ -9192,63 +9193,59 @@ qdsp6_insns_output_dependent(
        is written by the call insn itself. */
     for(write0 = insn0->reg_writes; write0; write0 = write0->next){
       if(write0->regno == LINK_REGNUM){
-        *dependence = QDSP6_DEP_UNCONDITIONAL;
+        write1 = insn1->reg_writes;
+        while(write1 && write1->regno != LINK_REGNUM){
+          write1 = write1->next;
+        }
+        gcc_assert(write1);
+        dependencies = qdsp6_add_dependence(dependencies,
+                                            QDSP6_DEP_REGISTER,
+                                            write0->reg,
+                                            write1->reg);
       }
     }
-    return;
+    return dependencies;
   }
 
   /* Check for register output dependencies. */
   for(write0 = insn0->reg_writes; write0; write0 = write0->next){
     for(write1 = insn1->reg_writes; write1; write1 = write1->next){
-      if(write0->regno == write1->regno){
-        if(QDSP6_DEP_DOT_NEWABLE_P (*dependence)){
-          write1->flags |= QDSP6_DOT_NEW;
-        }
-        if(QDSP6_CONFLICT_P (write0, write1)){
-          if(QDSP6_DEP_DOT_NEWABLE_P (*dependence)){
-            write1->flags &= ~QDSP6_DOT_NEW;
-          }
-          *dependence = QDSP6_DEP_UNCONDITIONAL;
-          return;
-        }
-        else if(!QDSP6_DOT_NEW_P (insn0)){
-          *dependence |= QDSP6_DEP_NOT_DOT_NEWABLE;
-        }
-        if(QDSP6_DEP_DOT_NEWABLE_P (*dependence)){
-          write1->flags &= ~QDSP6_DOT_NEW;
-        }
+      if((QDSP6_CONFLICT_P (write0, write1)
+          || (QDSP6_NEW_PREDICATE_P (insn1)
+              && !QDSP6_NEW_PREDICATE_P (insn0)))
+         && write0->regno == write1->regno){
+        dependencies = qdsp6_add_dependence(dependencies,
+                                            QDSP6_DEP_REGISTER,
+                                            write0->reg,
+                                            write1->reg);
       }
     }
   }
 
-  if(QDSP6_DEP_DOT_NEWABLE_P (*dependence)
-     && QDSP6_DEP_NOT_DOT_NEWABLE_P (*dependence)){
-    *dependence = QDSP6_DEP_UNCONDITIONAL;
-  }
-
+  return dependencies;
 }
 
 
 
 
-static void
-qdsp6_insns_anti_dependent(
+static struct qdsp6_dependence *
+qdsp6_anti_dependencies(
   struct qdsp6_insn_info *earlier,
-  struct qdsp6_insn_info *later,
-  int *dependence
+  struct qdsp6_insn_info *later
 )
 {
+  struct qdsp6_dependence *dependencies = NULL;
   struct qdsp6_mem_access *mem;
   struct qdsp6_mem_access *store;
   struct qdsp6_reg_access *read;
   struct qdsp6_reg_access *write;
 
   /* Don't allow insns to move across control insns and vice versa. */
-  if(   QDSP6_CONTROL_P (earlier)
-     || QDSP6_CONTROL_P (later)){
-    *dependence = QDSP6_DEP_UNCONDITIONAL;
-    return;
+  if(QDSP6_CONTROL_P (earlier) ^ QDSP6_CONTROL_P (later)){
+    dependencies = qdsp6_add_dependence(dependencies,
+                                        QDSP6_DEP_CONTROL,
+                                        earlier->insn,
+                                        later->insn);
   }
 
   /* Check for possible memory anti dependencies. */
@@ -9257,16 +9254,20 @@ qdsp6_insns_anti_dependent(
     for(mem = earlier->loads; mem; mem = mem->next){
       if(QDSP6_CONFLICT_P (mem, store)
          && anti_dependence(mem->mem, store->mem)){
-        *dependence = QDSP6_DEP_UNCONDITIONAL;
-        return;
+        dependencies = qdsp6_add_dependence(dependencies,
+                                            QDSP6_DEP_MEMORY,
+                                            mem->mem,
+                                            store->mem);
       }
     }
     /* store followed by a store */
     for(mem = earlier->stores; mem; mem = mem->next){
       if(QDSP6_CONFLICT_P (mem, store)
          && output_dependence(mem->mem, store->mem)){
-        *dependence = QDSP6_DEP_UNCONDITIONAL;
-        return;
+        dependencies = qdsp6_add_dependence(dependencies,
+                                            QDSP6_DEP_MEMORY,
+                                            mem->mem,
+                                            store->mem);
       }
     }
   }
@@ -9274,215 +9275,207 @@ qdsp6_insns_anti_dependent(
   /* Check for register anti dependencies. */
   for(read = earlier->reg_reads; read; read = read->next){
     for(write = later->reg_writes; write; write = write->next){
-      if(read->regno == write->regno && QDSP6_CONFLICT_P (read, write)){
-        *dependence = QDSP6_DEP_UNCONDITIONAL;
-        return;
+      if(QDSP6_CONFLICT_P (read, write) && read->regno == write->regno){
+        dependencies = qdsp6_add_dependence(dependencies,
+                                            QDSP6_DEP_REGISTER,
+                                            read->reg,
+                                            write->reg);
       }
     }
   }
 
+  return dependencies;
 }
 
 
 
 
-static void
-qdsp6_packet_insn_dependence(
+static bool
+qdsp6_packet_insn_dependence_p(
   struct qdsp6_packet_info *packet,
-  struct qdsp6_insn_info *insn_info,
-  bool ignore_jump,
-  int *dependence
+  struct qdsp6_insn_info **insn_info,
+  bool ignore_jumps
 )
 {
-  int num_insns;
+  struct qdsp6_insn_info *original_insn_info = *insn_info;
+  struct qdsp6_dependence *dependencies;
+  struct qdsp6_dependence *dep;
   int i;
 
-  *dependence = QDSP6_DEP_NONE;
+  /* Check each insn in the packet in reverse order for dependencies. */
+  for(i = packet->num_insns - 1; i >= 0; i--){
 
-  num_insns = packet->num_insns;
-  /* When pulling an insn across a basic block, ignore the jump. */
-  if(ignore_jump && packet->num_insns > 0
-     && QDSP6_JUMP_P (packet->insns[packet->num_insns - 1])){
-    num_insns--;
+    /* We don't have any way to eliminate output dependencies. */
+    if(qdsp6_output_dependencies(packet->insns[i], *insn_info)){
+      *insn_info = original_insn_info;
+      return true;
+    }
+
+    /* Disallow anti-dependencies with jumps since INSN_INFO would be inserted
+       before any jumps if it were added to the packet. */
+    if(QDSP6_JUMP_P (packet->insns[i])){
+      dependencies = qdsp6_anti_dependencies(packet->insns[i], *insn_info);
+      /* If IGNORE_JUMPS is true, ignore control dependencies from jumps. */
+      if(ignore_jumps){
+        for(dep = dependencies; dep; dep = dep->next){
+          if(dep->type == QDSP6_DEP_CONTROL){
+            dependencies = qdsp6_remove_dependence(dependencies, dep);
+          }
+        }
+      }
+      if(dependencies){
+        return true;
+      }
+    }
+
+    dependencies = qdsp6_true_dependencies(packet->insns[i], *insn_info);
+
+    /* If IGNORE_JUMPS is true, ignore control dependencies from jumps. */
+    if(! (ignore_jumps && QDSP6_JUMP_P (packet->insns[i]))){
+    dependencies = 
+      qdsp6_concat_dependencies(dependencies,
+                                qdsp6_control_dependencies(packet->insns[i],
+                                                           *insn_info));
+    }
+
+    for(dep = dependencies; dep; dep = dep->next){
+
+      if(dep->type == QDSP6_DEP_REGISTER
+         && P_REG_P (dep->use)
+         && qdsp6_predicate_dot_newable_p(*insn_info)){
+
+        if(!QDSP6_NEW_PREDICATE_P (*insn_info)){
+          *insn_info = qdsp6_dot_newify_predicate(*insn_info);
+          (*insn_info)->transformed_at_packet = packet;
+        }
+        dependencies = qdsp6_remove_dependence(dependencies, dep);
+      }
+
+      /* See if the consumer insn can use the newly generated value in the same
+         packet. */
+      if(dep->type == QDSP6_DEP_REGISTER
+         && G_REG_P (dep->use)
+         && qdsp6_gpr_dot_newable_p(packet->insns[i], *insn_info, dep)){
+
+        if(!QDSP6_NEW_GPR_P (*insn_info)){
+          *insn_info = qdsp6_dot_newify_gpr(*insn_info, dep);
+          (*insn_info)->transformed_at_packet = packet;
+        }
+        dependencies = qdsp6_remove_dependence(dependencies, dep);
+      }
+
+    }
+
+    /* We have encountered a dependence that we are unable to eliminate. */
+    if(dependencies){
+      *insn_info = original_insn_info;
+      return true;
+    }
   }
 
-  for(i = 0; i < num_insns; i++){
-    /* really just need to check .new dependencies here */
-    qdsp6_insns_truly_dependent(packet->insns[i], insn_info, dependence);
-    if(QDSP6_DEP_UNCONDITIONAL_P (*dependence)){
-      *dependence = QDSP6_DEP_UNCONDITIONAL;
-      return;
-    }
-    qdsp6_insns_output_dependent(packet->insns[i], insn_info, dependence);
-    if(QDSP6_DEP_UNCONDITIONAL_P (*dependence)){
-      *dependence = QDSP6_DEP_UNCONDITIONAL;
-      return;
+  /* Transforming the insn might have introduced a control dependence. */
+  if(*insn_info != original_insn_info && !ignore_jumps){
+    for(i = packet->num_insns - 1; i >= 0; i--){
+      if(qdsp6_control_dependencies(packet->insns[i], *insn_info)){
+        *insn_info = original_insn_info;
+        return true;
+      }
     }
   }
 
+  return false;
 }
 
 
 
 
-static void
-qdsp6_packet_insn_internal_dependence(
+static bool
+qdsp6_packet_insn_internal_dependence_p(
   struct qdsp6_packet_info *packet,
-  struct qdsp6_insn_info *insn_info,
-  int *dependence
+  struct qdsp6_insn_info *insn_info
 )
 {
+  struct qdsp6_dependence *anti_dependencies;
+  struct qdsp6_dependence *true_dependencies, *control_dependencies;
+  struct qdsp6_dependence *dependencies;
   int num_insns;
   int i;
 
-  *dependence = QDSP6_DEP_NONE;
-
-  num_insns = packet->num_insns;
-
-
-/*   When pulling an insn across a basic block, ignore the jump. */
-  
-/* PDB. DO NOT ignore register conditional jumps though, because they do read something other than
-     a predicate register.*/
-
-  if(packet->num_insns
-     && ((QDSP6_JUMP_P (packet->insns[packet->num_insns - 1]))
-	 && (!QDSP6_REGCOND_JUMP_P(packet->insns[packet->num_insns - 1])))){
-    num_insns--;
+  /* If INSN_INFO is in PACKET, then only check for dependencies on insns before
+     it. */
+  for(num_insns = 0; num_insns < packet->num_insns; num_insns++){
+    if(insn_info == packet->insns[num_insns]){
+      break;
+    }
   }
 
-  for(i = 0; i < num_insns; i++){
+  for(i = num_insns - 1; i >= 0; i--){
+
+    anti_dependencies = qdsp6_anti_dependencies(packet->insns[i], insn_info);
+
     /* We can have truly dependent insns in the same packet becasue of .new. */
-    qdsp6_insns_truly_dependent(packet->insns[i], insn_info, dependence);
-    if(QDSP6_DEP_UNCONDITIONAL_P (*dependence)){
-      *dependence = QDSP6_DEP_UNCONDITIONAL;
-      return;
+    true_dependencies = qdsp6_true_dependencies(packet->insns[i], insn_info);
+    control_dependencies = qdsp6_control_dependencies(packet->insns[i],
+                                                           insn_info);
+
+    dependencies = qdsp6_concat_dependencies(anti_dependencies,
+                                             true_dependencies);
+
+    /* Ignore control dependencies from jumps. */
+    if(! QDSP6_JUMP_P (packet->insns[i])){
+      dependencies = qdsp6_concat_dependencies(dependencies,
+                                               control_dependencies);
     }
-    qdsp6_insns_anti_dependent(packet->insns[i], insn_info, dependence);
-    if(QDSP6_DEP_UNCONDITIONAL_P (*dependence)){
-      *dependence = QDSP6_DEP_UNCONDITIONAL;
-      return;
+
+    if(dependencies){
+      return true;
     }
   }
 
+  return false;
 }
 
 
 
 
-static struct qdsp6_insn_info *
-qdsp6_copy_insn_info(struct qdsp6_insn_info *insn_info)
-{
-  rtx insn;
-  rtx pattern;
-
-  insn = insn_info->insn;
-  pattern = copy_rtx(PATTERN (insn));
-
-  start_sequence();
-  if(JUMP_P (insn)){
-    emit_jump_insn(pattern);
-  }
-  else if(CALL_P (insn)){
-    emit_call_insn(pattern);
-  }
-  else {
-    emit_insn(pattern);
-  }
-  insn = get_insns();
-  end_sequence();
-
-  return qdsp6_get_insn_info(insn);
-}
-
-
-
-
-static struct qdsp6_insn_info *
-qdsp6_predicate_insn(
-  struct qdsp6_insn_info *insn_info,
-  struct qdsp6_insn_info *jump_insn_info,
-  bool invert_condition
+static bool
+qdsp6_insn_fits_in_packet_p(
+  struct qdsp6_insn_info *insn,
+  struct qdsp6_packet_info *packet
 )
 {
-  rtx pattern;
-  rtx test;
-  enum rtx_code test_code;
+  state_t pipeline_state;
+  int i;
 
-  pattern = copy_rtx(PATTERN (insn_info->insn));
-  test = XEXP (SET_SRC (PATTERN (jump_insn_info->insn)), 0);
-  test_code = GET_CODE (test);
-  if(invert_condition){
-    test_code = test_code == EQ ? NE : EQ;
+  pipeline_state = alloca(state_size());
+  state_reset(pipeline_state);
+  for(i = 0; i < packet->num_insns; i++){
+    gcc_assert(state_transition(pipeline_state, packet->insns[i]->insn) < 0);
   }
 
-  pattern = gen_rtx_COND_EXEC (VOIDmode,
-                               gen_rtx_fmt_ee(test_code,
-                                              GET_MODE (test),
-                                              XEXP (test, 0),
-                                              XEXP (test, 1)),
-                               pattern);
-
-  start_sequence();
-  if(CALL_P (insn_info->insn)){
-    emit_call_insn(pattern);
-  }
-  else {
-    emit_insn(pattern);
-  }
-  insn_info = qdsp6_get_insn_info(get_insns());
-  end_sequence();
-
-  return insn_info;
+  return state_transition(pipeline_state, insn->insn) < 0;
 }
 
 
 
 
-static int
-qdsp6_dot_newify_reg(rtx *x, void *y)
+static bool
+qdsp6_can_add_insn_to_packet_p(
+  struct qdsp6_insn_info **insn,
+  struct qdsp6_packet_info *packet
+)
 {
-  rtx old_reg = (rtx) y;
+  struct qdsp6_insn_info *original_insn = *insn;
 
-  if(REG_P (*x) && REGNO (*x) == REGNO (old_reg)){
-    *x = gen_rtx_REG (GET_MODE (old_reg), REGNO (old_reg) + DOT_NEW_OFFSET);
+  if(qdsp6_packet_insn_dependence_p(packet, insn, false)){
+    gcc_assert(*insn == original_insn);
+    return false;
   }
-  return 0;
-}
-
-
-
-
-static struct qdsp6_insn_info *
-qdsp6_dot_newify_insn(struct qdsp6_insn_info *insn_info)
-{
-  rtx pattern;
-  rtx old_reg;
-
-  gcc_assert(QDSP6_CONDITIONAL_P (insn_info));
-
-  pattern = PATTERN (insn_info->insn);
-  if(GET_CODE (pattern) == PARALLEL){
-    pattern = XVECEXP (pattern, 0, 0);
+  if(!qdsp6_insn_fits_in_packet_p(*insn, packet)){
+    *insn = original_insn;
+    return false;
   }
-
-  if(GET_CODE (pattern) == COND_EXEC){
-    old_reg = XEXP (COND_EXEC_TEST (pattern), 0);
-  }
-  else {
-    gcc_assert(JUMP_P (insn_info->insn));
-    old_reg = XEXP (XEXP (SET_SRC (pattern), 0), 0);
-  }
-
-  gcc_assert(PO_REG_P (old_reg));
-
-  if(final_packing){
-    for_each_rtx(&pattern, qdsp6_dot_newify_reg, old_reg);
-  }
-
-  insn_info->flags |= QDSP6_DOT_NEW;
-
-  return insn_info;
+  return true;
 }
 
 
@@ -9525,28 +9518,107 @@ qdsp6_bb_real_end_insn(basic_block bb)
   return insn;
 }
 
+static void
+qdsp6_create_bb_sentinel_packet(struct qdsp6_packet_info *packet)
+{
+  struct qdsp6_packet_info *sentinel_packet;
+  struct qdsp6_insn_info *sentinel_insn;
+
+  sentinel_packet = (struct qdsp6_packet_info *)
+    ggc_alloc_cleared(sizeof(struct qdsp6_packet_info));
+  sentinel_insn = (struct qdsp6_insn_info *)
+    ggc_alloc_cleared(sizeof(struct qdsp6_insn_info));
+
+  sentinel_insn->insn = PREV_INSN (packet->insns[0]->insn);
+  sentinel_packet->insns[0] = sentinel_insn;
+  sentinel_packet->num_insns = 1;
+  sentinel_packet->prev = packet->prev;
+  sentinel_packet->next = packet;
+
+  if(packet->prev){
+    packet->prev->next = sentinel_packet;
+  }
+  else {
+    qdsp6_head_packet = sentinel_packet;
+  }
+  packet->prev = sentinel_packet;
+}
 
 
 
 static void
-qdsp6_pack_insns(void)
+qdsp6_finalize_transformations(
+  struct qdsp6_packet_info *first,
+  struct qdsp6_packet_info *last
+)
 {
-  basic_block bb;
   struct qdsp6_packet_info *packet;
+  struct qdsp6_insn_info *new_insn_info;
+  struct qdsp6_insn_info *old_insn_info;
+  rtx prev_insn;
+  rtx insn;
+  int i;
+
+  for(packet = first; packet && packet->prev != last; packet = packet->next){
+    prev_insn = packet->location;
+    for(i = 0; i < packet->num_insns; i++){
+      new_insn_info = packet->insns[i];
+
+      while(new_insn_info->stack
+            && new_insn_info->insn == new_insn_info->stack->insn){
+        new_insn_info->stack = new_insn_info->stack->stack;
+      }
+
+      if(QDSP6_MOVED_P (new_insn_info) || new_insn_info->stack){
+        old_insn_info = new_insn_info;
+
+        while(old_insn_info->stack){
+          old_insn_info = old_insn_info->stack;
+        }
+
+        insn = new_insn_info->insn;
+        if(JUMP_P (insn)){
+          insn = emit_jump_insn_after(insn, prev_insn);
+        }
+        else if(CALL_P (insn)){
+          insn = emit_call_insn_after(insn, prev_insn);
+        }
+        else {
+          insn = emit_insn_after(insn, prev_insn);
+        }
+        new_insn_info->insn = insn;
+
+        delete_insn(old_insn_info->insn);
+      }
+
+      new_insn_info->stack = NULL;
+      new_insn_info->transformed_at_packet = NULL;
+
+      prev_insn = new_insn_info->insn;
+    }
+  }
+}
+
+
+
+
+static void
+qdsp6_pack_insns(bool need_bb_info)
+{
+  basic_block bb = NULL;
+  struct qdsp6_packet_info *packet = NULL;
   struct qdsp6_insn_info *insn_info;
   rtx insn;
-  rtx bb_head_insn = NULL;
-  rtx bb_end_insn  = NULL;
-  int start_packet;
-  int dependence;
+  rtx bb_head_insn = NULL_RTX;
+  rtx bb_end_insn  = NULL_RTX;
+  bool start_packet = true;
+  bool start_bb = false;
+  bool end_bb = false;
 
-  packet = NULL;
-  start_packet = 1;
-
-  if(!final_packing){
+  if(need_bb_info){
     bb = ENTRY_BLOCK_PTR->next_bb;
     do{
-      if(bb){ 
+      if(bb){
         bb_head_insn = qdsp6_bb_real_head_insn(bb);
         bb_end_insn = qdsp6_bb_real_end_insn(bb);
         if(!(bb_head_insn && bb_end_insn)){
@@ -9555,11 +9627,6 @@ qdsp6_pack_insns(void)
       }
     }while(bb && !(bb_head_insn && bb_end_insn));
     gcc_assert(bb_head_insn && bb_end_insn);
-  }
-  else {
-    bb = NULL;
-    bb_head_insn = NULL;
-    bb_end_insn = NULL;
   }
 
   for(insn = get_insns(); insn; insn = NEXT_INSN (insn)){
@@ -9571,7 +9638,7 @@ qdsp6_pack_insns(void)
 
     /* Don't bundle insns across other non-insns, like labels. */
     if(!INSN_P (insn)){
-      start_packet = 1;
+      start_packet = true;
       continue;
     }
 
@@ -9581,47 +9648,37 @@ qdsp6_pack_insns(void)
       case CLOBBER:
       case ADDR_VEC:
       case ADDR_DIFF_VEC:
-        PUT_MODE (insn, VOIDmode);
         continue;
       default:
         break;
     }
 
-    insn_info = qdsp6_get_insn_info(insn);
-
-    /* Start a new packet if
-         we have already found a reason to do so
-         or this insn references a label that is out of range, causing the insn
-            to be expanded into multiple, depenent insns
-         or the resources needed for this insn are already being used by the
-            insns already bundled
-         or this insn is dependent on another insn already bundled. */
-    if(start_packet
-       || QDSP6_WANDERED_P (insn_info)
-       || state_transition(qdsp6_state, insn) >= 0){
-      packet = qdsp6_start_new_packet(insn_info);
-   } 
-    else {
-      qdsp6_packet_insn_dependence(packet, insn_info, false, &dependence);
-      if(QDSP6_DEP_UNCONDITIONAL_P (dependence)){
-        packet = qdsp6_start_new_packet(insn_info);
+    if(need_bb_info){
+      if(bb_head_insn == insn){
+        start_bb = true;
+        start_packet = true;
       }
-      else if(QDSP6_DEP_DOT_NEWABLE_P (dependence)){
-        insn_info = qdsp6_dot_newify_insn(insn_info);
+      if(bb_end_insn == insn){
+        end_bb = true;
       }
     }
 
-    qdsp6_add_insn_to_packet(packet, insn_info);
+    insn_info = qdsp6_get_insn_info(insn);
 
-    /* Don't bundle an insn that has expanded into multiple, dependent insns. */
-    start_packet = QDSP6_WANDERED_P (insn_info);
+    if(start_packet || !qdsp6_can_add_insn_to_packet_p(&insn_info, packet)){
+      packet = qdsp6_start_new_packet();
+    }
 
-    if(!final_packing){
-      if(bb_head_insn == insn){
+    qdsp6_add_insn_to_packet(packet, insn_info, false);
+
+    start_packet = false;
+
+    if(need_bb_info){
+      if(start_bb){
         BB_HEAD_PACKET (bb) = packet;
         qdsp6_create_bb_sentinel_packet(packet);
       }
-      if(bb_end_insn == insn){
+      if(end_bb){
         BB_END_PACKET (bb) = packet;
         do {
           bb = bb->next_bb;
@@ -9634,35 +9691,38 @@ qdsp6_pack_insns(void)
           bb_end_insn = qdsp6_bb_real_end_insn(bb);
         }while(!(bb_head_insn && bb_end_insn));
       }
+      start_bb = false;
+      end_bb = false;
     }
 
   }
 
+  qdsp6_finalize_transformations(qdsp6_head_packet, qdsp6_tail_packet);
 }
 
 
 
 
 static int
-check_call_reorder_feasibility(struct qdsp6_insn_info *insn_info){  
+check_call_reorder_feasibility(struct qdsp6_insn_info *insn_info){
 
-   struct qdsp6_reg_access *write;
-   struct qdsp6_reg_access *read;
-   char call_used_regs[] = CALL_USED_REGISTERS;
+  struct qdsp6_reg_access *write;
+  struct qdsp6_reg_access *read;
+  char call_used_regs[] = CALL_USED_REGISTERS;
 
-   gcc_assert(insn_info);
-   /* If this is a call, I should assume it to alias with any memory access,
-               but I might try to reason about calee-save registers	*/
-   if(QDSP6_MEM_P (insn_info))	return QDSP6_DEP_UNCONDITIONAL; 
+  gcc_assert(insn_info);
+  /* If this is a call, I should assume it to alias with any memory access,
+              but I might try to reason about calee-save registers */
+  if(QDSP6_MEM_P (insn_info)) return true;
     for(write = insn_info->reg_writes; write; write = write->next){
-	  if(call_used_regs[write->regno] || (write->regno == LINK_REGNUM))
-			return QDSP6_DEP_UNCONDITIONAL;
+      if(call_used_regs[write->regno] || (write->regno == LINK_REGNUM))
+        return true;
     }
     for(read = insn_info->reg_reads; read; read = read->next){
-	  if(call_used_regs[read->regno] || (read->regno == LINK_REGNUM))
-			return QDSP6_DEP_UNCONDITIONAL;
+      if(call_used_regs[read->regno] || (read->regno == LINK_REGNUM))
+        return true;
     }
-	return QDSP6_DEP_NONE;
+  return false;
 }
 
 
@@ -9670,141 +9730,93 @@ check_call_reorder_feasibility(struct qdsp6_insn_info *insn_info){
 
 /* This function is  used by tail merging
    Looks at the relationship of two instructions
-   and tries to establish their independenc. 
-   Conservative.  
-   Shaped after qdsp6_insns_truly_dependent(from,to,&dependence); 	*/ 
+   and tries to establish their independenc.
+   Conservative.
+   Shaped after qdsp6_true_dependencies(from,to); */
 
 int
 qdsp6_instructions_dependent (rtx from,rtx to){
- struct qdsp6_insn_info *insn_info_from = NULL; 
- struct qdsp6_insn_info *insn_info_to   = NULL; 
+ struct qdsp6_insn_info *insn_info_from = NULL;
+ struct qdsp6_insn_info *insn_info_to   = NULL;
  struct qdsp6_mem_access *store;
  struct qdsp6_mem_access *load;
  struct qdsp6_reg_access *write;
  struct qdsp6_reg_access *read;
- 
 
-  /* I know it is INSN_P for both cases, and it should not be a jump, 
-          since we are not at the "bottom" of BB, but I will double check 
-          for generality */ 
-  if(!INSN_P(from) || 
-    (GET_CODE (PATTERN (from)) == USE) || 
-	(GET_CODE (PATTERN (from)) == CLOBBER))
-	return QDSP6_DEP_UNCONDITIONAL; 
-  if(!INSN_P(to) || 
-    (GET_CODE (PATTERN (to)) == USE) || 
-	(GET_CODE (PATTERN (to)) == CLOBBER))
-	return QDSP6_DEP_UNCONDITIONAL; 
-  
-  insn_info_from = qdsp6_get_insn_info(from); 
-  insn_info_to   = qdsp6_get_insn_info(to); 
-				
+
+  /* I know it is INSN_P for both cases, and it should not be a jump,
+          since we are not at the "bottom" of BB, but I will double check
+          for generality */
+  if(!INSN_P(from) ||
+    (GET_CODE (PATTERN (from)) == USE) ||
+    (GET_CODE (PATTERN (from)) == CLOBBER))
+      return true;
+  if(!INSN_P(to) ||
+    (GET_CODE (PATTERN (to)) == USE) ||
+    (GET_CODE (PATTERN (to)) == CLOBBER))
+      return true;
+
+  insn_info_from = qdsp6_get_insn_info(from);
+  insn_info_to   = qdsp6_get_insn_info(to);
+
   if(QDSP6_JUMP_P(insn_info_from) || QDSP6_JUMP_P(insn_info_to))
-    /* I really should not have jumps here... */ 
-	return QDSP6_DEP_UNCONDITIONAL;
-  
-  if(QDSP6_EMULATION_CALL_P (insn_info_from) || 
+    /* I really should not have jumps here... */
+    return true;
+
+  if(QDSP6_EMULATION_CALL_P (insn_info_from) ||
      QDSP6_EMULATION_CALL_P (insn_info_to))
-    /* not handling these yet */ 
-    return QDSP6_DEP_UNCONDITIONAL;
+    /* not handling these yet */
+    return true;
 
   /* If this is a call, I should assume it to alias with any memory access,
-               but I might try to reason about calee-save registers	*/
+               but I might try to reason about calee-save registers */
   if(QDSP6_CALL_P (insn_info_from))
-    return check_call_reorder_feasibility(insn_info_to);  
+    return check_call_reorder_feasibility(insn_info_to);
 
   /* If this is a call, I should assume it to alias with any memory access,
-               but I might try to reason about calee-save registers	*/
+               but I might try to reason about calee-save registers */
   if(QDSP6_CALL_P(insn_info_to))
-    return check_call_reorder_feasibility(insn_info_from);  
-  
+    return check_call_reorder_feasibility(insn_info_from);
+
   /* this will cover the case of memory output dependency   */
-  if((QDSP6_VOLATILE_P (insn_info_from) || QDSP6_VOLATILE_P (insn_info_to)) 
-  && (QDSP6_MEM_P (insn_info_from) && QDSP6_MEM_P (insn_info_to))) 
-    return QDSP6_DEP_UNCONDITIONAL; 
+  if((QDSP6_VOLATILE_P (insn_info_from) || QDSP6_VOLATILE_P (insn_info_to))
+  && (QDSP6_MEM_P (insn_info_from) && QDSP6_MEM_P (insn_info_to)))
+    return true;
 
   /* Check for possible true memory dependencies. */
   for(store = insn_info_from->stores; (store && store->mem); store = store->next){
     for(load = insn_info_to->loads; (load && load->mem); load = load->next){
-	   if(true_dependence(store->mem, VOIDmode, load->mem, rtx_varies_p))
-		  return QDSP6_DEP_UNCONDITIONAL;
+      if(true_dependence(store->mem, VOIDmode, load->mem, rtx_varies_p))
+        return true;
     }
   }
 
   /* Check for possible anti memory dependencies. */
   for(store = insn_info_to->stores; (store && store->mem); store = store->next){
     for(load = insn_info_from->loads; (load && load->mem); load = load->next){
-	   if(true_dependence(store->mem, VOIDmode, load->mem, rtx_varies_p))
-		  return QDSP6_DEP_UNCONDITIONAL;
+      if(true_dependence(store->mem, VOIDmode, load->mem, rtx_varies_p))
+        return true;
     }
   }
-  
+
   /* Check for true register dependencies. */
   for(write = insn_info_from->reg_writes; write; write = write->next){
     for(read = insn_info_to->reg_reads; read; read = read->next){
-	  if(write->regno == read->regno)
-			return QDSP6_DEP_UNCONDITIONAL;
+      if(write->regno == read->regno)
+        return true;
     }
   }
   /* Check for anti register dependencies. */
   for(write = insn_info_to->reg_writes; write; write = write->next){
     for(read = insn_info_from->reg_reads; read; read = read->next){
-	  if(write->regno == read->regno)
-		return QDSP6_DEP_UNCONDITIONAL;
+      if(write->regno == read->regno)
+        return true;
     }
   }
   /* We do not need to check for output dependency since this is a check inside BB, and DCE has been recently
-     performed */ 
+     performed */
 
-  return QDSP6_DEP_NONE;
-}
-
-
-
-
-static void
-qdsp6_push_insn(struct qdsp6_insn_info *insn, struct qdsp6_packet_info *packet)
-{
-  struct qdsp6_transformed_insn_stack *insn_entry;
-
-  insn_entry = ggc_alloc(sizeof(struct qdsp6_transformed_insn_stack));
-  insn_entry->insn = insn;
-  insn_entry->packet = packet;
-  insn_entry->prev = qdsp6_insn_stack;
-  qdsp6_insn_stack = insn_entry;
-}
-
-
-
-
-static struct qdsp6_insn_info *
-qdsp6_pop_insn(void)
-{
-  struct qdsp6_transformed_insn_stack *insn_entry;
-
-  insn_entry = qdsp6_insn_stack;
-  qdsp6_insn_stack = qdsp6_insn_stack->prev;;
-
-  return insn_entry->insn;
-}
-
-
-
-
-static bool
-qdsp6_insn_fits_in_packet(
-  struct qdsp6_insn_info *insn,
-  struct qdsp6_packet_info *packet
-)
-{
-  int i;
-
-  state_reset(qdsp6_state);
-  for(i = 0; i < packet->num_insns; i++){
-    gcc_assert(state_transition(qdsp6_state, packet->insns[i]->insn) < 0);
-  }
-
-  return state_transition(qdsp6_state, insn->insn) < 0;
+  return false;
 }
 
 
@@ -9815,7 +9827,8 @@ qdsp6_move_insn(
   struct qdsp6_insn_info *old_insn,
   struct qdsp6_packet_info *from_packet,
   struct qdsp6_insn_info *new_insn,
-  struct qdsp6_packet_info *to_packet
+  struct qdsp6_packet_info *to_packet,
+  bool move_to_beginning
 )
 {
   basic_block bb;
@@ -9824,7 +9837,7 @@ qdsp6_move_insn(
   gcc_assert(to_packet != from_packet);
 
   qdsp6_remove_insn_from_packet(from_packet, old_insn);
-  qdsp6_add_insn_to_packet(to_packet, new_insn);
+  qdsp6_add_insn_to_packet(to_packet, new_insn, move_to_beginning);
 
   if(old_insn->insn == new_insn->insn){
     if(PREV_INSN (old_insn->insn)){
@@ -9839,12 +9852,21 @@ qdsp6_move_insn(
     }
   }
   else {
-    delete_insn(old_insn->insn); 
+    delete_insn(old_insn->insn);
   }
 
 
   if(to_packet->num_insns > 1){
-    if(to_packet->insns[to_packet->num_insns - 1] == new_insn){
+    if (move_to_beginning){
+      adjacent_insn = to_packet->insns[1]->insn;
+      if(PREV_INSN (adjacent_insn) != new_insn->insn){
+        PREV_INSN(new_insn->insn) = PREV_INSN (adjacent_insn);
+        NEXT_INSN (PREV_INSN (adjacent_insn)) = new_insn->insn;
+        NEXT_INSN(new_insn->insn) = adjacent_insn;
+        PREV_INSN (adjacent_insn) = new_insn->insn;
+      }        
+    }
+    else if(to_packet->insns[to_packet->num_insns - 1] == new_insn){
       adjacent_insn = to_packet->insns[to_packet->num_insns - 2]->insn;
       if(NEXT_INSN (adjacent_insn) != new_insn->insn){
         PREV_INSN (new_insn->insn) = adjacent_insn;
@@ -9884,8 +9906,11 @@ qdsp6_move_insn(
     }
   }
 
+ /*
+  df_insn_rescan_all();
   set_block_for_insn(new_insn->insn, BLOCK_FOR_INSN (adjacent_insn));
-  df_insn_change_bb (new_insn->insn, BLOCK_FOR_INSN (adjacent_insn)); /* Support for data flow analysis */ 
+*/ 
+  df_insn_change_bb (new_insn->insn, BLOCK_FOR_INSN (adjacent_insn)); /* Support for data flow analysis */
 }
 
 
@@ -9962,27 +9987,16 @@ qdsp6_sanity_check_cfg_packet_info(void)
 
 
 
-static unsigned int 
-qdsp6_count_packets(void)
-{
-  unsigned int total = 0; 
-  struct qdsp6_packet_info *packet	= NULL; 
-
-  for(packet = qdsp6_head_packet; packet; packet = packet->next) 	total++; 
-  return total; 
-}
-
-
-
+#define SORTED_EDGE_LIST_SIZE 1024
 
 static void
 qdsp6_pull_up_insns(void)
 {
-#if !GCC_3_4_6
   basic_block bb;
   basic_block successor_bb;
   edge e;
   edge_iterator ei;
+  HARD_REG_SET prev_live_out;
   struct qdsp6_packet_info *top_packet;
   struct qdsp6_packet_info *forward_edge_packet;
   struct qdsp6_packet_info *back_edge_packet;
@@ -9993,13 +10007,11 @@ qdsp6_pull_up_insns(void)
   struct qdsp6_insn_info *original_insn;
   struct qdsp6_insn_info *edge_insn;
   bool start_at_the_next_packet;
-  int dependence;
   int i;
-  int j,k;
-  int num_edges = 0; 
+  int j;
+  int num_edges = 0;
   /* This fixed way of book keeping will need to be updated */
-  edge sorted_edge_list[MAX_NUM_EDGES_IN_BB];
-
+  edge sorted_edge_list[SORTED_EDGE_LIST_SIZE];
 
   qdsp6_sanity_check_cfg_packet_info();
 
@@ -10007,61 +10019,41 @@ qdsp6_pull_up_insns(void)
   verify_flow_info();
 #endif /* 0 */
 
-  if(dump_file){
-    fputs("\n\nall packets:\n\n", dump_file);
-    qdsp6_print_packets(dump_file, qdsp6_head_packet);
-    fputs("\n\n\n\nall basic blocks:\n\n", dump_file);
-    FOR_EACH_BB (bb){
-      qdsp6_print_bb_packets(dump_file, bb);
-    }
-    fputs("\n\n\n\n", dump_file);
-    FOR_EACH_BB (bb){
-      fputs("BB_HEAD:\n", dump_file);
-      print_rtl_single(dump_file, BB_HEAD (bb));
-      fputs("BB_END:\n", dump_file);
-      print_rtl_single(dump_file, BB_END (bb));
-    }
-    fputs("\n\n\n\n", dump_file);
-    print_rtl(dump_file, get_insns()); 
-  }
-
   FOR_EACH_BB (bb){
     if(!(BB_HEAD_PACKET (bb) && BB_END_PACKET (bb))
        || !JUMP_P (BB_END (bb))){
-      /* || !QDSP6_DIRECT_JUMP_P (qdsp6_get_insn_info(BB_END (bb)))*/ 
       continue;
     }
-    /* construct a sorted list of edges */
-    num_edges = 0; 
+    /* Construct a sorted list of edges. */
+    num_edges = 0;
     FOR_EACH_EDGE (e, ei, bb->succs){
-      edge insert_this = e; 
-      /* Insert in sorted order */
-      /* _LSY_ Here we can use a better sorting algorithm, but V2 will not have more than 2 edges
-	 so this brute force should work for now */ 
-      for(k=0;k<num_edges;k++){
-	if(e->probability >= sorted_edge_list[k]->probability){
-	  int ll; 
-	  for(ll=num_edges;ll>k;ll--){
-	    sorted_edge_list[ll] = sorted_edge_list[ll-1]; 
-	  }
-	  insert_this	= sorted_edge_list[num_edges]; 
-	  sorted_edge_list[k]	= e; 
-	}
+      edge last_edge = e;
+      /* Insert in sorted order. */
+      for(i = 0; i < num_edges; i++){
+        if(e->probability > sorted_edge_list[i]->probability){
+          last_edge = sorted_edge_list[num_edges - 1];
+          for(j = num_edges - 1; j > i; j--){
+            sorted_edge_list[j] = sorted_edge_list[j - 1];
+          }
+          sorted_edge_list[i] = e;
+          break;
+        }
       }
-      sorted_edge_list[num_edges] = insert_this; 
-      num_edges++; 
-      gcc_assert(num_edges < MAX_NUM_EDGES_IN_BB);
+      if(num_edges < SORTED_EDGE_LIST_SIZE){
+        sorted_edge_list[num_edges] = last_edge;
+        num_edges++;
+      }
     }
-    for(k=0;k<num_edges;k++){
-      e = sorted_edge_list[k]; 
+    for(j = 0; j < num_edges; j++){
+      e = sorted_edge_list[j];
       successor_bb = e->dest;
       if(e->flags & EDGE_COMPLEX
          || successor_bb->index == EXIT_BLOCK
          || !(BB_HEAD_PACKET (successor_bb) && BB_END_PACKET (successor_bb))
          || !single_pred_p(successor_bb)){
-    /*   || e->probability < 0.1 ) Can set a threshold  to prevent low probability code 
-         from speculation, but need more investigation. 
-    */
+      /* || e->probability < 0.1 ) ??? Can set a threshold  to prevent low
+         probability code from speculation, but need more investigation.
+      */
         continue;
       }
       gcc_assert(single_pred(successor_bb) == bb);
@@ -10080,41 +10072,33 @@ qdsp6_pull_up_insns(void)
       packet = back_edge_packet;
       while(packet && packet->prev != last_packet){
         for(i = 0; i < packet->num_insns; i++){
+          COPY_HARD_REG_SET(prev_live_out, BB_LIVE_OUT (bb));
           original_insn = packet->insns[i];
           insn = original_insn;
-	  
+
           /* Don't try to reorder the final control flow insn if present. */
           if(control_flow_insn_p (insn->insn)){
             if(packet->num_insns > 1 || packet == back_edge_packet){
               break;
             }
             target_packet = packet->prev;
-	    while (target_packet->num_insns == 0 && target_packet != back_edge_packet){
+            while (target_packet->num_insns == 0 && target_packet != back_edge_packet){
               target_packet = target_packet->prev;
             }
-            qdsp6_packet_insn_dependence(target_packet, insn, false, &dependence);
-            if(QDSP6_DEP_UNCONDITIONAL_P (dependence)
-               || !qdsp6_insn_fits_in_packet(insn, target_packet)){
+            if(!qdsp6_can_add_insn_to_packet_p(&insn, target_packet)){
               target_packet = target_packet->next;
               if(target_packet == packet){
                 break;
               }
             }
-            qdsp6_remove_insn_from_packet(packet, insn);
-            qdsp6_add_insn_to_packet(target_packet, insn);
+            qdsp6_remove_insn_from_packet(packet, original_insn);
+            qdsp6_add_insn_to_packet(target_packet, insn, false);
             break;
           }
 
-          /* We can't pull up insns anti-dependent on an insn in the same
-             packet. */
-          for(j = i - 1; j >= 0; j--){
-            dependence = QDSP6_DEP_NONE;
-            qdsp6_insns_anti_dependent(packet->insns[j], insn, &dependence);
-            /* really just need to check .new dependencies here */
-            qdsp6_insns_truly_dependent(packet->insns[j], insn, &dependence);
-            if(dependence){
-              goto continue_to_next_insn_in_successor_bb;
-            }
+          /* We can't pull up insns dependent on an insn in the same packet. */
+          if(qdsp6_packet_insn_internal_dependence_p(packet, insn)){
+            continue;
           }
 
           /* pull up */
@@ -10124,44 +10108,41 @@ qdsp6_pull_up_insns(void)
             if(target_packet == back_edge_packet){
               target_packet = forward_edge_packet;
               edge_insn = target_packet->insns[target_packet->num_insns - 1];
-              gcc_assert(JUMP_P (edge_insn->insn));
-              if(!QDSP6_DIRECT_JUMP_P (edge_insn)){
+              gcc_assert(QDSP6_JUMP_P (edge_insn));
+              if(qdsp6_can_speculate_p(insn, bb)){
+                /* speculate */
+              }
+              else if(QDSP6_CONDITIONAL_P (edge_insn)
+                      && !QDSP6_GPR_CONDITION_P (edge_insn)
+                      && (e->flags & EDGE_FALLTHRU
+                          || QDSP6_DIRECT_JUMP_P (edge_insn))
+                      && qdsp6_predicable_p(insn)){
+                /* predicate */
+                insn = qdsp6_predicate_insn(insn, edge_insn,
+                                            e->flags & EDGE_FALLTHRU);
+                insn->transformed_at_packet = target_packet;
+              }
+              else if(!QDSP6_CONDITIONAL_P (edge_insn)
+                      && QDSP6_DIRECT_JUMP_P (edge_insn)){
+                /* We can always move an insn across an uncodtional direct
+                   jump. */
+              }
+              else {
                 target_packet = back_edge_packet;
                 break;
               }
-              if(QDSP6_CONDITIONAL_P (edge_insn)){
-
-		/* PDB. EDGE_INSN can be conditional if it is a conditional jump on a predicate regsiter or a register conditional
-		   jump. In the latter case INSN cannot be predicated. Therefore, check for this latter case before predicating 
-		   INSN. */
-                if(!QDSP6_REGCOND_JUMP_P (edge_insn) && qdsp6_predicable(insn)){
-                  /* predicate */
-                  qdsp6_push_insn(insn, target_packet);
-                  insn = qdsp6_predicate_insn(insn, edge_insn,
-                                              bb->next_bb == successor_bb);
-                }
-                else {
-                  target_packet = back_edge_packet;
-                  break;
-                }
-              }
+              qdsp6_add_live_out(insn, bb);
             }
             else {
               target_packet = target_packet->prev;
             }
             /* dependent? */
-            qdsp6_packet_insn_dependence(target_packet, insn, true, &dependence);
-            if(QDSP6_DEP_UNCONDITIONAL_P (dependence)){
+            if(qdsp6_packet_insn_dependence_p(target_packet, &insn, true)){
               start_at_the_next_packet = true;
               break;
             }
-            else if(QDSP6_DEP_DOT_NEWABLE_P (dependence)){
-              qdsp6_push_insn(insn, target_packet);
-              insn = qdsp6_dot_newify_insn(insn);
-            }
             /* anti-dependent? */
-            qdsp6_packet_insn_internal_dependence(target_packet, insn, &dependence);
-	    if(dependence){
+            if(qdsp6_packet_insn_internal_dependence_p(target_packet, insn)){
               break;
             }
           }
@@ -10171,18 +10152,18 @@ qdsp6_pull_up_insns(void)
             goto try_the_next_packet;
           }
           while(target_packet != packet){
-            if(qdsp6_insn_fits_in_packet(insn, target_packet)){
+            if(qdsp6_insn_fits_in_packet_p(insn, target_packet)){
               break;
             }
 
             try_the_next_packet:
 
-            while(qdsp6_insn_stack
-                  && qdsp6_insn_stack->packet == target_packet){
-              insn = qdsp6_pop_insn();
+            while(insn->transformed_at_packet == target_packet){
+              insn = insn->stack;
             }
             if(target_packet == forward_edge_packet){
               target_packet = back_edge_packet;
+              COPY_HARD_REG_SET( BB_LIVE_OUT(bb), prev_live_out);
             }
             else {
               target_packet = target_packet->next;
@@ -10190,11 +10171,11 @@ qdsp6_pull_up_insns(void)
           }
 
           if(target_packet != packet){
-            qdsp6_move_insn(original_insn, packet, insn, target_packet);
+            qdsp6_move_insn(original_insn, packet, insn, target_packet, false);
             i--;
           }
-          qdsp6_insn_stack = NULL;
-          continue_to_next_insn_in_successor_bb: i=i;
+          insn->stack = NULL;
+          insn->transformed_at_packet = NULL;
         }
         packet = packet->next;
       }
@@ -10219,9 +10200,8 @@ qdsp6_pull_up_insns(void)
     }
   }
 
+
   if(dump_file){
-    fputs("\n\nall packets:\n\n", dump_file);
-    qdsp6_print_packets(dump_file, qdsp6_head_packet);
     fputs("\n\n\n\nall basic blocks:\n\n", dump_file);
     FOR_EACH_BB (bb){
       qdsp6_print_bb_packets(dump_file, bb);
@@ -10234,20 +10214,17 @@ qdsp6_pull_up_insns(void)
       print_rtl_single(dump_file, BB_END (bb));
     }
     fputs("\n\n\n\n", dump_file);
-    print_rtl(dump_file, get_insns()); 
+    print_rtl(dump_file, get_insns());
   }
 
 #if 0
   verify_flow_info();
 #endif /* 0 */
-  /* CLEANUP_CROSSJUMP will not work any more here, 
+  /* CLEANUP_CROSSJUMP will not work any more here,
      but it is OK to try to clean up potential empty BBs
-     if any were created by the PULL-UP phase 
-  */ 
-	cleanup_cfg(CLEANUP_EXPENSIVE);  
- 
-
-#endif /* !GCC_3_4_6 */
+     if any were created by the PULL-UP phase
+  */
+  cleanup_cfg(CLEANUP_EXPENSIVE);
 
 }
 
@@ -10255,34 +10232,38 @@ qdsp6_pull_up_insns(void)
 
 
 static void
-qdsp6_init_packing_info(void)
+qdsp6_init_packing_info(bool need_bb_info)
 {
   basic_block bb;
   struct qdsp6_bb_aux_info *new_bb_aux;
 
   dfa_start();
-  qdsp6_state = xmalloc(state_size());
-  state_reset(qdsp6_state);
 
   qdsp6_head_packet = NULL;
   qdsp6_tail_packet = NULL;
 
-  if(!final_packing){
+  if(need_bb_info){
+    df_set_flags(DF_LR_RUN_DCE);
+    df_note_add_problem();
+    df_analyze();
+    df_set_flags(DF_DEFER_INSN_RESCAN);
+
     qdsp6_head_bb_aux = NULL;
     new_bb_aux = NULL;
     FOR_EACH_BB (bb){
       if(qdsp6_head_bb_aux == NULL){
-        qdsp6_head_bb_aux = ggc_alloc_cleared(sizeof(struct qdsp6_bb_aux_info));
+        qdsp6_head_bb_aux = (struct qdsp6_bb_aux_info *)
+            ggc_alloc_cleared(sizeof(struct qdsp6_bb_aux_info));
         new_bb_aux = qdsp6_head_bb_aux;
       }
       else {
-        new_bb_aux->next = ggc_alloc_cleared(sizeof(struct qdsp6_bb_aux_info));
+        new_bb_aux->next = (struct qdsp6_bb_aux_info *)
+            ggc_alloc_cleared(sizeof(struct qdsp6_bb_aux_info));
         new_bb_aux = new_bb_aux->next;
       }
+      REG_SET_TO_HARD_REG_SET (new_bb_aux->live_out, df_get_live_out(bb));
       bb->aux = new_bb_aux;
     }
-
-    qdsp6_insn_stack = NULL;
   }
 }
 
@@ -10290,66 +10271,1507 @@ qdsp6_init_packing_info(void)
 
 
 static void
-qdsp6_free_packing_info(void)
+qdsp6_remove_new_values(void)
+{
+  struct qdsp6_packet_info *packet;
+  int i;
+
+  for(packet = qdsp6_head_packet; packet; packet = packet->next){
+    for(i = 0; i < packet->num_insns; i++){
+      if(QDSP6_NEW_GPR_P (packet->insns[i])){
+        qdsp6_dot_oldify_gpr(packet->insns[i]);
+      }
+    }
+  }
+}
+
+
+
+
+static void
+qdsp6_free_packing_info(bool free_bb_info)
 {
   basic_block bb;
 
-  if(!final_packing){
+  if(free_bb_info){
+    qdsp6_remove_new_values();
+
     FOR_EACH_BB (bb){
       bb->aux = NULL;
     }
     qdsp6_head_bb_aux = NULL;
+
+    df_finish_pass(false);
   }
 
   qdsp6_head_packet = NULL;
   qdsp6_tail_packet = NULL;
 
-  free(qdsp6_state);
   dfa_finish();
 }
 
+
+/****************************************/
+/*** Functions for New Value Jump *******/
+/****************************************/
+
+
+static bool
+qdsp6_nvj_new_gpr_p(
+  struct qdsp6_insn_info *consumer,
+  struct qdsp6_dependence *dependence
+)
+{
+
+  rtx compare;
+  rtx operand1, operand2;
+
+  /* get compare portion of the nvj, 
+    from the first 1st elemenet of insn*/
+  /* get compare - cmp.XX(Ns.new, YY) */
+  compare = qdsp6_nvj_get_compare(consumer->insn, 0);
+
+  /*get the operands, Ns.new and YY*/
+  operand1 = qdsp6_nvj_get_operand(compare, 1);
+  operand2 = qdsp6_nvj_get_operand(compare, 2);
+  
+  if ( GET_CODE(operand1) == UNSPEC &&  
+      XINT(operand1,1) == UNSPEC_NEW_VALUE && 
+      XVECEXP(operand1,0,0) == dependence->use ) 
+  {
+    return true;
+  }
+
+  if ( GET_CODE(operand2) == UNSPEC &&  
+       XINT(operand2,1) == UNSPEC_NEW_VALUE && 
+       XVECEXP(operand2,0,0) == dependence->use ) 
+  {
+    return true;
+  }
+  return false;
+}
+
+
+
+
+/*Given: an instruction, 
+ *       any two packets (from and two in downward flow)
+ *Returns true if insn can be moved from from_packet to the to_packet
+ */      
+static bool
+qdsp6_move_insn_across_packet_down(
+  struct qdsp6_packet_info *from,
+  struct qdsp6_packet_info *to, 
+  struct qdsp6_insn_info  *insn) 
+{
+  while( from != to)
+  {
+    if (!qdsp6_move_insn_down_p(insn, from, from->next)) 
+      return (false); 
+    from = from->next;
+  }
+  return (true);
+}
+
+static bool 
+qdsp6_move_all_insn_across_packet_down(
+  struct qdsp6_packet_info *from,
+  struct qdsp6_packet_info *to)
+{
+  int i; 
+
+  if (from->num_insns == 1)
+  {
+    /*there is only only one instruction in the packet and it will be moved to the 
+    candidate packet and this packet will be removed */
+    return true;
+  }
+
+  /* make sure you can move all the packets*/
+  for(i = 0; i < from->num_insns; i++)
+  {
+    if (!qdsp6_move_insn_across_packet_down(from, to, from->insns[i]))
+    {
+      return false;
+    }
+  }
+  return true;
+}
+
+static bool 
+qdsp6_nvj_move_possible(
+  struct qdsp6_packet_info *candidate_packet,
+  struct qdsp6_packet_info *prev_packet,
+  struct qdsp6_insn_info *jump_insn_info, 
+  struct qdsp6_insn_info *comp_insn_info, 
+  rtx *oper, 
+  rtx *pred,
+  rtx *op1, 
+  rtx *op2,
+  rtx *b_lab,
+  struct qdsp6_packet_info **src_packet,
+  struct qdsp6_insn_info **src_insn,
+  int *op_cnt
+)
+{
+  rtx feeder_reg, feeder_reg1; 
+  rtx nvj_instruction, nvj_insn_rtx;
+  enum rtx_code compare_code, jump_code;
+  bool resource_avail = false;
+  bool move_possible = false;
+  *src_insn = NULL;
+  *src_packet = NULL;
+  struct qdsp6_reg_access *read;
+
+
+  for (read=comp_insn_info->reg_reads; read; read=read->next)
+  {
+    feeder_reg1 = XEXP(SET_SRC(PATTERN(comp_insn_info->insn)),*op_cnt);
+    /*for tstbit */
+    if (GET_CODE(feeder_reg1) == ZERO_EXTRACT ) 
+    {
+      feeder_reg = XEXP(feeder_reg1,*op_cnt);
+    }
+    else 
+      feeder_reg = feeder_reg1;
+
+
+    *src_packet = qdsp6_get_source_packet(prev_packet, feeder_reg, comp_insn_info, src_insn);
+    if (!*src_packet || GET_MODE(XEXP(PATTERN((*src_insn)->insn),*op_cnt))!=SImode) 
+    {
+      /*reject everything that not SI - pattern won't support it */
+      /*src packet is not in the same bb or source is from a combine */
+      /*move on to the next operand if its reg or bail out*/ 
+      continue;
+    }
+
+    compare_code = GET_CODE(SET_SRC(PATTERN(comp_insn_info->insn)));
+    jump_code    = GET_CODE(XEXP(SET_SRC(PATTERN(jump_insn_info->insn)),0));
+
+    /* swap the compare code depeding on the condition of jump and compare*/
+    /* tstbit comparison */
+    if (GET_CODE(feeder_reg1) == ZERO_EXTRACT ) 
+    {
+      /* xor jump and compare code */
+      if ( jump_code ^ compare_code)
+        compare_code = NE;
+      else 
+        compare_code = EQ;
+    }
+    else
+      /*non tstbit comparison */
+    {
+      if (jump_code ==  EQ )
+      {
+        switch(compare_code) 
+        {
+          case EQ:  compare_code = NE; break;
+          case NE:  compare_code = EQ; break;
+          case GT:  compare_code = LE; break;
+          case LE:  compare_code = GT; break;
+          case GTU: compare_code = LEU; break;
+          case LEU: compare_code = GTU; break;
+          default: break;
+        }
+      }
+    }
+
+
+    *oper  = gen_rtx_fmt_ee(compare_code, SImode, NULL_RTX, NULL_RTX);
+    *pred  = SET_DEST(PATTERN(comp_insn_info->insn));
+    *op1   = XEXP(SET_SRC(PATTERN(comp_insn_info->insn)),0);
+    *op2   = XEXP(SET_SRC(PATTERN(comp_insn_info->insn)),1);
+    *b_lab = XEXP(SET_SRC(PATTERN(jump_insn_info->insn)),1);
+
+
+    start_sequence();
+
+    if (GET_CODE(feeder_reg1) == ZERO_EXTRACT ) 
+    {
+      rtx tstbit_operands = *op1;
+      *op1 = XEXP(tstbit_operands, 0);
+      *op2 = XEXP(tstbit_operands, 2);
+      nvj_instruction =  gen_new_value_jump_tstbit( *oper, *op1, *op2, *b_lab, *pred ); 
+    }
+    else 
+    {
+      if (*op_cnt==0)
+        nvj_instruction =  gen_new_value_jump1( *oper, *op1, *op2, *b_lab, *pred ); 
+      else
+        nvj_instruction =  gen_new_value_jump2( *oper, *op1, *op2, *b_lab, *pred ); 
+    }
+
+    nvj_insn_rtx = emit_jump_insn ( nvj_instruction );
+    resource_avail =  qdsp6_nvj_check_resources ( *src_insn, candidate_packet, comp_insn_info, jump_insn_info, nvj_insn_rtx);
+    end_sequence();
+
+    if (resource_avail) 
+    {
+      qdsp6_remove_insn_from_packet(candidate_packet, comp_insn_info);
+      move_possible = qdsp6_move_insn_across_packet_down(*src_packet, candidate_packet, *src_insn);
+      /*Make a decision whether nvj should be created or not*/
+      /*Don't create nvj, if the packet can not be removed*/
+      if (move_possible && !optimize_size)
+        move_possible &= qdsp6_move_all_insn_across_packet_down(*src_packet, candidate_packet);
+      qdsp6_add_insn_to_packet(candidate_packet, comp_insn_info, false);
+      if (move_possible) 
+      {
+        return true;
+      }
+    }
+
+    /* operand1 could not be .newifed, try operand2 - only for cmp.gt and cmp.gtu */
+    if ((GET_CODE(feeder_reg1) == ZERO_EXTRACT) ||
+         compare_code == NE || compare_code == EQ ) 
+      /* dont' try for tstbit, and cmp.eq */
+      break; 
+    else 
+      (*op_cnt)++;
+  }
+
+  return false;
+}
+
+static int 
+qdsp6_get_writes_count(struct qdsp6_insn_info *insn_info) 
+{
+  int cnt=0;
+  struct qdsp6_reg_access *write;
+  for (write=insn_info->reg_writes; write; write = write->next) cnt++;
+  return (cnt);
+}
+
+static int 
+qdsp6_get_reads_count(struct qdsp6_insn_info *insn_info) 
+{
+  int cnt=0;
+  struct qdsp6_reg_access *read;
+  for (read=insn_info->reg_reads; read; read = read->next) cnt++;
+  return (cnt);
+}
+
+
+
+/* Now that we have identified the feeder register, 
+*  iterate over the prev packets, and find it's defination
+*  (src_insn) and return the packet which contains the def.
+*/ 
+static struct qdsp6_packet_info * 
+qdsp6_get_source_packet( 
+              struct qdsp6_packet_info *prev_packet,
+              rtx feeder_reg, 
+              struct qdsp6_insn_info *d_insn, 
+              struct qdsp6_insn_info **s_insn) 
+{
+ int i;
+ basic_block bb = BLOCK_FOR_INSN(d_insn->insn);
+ *s_insn = NULL;
+ 
+ while( prev_packet && 
+     prev_packet->num_insns &&
+     BLOCK_FOR_INSN(prev_packet->insns[0]->insn) == bb )
+ {
+  for( i = 0; i < prev_packet->num_insns; i++ ) 
+  {
+    if (!NOTE_P(prev_packet->insns[i]->insn) &&
+        /* 
+        1. don't assume pattern to have xexp
+        2. check and reject the following conditions like
+            a. post_update
+            b. register pair
+        */
+				XEXP(PATTERN(prev_packet->insns[i]->insn),0) == feeder_reg) 
+    {
+      *s_insn = prev_packet->insns[i];
+      return prev_packet;
+    }
+  }
+  prev_packet=prev_packet->prev;
+ }
+ return (NULL);
+}
+
+
+static bool
+qdsp6_nvj_compare_p(rtx insn) 
+{ 
+  enum rtx_code code;
+  enum machine_mode mode;
+  rtx pattern;
+  rtx const_int_operand  = NULL;
+  rtx operand1;
+  rtx operand2;
+
+  if (GET_CODE(PATTERN(insn)) != SET)
+  {
+    return (false);
+  }
+
+  pattern = PATTERN(insn);
+
+  code = GET_CODE(XEXP(pattern,1));
+  mode = GET_MODE(XEXP(pattern,1));
+
+  operand1 = XEXP(SET_SRC(pattern),0);
+  operand2 = XEXP(SET_SRC(pattern),1);
+
+  if (mode != BImode)
+  {
+    return (false);
+  }
+
+  /* new value jump supports only the following comparisons */
+  if(!(code == NE  || code == EQ  ||
+       code == LE  || code == GT  || 
+       code == LEU || code == GTU))
+  {
+    return (false);
+  }
+
+  /* for tstbit, only #0 comparison is permitted*/
+  if (GET_CODE(operand1) == ZERO_EXTRACT &&
+      INTVAL(XEXP(operand1,2)) != 0 )
+  {
+    return (false);
+  }
+
+       
+  /* Make sure compare uses either two registers or
+     one register and an CONST_INT */
+  if ( (GET_CODE(operand1) == REG) && 
+       (!(GET_CODE(operand2) == CONST_INT || GET_CODE(operand2) == REG))) 
+  {
+    return (false);
+  }
+  if ( (GET_CODE(operand2) == REG) && 
+       (!(GET_CODE(operand1) == CONST_INT || GET_CODE(operand1) == REG))) 
+  {
+    return (false);
+  }
+
+  /* reject if cmp.XX(r1,r1) case:peren_c++/Sec23/2_1/P23784.C*/
+  if ((GET_CODE(operand1) == REG) && 
+      (GET_CODE(operand2) == REG) && 
+      (REGNO(operand1) == REGNO(operand2)))
+  {
+    return (false);
+  }
+
+  if (GET_CODE(operand1) == REG && GET_CODE(operand2) == CONST_INT)
+    const_int_operand = operand2;
+  if (GET_CODE(operand2) == REG && GET_CODE(operand1) == CONST_INT)
+    const_int_operand = operand1;
+
+  /* if one of operands of the compare is immediate, 
+   * only allowed values are -1 to U5 ie 32*/
+  if (const_int_operand)
+  {
+    switch(code) {
+      case EQ:  
+      case NE:
+      case LE:
+      case GT:
+        if (INTVAL(const_int_operand) < -1 || INTVAL(const_int_operand) > 31)
+          return (false);
+        break;
+      case GTU:
+      case LEU:
+        if ((INTVAL(const_int_operand) < 0)  || (INTVAL(const_int_operand) > 31))
+          return (false);
+        break;
+      default:
+        break;
+    }
+  }
+
+  return (true);
+
+}
+
+/* 
+* Validate that predicate is used only for jump and nothing else
+*/
+static struct qdsp6_insn_info *
+qdsp6_nvj_query_compare(struct qdsp6_packet_info *packet, struct qdsp6_insn_info *jump_p_insn_info)
+{
+  struct qdsp6_insn_info *compare_insn = NULL;
+  int i, auto_anding_chk = 0;
+  //unsigned int pred_no = (*jump_p_insn_info)->reg_reads->regno;
+  unsigned int pred_no = jump_p_insn_info->reg_reads->regno;
+  for( i = 0; i < packet->num_insns; i++ ) 
+  {
+    struct qdsp6_insn_info *pred_insn = packet->insns[i];
+    /*while we are at it, get the compare instruction*/
+
+    /*this avoids cases like { r3 = r2; r2 = r1 } generated by combinesi_v4*/
+    /*assumption: there will NOT be parallel RTX's one of which will be use of a predicate*/
+    if (GET_CODE(PATTERN(pred_insn->insn)) == PARALLEL)
+      continue;
+
+    if ( QDSP6_NEW_PREDICATE_P(pred_insn) &&
+        !QDSP6_DIRECT_JUMP_P (pred_insn)  && 
+        ( qdsp6_predicate_use_DImode(pred_insn)      || 
+          qdsp6_register_defined(pred_insn, pred_no) ||
+          qdsp6_register_used(pred_insn, pred_no))) 
+    {
+      /*there is another use/def of the predicate in this packet */
+      return NULL;
+    }
+    
+    if ( qdsp6_nvj_compare_p(pred_insn->insn) )
+    {
+      if ( qdsp6_register_defined(pred_insn, pred_no) )
+      {
+        compare_insn = pred_insn;
+        /*auto anding also multiple register definitions*/
+        if (++auto_anding_chk > 1)
+        {
+          return NULL;
+        }
+      }
+    }
+
+  }
+  return compare_insn;
+}
+
+/*
+* Determine if the new value jump can be created (along with other instructions)
+* in the packet. 
+*/
+static bool
+qdsp6_nvj_check_resources ( 
+     struct qdsp6_insn_info *q_insn, 
+     struct qdsp6_packet_info *nvj_packet, 
+     struct qdsp6_insn_info *comp_insn,
+     struct qdsp6_insn_info *jump_insn, 
+     rtx nvj_insn_rtx )
+      
+
+{
+  struct qdsp6_packet_info *d_packet;
+  struct qdsp6_insn_info *src_insn;
+  int i=0;
+
+  d_packet = (struct qdsp6_packet_info *) ggc_alloc_cleared(sizeof(struct qdsp6_packet_info));
+
+  /*first copy all the non-jump/non-compare instructions*/
+  for (i=0; i < nvj_packet->num_insns; i++ )
+  {
+    if ( (nvj_packet->insns[i] != comp_insn) &&
+         (nvj_packet->insns[i] != jump_insn))
+    {
+      qdsp6_add_insn_to_packet(d_packet, nvj_packet->insns[i], false); 
+    }
+  }
+
+  /* see if nvj can be put in the packet */
+  src_insn = qdsp6_get_insn_info(nvj_insn_rtx);
+  if (!qdsp6_insn_fits_in_packet_p(src_insn, d_packet)) 
+  {
+    return false;
+  }
+
+  /*if nvj can be put, check to see if its source (.new) 
+    can be put in the same packet, 
+    and at the start of the packet - */
+  qdsp6_add_insn_to_packet(d_packet, src_insn, false); 
+  return (qdsp6_insn_fits_in_packet_p(q_insn, d_packet)); 
+}
+
+
+/* Given an instruction, return
+*    true if compare uses combine registers
+*/
+static bool
+qdsp6_predicate_use_DImode( struct qdsp6_insn_info *insn_info)
+{
+  rtx pattern = PATTERN(insn_info->insn);
+  rtx uses = XEXP(pattern,1);
+  if ((GET_CODE (XEXP(uses,1)) == REG && 
+       GET_MODE (XEXP(uses,1)) == DImode) ||
+      (GET_CODE (XEXP(uses,0)) == REG && 
+       GET_MODE (XEXP(uses,0)) == DImode)
+     )
+  {
+    return (true);
+  }
+  return (false);
+}
+
+/* reject if the operands of the compare instruction is def' in the packet */
+static bool
+qdsp6_used_operands( struct qdsp6_packet_info *packet, 
+                     struct qdsp6_insn_info *jump_insn_info,
+                     struct qdsp6_insn_info *comp_insn_info)
+{
+  int i, j, reads_cnt = qdsp6_get_reads_count(comp_insn_info);
+  for( i = 0; i < packet->num_insns; i++ ) 
+  {
+    if ( packet->insns[i] != jump_insn_info &&
+         packet->insns[i] != comp_insn_info )
+    {
+      for (j=0; j<qdsp6_get_writes_count(packet->insns[i]); j++)
+      {
+        unsigned int reg_no = comp_insn_info->reg_reads->regno;
+        if (qdsp6_register_defined(packet->insns[i], reg_no))
+        {
+          return (true);
+        }
+
+        if (reads_cnt > 1)
+        {
+          reg_no = (comp_insn_info)->reg_reads->next->regno;
+          if (qdsp6_register_defined(packet->insns[i], reg_no))
+          {
+            return (true);
+          }
+        } 
+      }
+    }
+  }
+  return (false);
+}
+
+/*
+* Given an instruction insn_info, return true
+*    if it defines/loads the register reg_no  
+*/
+static bool
+qdsp6_register_defined(struct qdsp6_insn_info *insn_info, unsigned int reg_no) 
+{
+  struct qdsp6_reg_access *write = insn_info->reg_writes;
+  while(write) 
+  {
+    if (write->regno == reg_no) 
+    {
+      return (true);
+    }
+    write = write->next;
+  }
+  return (false);
+}
+
+/*
+* Given an instruction insn_info, return true
+*     if it uses the register reg_no
+*/
+static bool
+qdsp6_register_used(struct qdsp6_insn_info *insn_info, unsigned int reg_no) 
+{
+  struct qdsp6_reg_access *read = insn_info->reg_reads;
+  while(read) 
+  {
+    if (read->regno == reg_no) 
+    {
+      return (true);
+    }
+    read = read->next;
+  }
+  return (false);
+}
+
+
+static bool
+qdsp6_in_bb_live_out( basic_block bb, struct qdsp6_insn_info *q_insn)
+{
+  struct qdsp6_reg_access *write;
+
+  for(write = q_insn->reg_reads; write; write = write->next)
+  {
+    if(TEST_HARD_REG_BIT (BB_LIVE_OUT (bb), write->regno))
+    {
+      return (true);
+    }
+  }
+  return (false);
+}
+
+/* Given a packet and array of two rtx
+ * returns 
+ *    false if 
+ *       a. there are no jumps in the packet 
+ *     b. two dumps (dual jumps not allowed)
+ *    true  if there is a single jump in the packet
+ *    does not modify the array of rtx if there are(is) no jump
+ *    modifies the first  element of rtx with the jmp if it's a jump (single jump packet)
+ *    modifies the second element of rtx with the jmp if it's the second jump and can be
+            converted into the compound new value jump (dual jump & copacket)
+ */
+static struct qdsp6_insn_info *
+qdsp6_nvj_query_jump( 
+  struct qdsp6_packet_info *packet, 
+  bool   *dot_new_predicate,
+  basic_block bb) 
+
+{
+  int i, nvj_count = 0;
+  struct qdsp6_insn_info *jump_insn;
+  for( i = 0; i < packet->num_insns; i++ ) 
+  {
+    struct qdsp6_insn_info *insn_info = packet->insns[i];
+    if ( QDSP6_DIRECT_JUMP_P(insn_info) && 
+         QDSP6_CONDITIONAL_P(insn_info) && 
+         !qdsp6_in_bb_live_out(bb, insn_info)
+       ) 
+    {
+    
+    nvj_count++;
+    jump_insn=insn_info;
+
+    /*if dot new predicate*/
+    if (QDSP6_NEW_PREDICATE_P(insn_info))
+      *dot_new_predicate = true;
+    else 
+      *dot_new_predicate = false; /*this is just for the breakpoint - don't need it */
+    }
+  }
+
+
+  if (nvj_count == 1 ) return (jump_insn);
+
+  /*just making sure, in case of dual jumps - it might have been set to true */
+  *dot_new_predicate = false;
+  return NULL;
+}
+ 
+
+static void 
+qdsp6_new_value_jump(void)
+{
+ /* 
+ * 1. Scan the packets from the bottom of the basic looking for predicated 
+ *    jump, - it's either .new or otherwise.
+ *
+ * 2. a. If pX.new is found, we have a two packet scenario.
+ *    a. i.   scan the predecessor of this packet,
+ *       ii.  if the predecessor has the producer that feeds the compare (check
+ *            both the operands of the compare), you've found the guy, 
+ *            collapse compare and jump instructions into one
+ *            compound new value jump and move the producer/feeder to the compare 
+ *            instruction to the same packet.
+ *       iii. if the predecessor does not have the producer that feeds the 
+ *            compare, repeat 2.a.ii until top of the basic block is reached.
+ *
+ * 2. b. If pX is found, we have a three packet scenario. This is little more complicated
+ *       and less beneficial -
+ *    a. i.  scan the predecessor and the precedessor of the predessor of this packet, 
+ *       ii. if the predecessor has compare I that feeds the jump, temporalily move 
+ *           the compare to the packet which contains jump insn ( see if the packet, 
+ *           which contained the compare could be removed) and continue traversing
+ *           up - towards the top of the basic block, until you find the feeder to 
+ *           the compare. If the feeder is found, try moving the feeder to the 
+ *           packet which contains the jump. If can be moved, see if the packet which 
+ *           contained the feeder can be removed. If at least, one of the packets 
+ *           can be removed, continue otherwise give up. 
+ * 
+ * Note: In three packet scenario, I did not any scenario, where I could remove at least 
+ * one of the packets.
+ */
+
+  basic_block bb;
+
+  FOR_EACH_BB(bb)
+  {
+    struct qdsp6_packet_info  *packet, *nvj_packet;
+    struct qdsp6_insn_info    *compare_insn_info = NULL;
+    struct qdsp6_insn_info    *jump_p_insn_info = NULL;
+    bool                      dot_new_predicate = false;
+    rtx                       nvj_insn;
+    rtx                       nvj_instruction;
+
+    packet = BB_END_PACKET(bb);
+
+    if (packet && packet->prev && 
+           packet->prev->num_insns &&
+           BLOCK_FOR_INSN(packet->prev->insns[0]->insn) == bb) 
+    {
+      if ( !(jump_p_insn_info=qdsp6_nvj_query_jump(packet, &dot_new_predicate, bb)))
+      {
+        continue;
+      }
+      else /* single jumps */
+      {
+        struct qdsp6_insn_info *src_insn;
+        struct qdsp6_packet_info *src_packet;
+        rtx comp_operator, p_reg, operand1, operand2, branch_label; 
+        int op_cnt = 0;
+        struct qdsp6_insn_info *new_insn; 
+
+        nvj_packet = packet;
+        if (dot_new_predicate)  /* predicate is generated in the same packet, two packets */
+        {
+          if (!(compare_insn_info = qdsp6_nvj_query_compare(nvj_packet, jump_p_insn_info)))
+          {
+          /*predicate is used, other than for jump insn*/
+             continue;
+          }
+
+          if (qdsp6_used_operands(nvj_packet, jump_p_insn_info, compare_insn_info))
+          {
+            /*one of operands of the compare is defined in the same packet*/
+            continue;
+          }
+
+
+          /* get the feeder to the compare and search in the prev packets 
+           * of the bb 
+          op_cnt = qdsp6_get_reads_count(compare_insn_info);
+           */
+          if (!qdsp6_nvj_move_possible(nvj_packet, packet->prev, jump_p_insn_info, 
+                                       compare_insn_info, &comp_operator, &p_reg, 
+                                       &operand1, &operand2, &branch_label, &src_packet, 
+                                       &src_insn,  &op_cnt)) 
+          {
+            continue;
+          }
+
+          qdsp6_move_insn(src_insn, src_packet, src_insn, nvj_packet, true);
+
+          /*now call the qdsp6 genroutine to get the actual instruction */
+          /*if the compare is a tstbit, only first operand can be .new  */
+          if (GET_CODE(XEXP(SET_SRC(PATTERN(compare_insn_info->insn)),0)) == ZERO_EXTRACT)
+          {
+            nvj_instruction = gen_new_value_jump_tstbit(comp_operator, operand1, operand2, branch_label, p_reg);
+          }
+          else 
+          {
+            if (op_cnt==0)
+              nvj_instruction = gen_new_value_jump1(comp_operator, operand1, operand2, branch_label, p_reg);
+            else
+              nvj_instruction = gen_new_value_jump2(comp_operator, operand1, operand2, branch_label, p_reg);
+
+          }
+          /*generate a nvj instruction after the jump; later - remove old jump insn */
+          nvj_insn = emit_jump_insn_after(nvj_instruction, jump_p_insn_info->insn);
+
+          /*add a jump label*/
+          JUMP_LABEL(nvj_insn) = XEXP(branch_label,0);
+
+           /*ensuring that code label can be accessed through label ref */
+          XEXP(XEXP(XVECEXP(PATTERN(nvj_insn),0,0),1),1) = branch_label;
+
+          if (!(find_reg_note(nvj_insn, REG_LABEL_OPERAND, branch_label)))
+          {
+            add_reg_note(nvj_insn, REG_LABEL_OPERAND, branch_label);
+          }
+
+          /* assign the block number for the instruction*/
+          set_block_for_insn(nvj_insn, BLOCK_FOR_INSN(jump_p_insn_info->insn));
+
+          qdsp6_remove_insn_from_packet(nvj_packet, jump_p_insn_info);
+          delete_insn(jump_p_insn_info->insn);
+
+          qdsp6_remove_insn_from_packet(nvj_packet, compare_insn_info);
+          delete_insn(compare_insn_info->insn);
+
+          new_insn = qdsp6_get_insn_info(nvj_insn);
+          new_insn->flags |= QDSP6_NEW_GPR;
+          qdsp6_add_insn_to_packet(nvj_packet, new_insn, false);
+
+          if (src_packet->num_insns == 0 ) 
+          {
+            /* remove empty packet */
+            qdsp6_remove_empty_packet(bb, src_packet);
+          }
+        } 
+        else  /* three packets */
+        {
+          /* In qbench, I did not fidn any three packet cases, where I would reduce
+             the number of packets, so I am not implementing them. 
+             SPEC2000 or SPEC2006 may have opportunities - in spec analysis, if I find 
+             opportunities, I will implement them
+          */
+        }
+      } /* jump found*/
+    }   /* packet is not a candidate */ 
+  }     /* iterated over all the basic blocks in proc*/
+
+}       /* end of qdsp6_new_value_jump */
+
+
+static void
+qdsp6_remove_empty_packet( 
+              basic_block bb,
+              struct qdsp6_packet_info *packet)
+{
+  /* There is always a sentinal packet */
+  if (BB_HEAD_PACKET(bb) == packet) 
+  {
+    BB_HEAD_PACKET(bb) = packet->next;
+  }
+
+  /* There is always a sentinal packet */
+  if (packet->prev != NULL) 
+  {
+    packet->prev->next = packet->next;
+  }
+  if (packet->next != NULL) 
+  {
+    packet->next->prev = packet->prev;
+  }
+  else 
+  {
+    packet->prev = NULL;
+  }
+}
 
 
 
 static void
 qdsp6_packet_optimizations(void)
 {
-  if(!(TARGET_PACKETS && optimize)){
+  if(!TARGET_PACKETS){
     return;
   }
 
   shorten_branches(get_insns());
-  qdsp6_init_packing_info();
-  qdsp6_pack_insns();
-  qdsp6_pull_up_insns();
-  qdsp6_free_packing_info();
+
+  qdsp6_init_packing_info(true);
+  qdsp6_pack_insns(true);
+
+  if (TARGET_V4_FEATURES && TARGET_NEW_VALUE_JUMP)
+    qdsp6_new_value_jump();
+
+  if (TARGET_PULLUP)
+    qdsp6_pull_up_insns();
+
+  qdsp6_free_packing_info(true);
 }
-
-
-
 
 static void
 qdsp6_final_pack_insns(void)
 {
-  if(!(TARGET_PACKETS && optimize)){
+  if(!TARGET_PACKETS){
     return;
   }
 
-  final_packing = true;
-  qdsp6_init_packing_info();
-  qdsp6_pack_insns();
-  qdsp6_free_packing_info();
-  final_packing = false;
+  qdsp6_init_packing_info(false);
+  qdsp6_pack_insns(false);
+
+  if(TARGET_V4_FEATURES && TARGET_DUPLEX_SCHEDULING) 
+    {
+      qdsp6_pack_duplex_insns();
+    }
+
+  shorten_branches(get_insns());
 }
 
+
+/*------------------------------
+Functions for duplex scheduling
+-------------------------------*/
+
+/* The list of sub-instructions for duplex scheduling was obtained from 
+   the V4 Architecture Specification version 0.94 */
+
+enum duplex_move_direction {
+  UP,
+  DOWN,
+  BOTH
+};
+
+/* qdsp6_duplex_register_p()
+   Predicate that checks if the given register can be used in a duplex 
+   instruction. This will identify instructions that are not 
+   sub-instructions as sub-instructions. However, refining this function
+   to be more accurate does not result in codesize reductions in AMSS */
 static bool
-mips_can_eliminate (const int from ATTRIBUTE_UNUSED, const int to)
+qdsp6_duplex_register_p(int regno)
 {
+  return (regno == DUPLEX_PRED_REG || 
+          regno == SP_REGNUM ||
+          regno == FP_REGNUM ||
+          regno == LINK_REGNUM ||
+          (regno >= DUPLEX_REG_LOW_START &&
+          regno <= DUPLEX_REG_LOW_END) ||
+          (regno >= DUPLEX_REG_HIGH_START &&
+           regno <= DUPLEX_REG_HIGH_END));
+}
+
+/*
+  qdsp6_duplex_insn_p()
+  Given: an instruction insn
+  Returns true if the instruction is a duplex instruction
+*/
+static bool
+qdsp6_duplex_insn_p(struct qdsp6_insn_info* insn)
+{
+  struct qdsp6_reg_access *read;
+  struct qdsp6_reg_access *write;
+
+  if (get_attr_duplex(insn->insn) != DUPLEX_YES)
+    {
+      return (false);
+    }
+
+  for(read = insn->reg_reads; read; read = read->next) 
+    {
+      if (!qdsp6_duplex_register_p (read->regno))
+        {
+          return (false);
+        }
+    }
+
+  for(write = insn->reg_writes; write; write = write->next)
+    {
+      if (!qdsp6_duplex_register_p (write->regno))
+        {
+          return (false);
+        }
+    }
+  return (true);
+}
+
+
+/*
+  qdsp6_move_insn_up_p()
+  Given: an instruction insn
+         a packet containing insn: succ_packet
+         the previous packet: pred_packet
+  Returns true if insn can be moved from succ_packet to pred_packet
+*/
+static bool
+qdsp6_move_insn_up_p(struct qdsp6_insn_info* insn, 
+                     struct qdsp6_packet_info* pred_packet, 
+                     struct qdsp6_packet_info* succ_packet)
+{
+  int i;
+  struct qdsp6_dependence *dependencies = NULL, *dep = NULL;
+
+  /* The following types of dependences prevent an instruction I from succ_packet
+     from being moved into pred_packet: 
+     1. If I is a control flow instruction
+     2. A control dependence between an instruction in pred_packet and I
+     3. A true dependence between an instruction in pred_packet and I
+     4. An output dependence between an instruction in pred_packet and I
+     5. If I produces a value used by a dot-new consumer in succ_packet
+     6. If I consumes a dot-new value produced by an instruction in succ_packet
+     7. An "true-dependence" between I and an instruction in succ_packet
+        This is really an anti-dependence between an instruction in succ_packet
+        and I but the depencency checker ignores the parallel semantics of a 
+        packet. Hence we check if there is a "true-dependence" between an 
+        instruction in succ_packet and I
+  */
+
+  /* Case 1 */
+  if (QDSP6_CONTROL_P (insn))
+    {
+      return false;
+    }
+
+
+  /* First, iterate over pred_packet and check for cases 2, 3, and 4 */
+  for (i = 0; i < pred_packet->num_insns; ++i)
+    {
+      struct qdsp6_insn_info *pred_insn = pred_packet->insns[i];
+      
+      /* Check for control instructions in pred_packet */
+      dependencies = qdsp6_control_dependencies(pred_insn, insn);
+      if (dependencies != NULL) 
+        {
+          return false;
+        }
+      
+      dependencies = qdsp6_true_dependencies(pred_insn, insn);
+      if (dependencies != NULL) 
+        {
+          return false;
+        }
+      
+      dependencies = qdsp6_output_dependencies(pred_insn, insn);
+      if (dependencies != NULL) 
+        {
+          return false;
+        }
+    }
+
+
+  /* Then, iterate over succ_packet and check for cases 5, 6, and 7 */
+  for (i = 0; i < succ_packet->num_insns; ++i)
+    {
+      struct qdsp6_insn_info *succ_insn = succ_packet->insns[i];
+      
+      /* Don't compute dependences of insn with itself */
+      if (insn == succ_insn)
+        {
+          continue;
+        }
+
+      /* Case 5 */
+      dependencies = qdsp6_true_dependencies(succ_insn, insn);
+      for(dep = dependencies; dep; dep = dep->next)
+        {
+         if (dep->type == QDSP6_DEP_REGISTER) 
+           {
+             /* Check for dependence due to p.new */
+             if (QDSP6_NEW_PREDICATE_P (insn) && P_REGNO_P (REGNO (dep->use)))
+               {
+                 return false;
+               }
+           }
+        }
+      
+      /* Cases 6 and 7 */
+      dependencies = qdsp6_true_dependencies(insn, succ_insn);
+      if (dependencies != NULL)
+        {
+          return false;
+        }
+    }
+
   return true;
 }
 
-#undef TARGET_FRAME_POINTER_REQUIRED
-#define TARGET_FRAME_POINTER_REQUIRED hook_bool_void_true
+
+/*
+  qdsp6_move_insn_down_p():
+  Given: an instruction insn
+         a packet containing insn: pred_packet
+         the next packet: succ_packet
+  Returns true if insn can be moved from pred_packet to succ_packet
+*/
+static bool
+qdsp6_move_insn_down_p(struct qdsp6_insn_info* insn, 
+                       struct qdsp6_packet_info* pred_packet, 
+                       struct qdsp6_packet_info* succ_packet)
+{
+  int i;
+  struct qdsp6_dependence *dependencies = NULL, *dep = NULL;
+
+  /* The following types of dependences prevent an instruction I from pred_packet
+     from being moved into succ_packet:
+     1. If I is a control flow instruction and succ_packet is non-empty
+     2. An anti-dependence between I and an instruction in pred_packet
+     3. A control instruction in pred_packet
+     4. If I produces a value used by a dot-new consumer in pred_packet
+     5. If I consumes a dot-new value produced by an instruction in pred_packet 
+     (TODO: This can be relaxed by dot-oldifying I)
+     6. A true dependence between I and an instruction in succ_packet
+     7. An output dependence between I and an instruction in succ_packet
+  */
+
+   /* Case 1 */
+  if (QDSP6_CONTROL_P (insn) && (succ_packet->num_insns > 0))
+    {
+      return false;
+    }
+ 
+  /* First, iterate over pred_packet and check for cases 2, 3, and 4 */
+  for (i = 0; i < pred_packet->num_insns; ++i)
+    {
+      struct qdsp6_insn_info *pred_insn = pred_packet->insns[i];
+      
+      /* Don't compute dependences of insn with itself */
+      if (pred_insn == insn) 
+        {
+          continue;
+        }
+      
+      /* Check for control instructions in pred_packet */
+      if (QDSP6_JUMP_P (pred_insn) || QDSP6_CALL_P (pred_insn) || 
+          QDSP6_EMULATION_CALL_P (pred_insn))
+        {
+          return false;
+        }
+
+      /* Check for an anti-dependence in pred_packet */
+      dependencies = qdsp6_anti_dependencies(insn, pred_insn);
+      if (dependencies != NULL)
+        {
+          return false;
+        }
+
+      /* Check for dot-new consumers in pred_packet
+         There are two types of dot-new producer-consumer situations:
+         1. I produces a predicate that is consumed by a p.new consumer
+         2. I produces a gpr that is consumed by a new-value store 
+      */
+      dependencies = qdsp6_true_dependencies(insn, pred_insn);
+      for(dep = dependencies; dep; dep = dep->next)
+        {
+          if (dep->type == QDSP6_DEP_REGISTER) {
+            /* Check for dependence due to p.new */
+            if (QDSP6_NEW_PREDICATE_P (pred_insn) && P_REGNO_P(REGNO(dep->use)))
+              {
+                return false;
+              }
+            /* Check for dependence due to r.new */
+            if (QDSP6_NEW_GPR_P (pred_insn))
+              {
+                rtx pattern, new_value;
+                pattern = copy_rtx(PATTERN (pred_insn->insn));
+                for_each_rtx(&pattern, qdsp6_find_new_value, &new_value);
+                /* new_value is wrapped in an unspec; hence look 
+                   at XVECEXP(new_value, 0, 0) */
+                if (XVECEXP(new_value, 0, 0) == dep->use)
+                  {
+                    return false;
+                  }
+              }
+          }
+        }
+    }
+
+  /* Case 5 */
+  if (QDSP6_NEW_PREDICATE_P (insn))
+    {
+      return false;
+    }
+
+  /* Then, iterate over succ_packet and check for cases 6 and 7 */
+  for (i = 0; i < succ_packet->num_insns; ++i)
+    {
+      struct qdsp6_insn_info *succ_insn = succ_packet->insns[i];
+
+      dependencies = qdsp6_true_dependencies(insn, succ_insn);
+      if (dependencies != NULL) 
+        {
+          return false;
+        }
+      dependencies = qdsp6_output_dependencies(insn, succ_insn);
+      if (dependencies != NULL) 
+        {
+          return false;
+        }
+    }
+
+  return true;
+}
+
+/*
+  Given a predecessor packet and a successor packet and a direction
+  to move instructions, check if we can create a duplex by moving
+  from one of these packets to another */
+static bool
+qdsp6_pair_duplex_insn(struct qdsp6_packet_info* pred_packet, 
+                       struct qdsp6_packet_info* succ_packet,
+                       enum duplex_move_direction dir)
+{
+  int i;
+
+  if (dir == DOWN || dir == BOTH)
+    {
+      /* 
+         First, check if we can move a duplex instruction from
+         pred_packet to succ_packet:
+         If pred_packet contains a duplex instruction that fits in 
+         the next packet and the dependences allow us to move the instruction 
+         into the next packet, conduct the move.
+      */ 
+      for(i = 0; i < pred_packet->num_insns; ++i)
+        {
+          struct qdsp6_insn_info *insn = pred_packet->insns[i];
+          if (qdsp6_duplex_insn_p(insn) && 
+              qdsp6_insn_fits_in_packet_p(insn, succ_packet) &&
+              qdsp6_move_insn_down_p(insn, pred_packet, succ_packet))
+            {
+              qdsp6_move_insn(insn, pred_packet, insn, succ_packet, true);
+              return (true);
+            }
+        }
+    }
+
+  if (dir == UP || dir == BOTH)
+    {
+      /* 
+         Then, check if we can move a duplex instruction from
+         succ_packet to pred_packet:
+         If succ_packet contains a duplex instruction that fits in 
+         the previous packet and the dependences allow us to move the instruction 
+         into the previous packet, conduct the move.
+      */
+      for(i = 0; i < succ_packet->num_insns; ++i)
+        {
+          struct qdsp6_insn_info *insn = succ_packet->insns[i];
+          if (qdsp6_duplex_insn_p (insn) &&
+              qdsp6_insn_fits_in_packet_p(insn, pred_packet) &&
+              qdsp6_move_insn_up_p(insn, pred_packet, succ_packet))
+            {
+              qdsp6_move_insn(insn, succ_packet, insn, pred_packet, false);
+              return (true);
+            }
+        }
+    }
+
+  /* 
+     If none of these succeed, we should attempt a swap between
+     a duplex instruction in pred_packet and a non-duplex in
+     succ_packet or vice versa (duplex in succ_packet and
+     non-duplex in pred_packet)
+     It may make sense to memoize all instructions that can
+     be moved from one packet to the other before we get 
+     started
+  */
+  return (false);
+}
+
+static int
+qdsp6_count_duplex_insns(struct qdsp6_packet_info *packet)
+{
+  int i, count = 0;
+  for(i = 0; i < packet->num_insns; i++)
+    {
+      struct qdsp6_insn_info *insn = packet->insns[i];
+      if (NOTE_P(insn->insn)) 
+        {
+          continue;
+        }
+      count += (qdsp6_duplex_insn_p (insn));
+    }
+  return(count);
+}
+
+static void 
+compute_pipeline_state (struct qdsp6_packet_info *packet, bool count_duplexes, 
+                             state_t* pipeline_state)
+{
+  int i;
+  for(i = 0; i < packet->num_insns; i++)
+    {
+      struct qdsp6_insn_info *insn = packet->insns[i];
+      if (NOTE_P(insn->insn)) 
+        {
+          continue;
+        }
+
+      if (!count_duplexes && qdsp6_duplex_insn_p(insn)) {
+        continue;
+      }
+      
+      gcc_assert(state_transition(*pipeline_state, insn->insn) < 0);
+    }
+}
+
+/*
+  slot0and1_occupied_p(): Given a packet, predicate that returns true if 
+  slot 0 and 1 are both occupied by instructions in that packet 
+*/
+static bool 
+slot0and1_occupied_p(struct qdsp6_packet_info *packet, bool count_duplexes)
+{
+  state_t pipeline_state;
+  rtx slot0or1_insn;
+  pipeline_state = alloca(state_size());
+  state_reset(pipeline_state);
+
+  slot0or1_insn = make_insn_raw(gen_deallocframe());
+  INSN_UID(slot0or1_insn) = get_max_uid() + 1;
+
+  compute_pipeline_state (packet, count_duplexes, &pipeline_state);
+  return (state_transition(pipeline_state, slot0or1_insn) >= 0);
+}
+
+
+/*
+  slot0or1_occupied_p(): Given a packet, predicate that returns true if
+  either slot 0 or slot 1 is occupied by instructions in that packet 
+*/
+static bool 
+slot0or1_occupied_p(struct qdsp6_packet_info *packet, bool count_duplexes)
+{
+  state_t pipeline_state;
+  rtx slot0or1_insn;
+  pipeline_state = alloca(state_size());
+  state_reset(pipeline_state);
+
+  slot0or1_insn = make_insn_raw(gen_deallocframe());
+  INSN_UID(slot0or1_insn) = get_max_uid() + 1;
+
+  compute_pipeline_state (packet, count_duplexes, &pipeline_state);
+  return ((state_transition(pipeline_state, slot0or1_insn) >= 0) ||
+          (state_transition(pipeline_state, slot0or1_insn) >= 0));
+}
+
+
+/* 
+   qdsp6_pack_duplex_insns(): Operates after instructions have been packetized.
+   Look for duplex opportunities across packets. Move instructions across 
+   packets to create more duplexes. Currently moves instructions between 
+   adjacent packets.
+*/
+static void qdsp6_pack_duplex_insns(void)
+{
+  struct qdsp6_packet_info *packet;
+  int i;
+
+  packet = qdsp6_head_packet; 
+  while(packet && packet->next)
+        {
+          struct qdsp6_packet_info *this_packet = packet;
+          struct qdsp6_packet_info *next_packet = packet->next;
+          int duplex_this_packet = qdsp6_count_duplex_insns(packet);
+          int duplex_next_packet = qdsp6_count_duplex_insns(packet->next);
+          
+          /* Check if neither packet has any duplex instructions */
+          if ((this_packet->num_insns == 0) || (next_packet->num_insns == 0))
+            {
+              packet = packet->next;
+              continue;
+            }
+
+          /* Only consider moving instructions within the same basic block */
+          basic_block this_bb = BLOCK_FOR_INSN(this_packet->insns[0]->insn);
+          basic_block next_bb = BLOCK_FOR_INSN(next_packet->insns[0]->insn);
+          if (this_bb != next_bb)
+            {
+              packet = packet->next;
+              continue;
+            }
+
+          /* 
+             Try splitting the packet if:
+             The packet contains 4 pairable instructions or
+             The packet contains more than 1 pairable instruction and resource
+             restrictions prevent the pairing of those duplexes 
+          */
+          bool split_packet = (duplex_this_packet == 4) || 
+            ((duplex_this_packet >= 2) && 
+             slot0or1_occupied_p(packet, false /* Don't count duplexes */));
+
+          /* First, try to split the packet */
+          if (split_packet) 
+            {
+              /* Create a new packet and choose instructions to move to that
+                 packet */
+              struct qdsp6_packet_info *new_packet = 
+                (struct qdsp6_packet_info *)ggc_alloc_cleared(sizeof(struct qdsp6_packet_info));
+              struct qdsp6_insn_info *movable_insns[2];
+              int num_movable_insns = 0;
+
+              for (i = 0; (i < this_packet->num_insns) && 
+                     (num_movable_insns < 2); ++i)
+                {
+                  if (qdsp6_duplex_insn_p (packet->insns[i]) && 
+                      qdsp6_move_insn_down_p(packet->insns[i], this_packet, 
+                                             new_packet))
+                    {
+                      movable_insns[num_movable_insns++] = packet->insns[i];
+                    }
+                }
+
+              /* Can we move at least two instructions to a new packet */
+              if (num_movable_insns >= 2)
+                {
+                  struct qdsp6_insn_info *third_insn = movable_insns[0],
+                    *fourth_insn = movable_insns[1];
+                  
+                  /* Splice new packet in between this_packet and next_packet */
+                  this_packet->next = new_packet;
+                  new_packet->next = next_packet;
+                  new_packet->prev = this_packet;
+                  next_packet->prev = new_packet;
+                  
+                  qdsp6_move_insn(third_insn, this_packet, third_insn, new_packet, false);
+                  qdsp6_move_insn(fourth_insn, this_packet, fourth_insn, new_packet, false);
+                  packet = new_packet;
+                  continue;
+                }
+            }
+
+
+          /* Then, try to move instructions between packets. Check for 
+             resource restrictions */
+          bool open_slot_this_packet = !slot0and1_occupied_p (this_packet, 
+                                                              true);
+          bool open_slot_next_packet = !slot0and1_occupied_p (next_packet, 
+                                                              true);
+
+          /* We try moving instructions from one packet to the next 
+             if an issue slot is vacant in at least one of the packets */
+          if (open_slot_this_packet || open_slot_next_packet)
+            {
+
+              /* Look for unpaired instructions in this and the next packet */
+              bool unpaired_this_packet = (duplex_this_packet == 1) || 
+                (duplex_this_packet > 2);
+              bool unpaired_next_packet = (duplex_next_packet == 1) || 
+                (duplex_next_packet > 2);
+
+              /* Then check if there are unpaired duplex instructions in this 
+                 packet and the next packet */
+              if (unpaired_this_packet && unpaired_next_packet)
+                {
+                  /* 
+                     If there are unpaired instructions in both packets, 
+                     try to move a duplex instruction between this_packet and 
+                     next_packet (in both directions) to pair the instructions.
+                     If there are extra duplexes in one packet, try to move 
+                     from that packet to the other 
+                  */
+                  enum duplex_move_direction dir = UP;
+                  bool can_move = false;
+                  if ((duplex_this_packet == 1) && (duplex_next_packet == 1))
+                    {
+                      if (open_slot_this_packet && open_slot_next_packet)
+                        {
+                          dir = BOTH;
+                        }
+                      else if (open_slot_this_packet)
+                        {
+                          dir = UP;
+                        }
+                      else if (open_slot_next_packet)
+                        {
+                          dir = DOWN;
+                        }
+                      can_move = true;
+                    }
+                  else if ((duplex_this_packet > 2) && 
+                           (duplex_next_packet == 1) &&
+                           open_slot_next_packet)
+                    {
+                      dir = DOWN;
+                      can_move = true;
+                    }
+                  else if ((duplex_next_packet > 2) && 
+                           (duplex_this_packet == 1) && 
+                           open_slot_this_packet) 
+                    {
+                      dir = UP;
+                      can_move = true;
+                    }
+                  else if ((duplex_next_packet > 2) && 
+                           (duplex_this_packet > 2))
+                    {
+                      /* Not implemented. We must create a new packet in between
+                         this_packet and next_packet and attempt to move instructions
+                         to the new packet */
+                      can_move = false;
+                    }
+
+                  if (can_move)
+                    {
+                      qdsp6_pair_duplex_insn(this_packet, next_packet, dir);
+                    }
+                }
+            }
+          
+          if(!packet->next)
+            {
+              gcc_assert(packet == BB_END_PACKET (this_bb));
+            }
+          packet = packet->next;
+        }
+  
+}
+
+
+/*------------------------------
+Functions for fast math
+-------------------------------*/
+void qdsp6_fast_math_libfunc(rtx operand)
+{
+  if (GET_CODE (XEXP (operand, 0)) == SYMBOL_REF) {
+    const char *name = XSTR (XEXP (operand, 0), 0); 
+    if (!strncmp (name, "sqrt", strlen(name))){
+      rtx sqrt_func = gen_rtx_SYMBOL_REF (Pmode, "fast_sqrt");
+      XEXP (operand, 0) = sqrt_func;
+    }
+    /* gcc's builtin fabs is faster than fast_fabs on floats. So, we do not
+       emit fast_fabs */
+  }
+}
 
 
 /* Should be at the end of the file */

@@ -1,8 +1,3 @@
-/*****************************************************************
-# Copyright (c) $Date$ Qualcomm Innovation Center, Inc..
-# All Rights Reserved.
-# Modified by Qualcomm Innovation Center, Inc. on $Date$
-*****************************************************************/
 /* Swing Modulo Scheduling implementation.
    Copyright (C) 2004, 2005, 2006, 2007, 2008
    Free Software Foundation, Inc.
@@ -876,6 +871,9 @@ setup_sched_infos (void)
   current_sched_info = &sms_sched_info;
 }
 
+
+extern void qdsp6_duplicate_doloop_begin(basic_block, struct loop *);
+
 /* Probability in % that the sms-ed loop rolls enough so that optimized
    version may be entered.  Just a guess.  */
 #define PROB_SMS_ENOUGH_ITERATIONS 80
@@ -1027,7 +1025,13 @@ sms_schedule (void)
             || BARRIER_P (insn)
             || (NONDEBUG_INSN_P (insn) && !JUMP_P (insn)
                 && !single_set (insn) && GET_CODE (PATTERN (insn)) != USE)
-            || (FIND_REG_INC_NOTE (insn, NULL_RTX) != 0)
+                
+            /* ggan: do SWP on auto-inc loop 
+             * Remove the auto-inc predicate to pipeline loops
+             * with post-inc or pre-inc insn
+             */
+            //|| (FIND_REG_INC_NOTE (insn, NULL_RTX) != 0)
+
             || (INSN_P (insn) && (set = single_set (insn))
                 && GET_CODE (SET_DEST (set)) == SUBREG))
         break;
@@ -1081,6 +1085,9 @@ sms_schedule (void)
       unsigned stage_count = 0;
       HOST_WIDEST_INT loop_count = 0;
 
+      int loopnum = 0; 
+      int linenum = 0;
+
       if (! (g = g_arr[loop->num]))
         continue;
 
@@ -1090,6 +1097,9 @@ sms_schedule (void)
 
          fprintf (dump_file, "SMS loop num: %d, file: %s, line: %d\n",
                   loop->num, insn_file (insn), insn_line (insn));
+
+         linenum = insn_line (insn);
+         loopnum = loop->num;
 
          print_ddg (dump_file, g);
       }
@@ -1191,6 +1201,9 @@ sms_schedule (void)
 	  if (dump_file)
 	    {
 	      fprintf (dump_file,
+               "SWP-SMS line=%d, loopnum=%d ###   ", linenum, loopnum);
+
+	      fprintf (dump_file,
 		       "SMS succeeded %d %d (with ii, sc)\n", ps->ii,
 		       stage_count);
 	      print_partial_schedule (ps, dump_file);
@@ -1224,6 +1237,66 @@ sms_schedule (void)
 	      loop_version (loop, comp_rtx, &condition_bb,
 	  		    prob, prob, REG_BR_PROB_BASE - prob,
 			    true);
+               
+#ifdef HAVE_doloop_begin
+
+          gcc_assert (condition_bb != NULL);
+
+/* ggan: Bugzillar #4063
+
+  Before loop_version:
+
+                        loop
+                 +----------------+
+  ___________    |    ______      |
+ |           |   +-->|      |     |
+ | preheader |------>| body |-----+ 
+ |___________|       |______|      
+
+
+  After loop_version:
+
+                                                     original loop
+                                                   +---------------+
+                                    ____________   |    _______    |
+                             true  |            |  +-->|       |   |
+  ___________      ______    +---->| preheader0 |----->| body0 |---+
+ |           |    |      |   |     |____________|      |_______|
+ | preheader |--->| cond |---X      ____________        _______
+ |___________|    |______|   |     |            |      |       |
+                             +---->| preheader1 |----->| body1 |---+
+                             false |____________|  +-->|_______|   |
+                                                   |               |
+                                                   +---------------+
+                                                     duplicate loop
+
+
+  For architectures like qdsp6, the doloop_begin operation (loop0 & loop1)
+  is used to setup the loop count and the loop back address.
+  These operations are located in the "preheader" BB, which is not part of
+  the loop body. loop_version only duplicates the body of the loop.
+  Therefore, the doloop_begin operation is missing in the duplicate loop,
+  which means that the duplicate loop is in-complete.
+  We call the following function to copy the doloop_begin operation from
+  the original "preheader" BB into the preheader BB of the duplicate loop,
+  which is "preheader1" as shown above.
+  In addition, the doloop_begin operations will be adjusted to make sure
+  the loop back address is set to the beginning of the duplicated loop body.
+
+  The tags embedded in duplicated "doloop_begin" and "doloop_end" are the
+  same as their original copies. Do make sure the each pair of "doloop_begin"
+  and "doloop_end" have a unqiue tag, we add a very big number (100,000) to
+  offset it to another number space. Currently, it works perfece because
+  tag number is extracted from the pseudo reg number of the loop count rtx, and
+  we would not have that big number of pseudo reg. 
+
+*/
+
+          /* TODO: must replace the function call below to a architecture independent version
+           */
+          qdsp6_duplicate_doloop_begin(condition_bb, loop);
+ 
+#endif
 	     }
 
 	  /* Set new iteration count of loop kernel.  */

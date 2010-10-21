@@ -504,6 +504,7 @@ extern struct rtl_opt_pass pass_reginfo_init;
 extern struct rtl_opt_pass pass_inc_dec;
 extern struct rtl_opt_pass pass_stack_ptr_mod;
 extern struct rtl_opt_pass pass_initialize_regs;
+extern struct rtl_opt_pass pass_aggregate_access;
 extern struct rtl_opt_pass pass_combine;
 extern struct rtl_opt_pass pass_if_after_combine;
 extern struct rtl_opt_pass pass_partition_blocks;

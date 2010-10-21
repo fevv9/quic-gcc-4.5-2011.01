@@ -1,7 +1,7 @@
 /*****************************************************************
-# Copyright (c) $Date$ Qualcomm Innovation Center, Inc..
+# Copyright (c) $Date: 2010/07/19 20:59:29 $ Qualcomm Innovation Center, Inc..
 # All Rights Reserved.
-# Modified by Qualcomm Innovation Center, Inc. on $Date$
+# Modified by Qualcomm Innovation Center, Inc. on $Date: 2010/07/19 20:59:29 $
 *****************************************************************/
 /* Default initializers for a generic GCC target.
    Copyright (C) 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010
@@ -176,6 +176,10 @@
 
 #ifndef TARGET_INVALID_WITHIN_DOLOOP
 #define TARGET_INVALID_WITHIN_DOLOOP default_invalid_within_doloop
+#endif
+
+#ifndef TARGET_LOOP_INVALID_FOR_FORCED_UNROLL
+#define TARGET_LOOP_INVALID_FOR_FORCED_UNROLL hook_bool_const_tree_false
 #endif
 
 #ifndef TARGET_VALID_DLLIMPORT_ATTRIBUTE_P
@@ -1006,6 +1010,7 @@
   TARGET_STACK_PROTECT_GUARD,			\
   TARGET_STACK_PROTECT_FAIL,			\
   TARGET_INVALID_WITHIN_DOLOOP,			\
+  TARGET_LOOP_INVALID_FOR_FORCED_UNROLL, \
   TARGET_VALID_DLLIMPORT_ATTRIBUTE_P,		\
   TARGET_CONST_ANCHOR,				\
   TARGET_CALLS,					\

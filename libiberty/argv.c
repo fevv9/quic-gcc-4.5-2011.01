@@ -483,6 +483,65 @@ expandargv (int *argcp, char ***argvp)
     }
 }
 
+/*#if _WIN32 */
+#define MAX_WIN_ARG_SIZE 28000 /* Windows cannot handle more than 32000 chars 
+                                  (according to msdn doc), but the
+                                  actual value varies. We want to be safe*/
+
+/*
+CHECK_ARG_SIZE => Check the size of argv on windows.
+If too big to pass on command-line, create a file 
+to pass args in and dump the args in the file. Return 
+the new argv array
+*/
+char **check_arg_size(char **inargs, char **arg_temp_file)
+{
+      int arglen = 0;
+      int argc;
+
+      if (arg_temp_file == NULL) return inargs;
+
+      *arg_temp_file = NULL;
+
+      for (argc = 0; inargs[argc] != NULL; argc++)
+              arglen += strlen(inargs[argc]);
+
+      /* If the arg size is > MAX_WIN_ARG_SIZE, pass it in a file */
+      /* Bug #4302 */
+      if (arglen > MAX_WIN_ARG_SIZE) 
+      {
+           char **newarg = (char **) xmalloc (sizeof(char*) * 3);
+           *arg_temp_file = make_temp_file(".arg");
+
+           /* Construct the new argv array
+              newarg[0] => Program name
+              newarg[1] => "@argfile"
+              newarg[2] => NULL
+           */
+           newarg[0] = (char *) xmalloc (strlen(inargs[0]) + 2);
+           strcpy(newarg[0],inargs[0]);
+
+           newarg[1] = (char *) xmalloc ((strlen(*arg_temp_file)+3)*sizeof(char));
+
+           FILE *argf = fopen(*arg_temp_file,"w");
+
+           /* Write program args to file */
+           writeargv(&inargs[1], argf);
+
+           fclose(argf);
+
+           strcpy(newarg[1],"@");
+           strcat(newarg[1],*arg_temp_file);
+
+           newarg[2]=0;
+           return newarg;
+      }
+      /* argv not too big. Return input argv */
+      return inargs; 
+}
+
+/*#endif */
+
 #ifdef MAIN
 
 /* Simple little test driver. */

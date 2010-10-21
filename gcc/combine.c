@@ -5874,8 +5874,18 @@ simplify_set (rtx x)
   if (GET_MODE_CLASS (mode) == MODE_INT
       && GET_MODE_BITSIZE (mode) <= HOST_BITS_PER_WIDE_INT)
     {
-      src = force_to_mode (src, mode, ~(HOST_WIDE_INT) 0, 0);
-      SUBST (SET_SRC (x), src);
+      rtx new_x = copy_rtx (x);
+      rtx new_src = SET_SRC (new_x);
+
+      /* Make sure simplified operation is available on the target */
+      new_src = force_to_mode (new_src, mode, ~(HOST_WIDE_INT) 0, 0);
+      SUBST (SET_SRC (new_x), new_src);
+
+      if (recog (new_x, x, NULL) >= 0)
+        {
+          src = force_to_mode (src, mode, ~(HOST_WIDE_INT) 0, 0);
+          SUBST (SET_SRC (x), src);
+        }
     }
 
   /* If we are setting CC0 or if the source is a COMPARE, look for the use of

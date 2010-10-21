@@ -33,6 +33,8 @@ along with GCC; see the file COPYING3.  If not see
 #include "expr.h"
 #include "hashtab.h"
 #include "recog.h"
+#include "target.h"
+#include "targhooks.h"
 
 /* This pass performs loop unrolling and peeling.  We only perform these
    optimizations on innermost loops (with single exception) because
@@ -1355,6 +1357,14 @@ decide_unroll_stupid (struct loop *loop, int flags)
 
   if (dump_file)
     fprintf (dump_file, "\n;; Considering unrolling loop stupidly\n");
+
+  /* GCC currently fails to uroll HW loops for Q6 properly,
+     so for now we will just skip them. This is likely destroys
+     any benefit of -funroll-all-loops, but now time to fix it properly now
+   */
+  if(loop->header &&
+     targetm.loop_invalid_for_forced_unroll(BB_END(loop->header)))
+    return;
 
   /* nunroll = total number of copies of the original loop body in
      unrolled loop (i.e. if it is 2, we have to duplicate loop body once.  */

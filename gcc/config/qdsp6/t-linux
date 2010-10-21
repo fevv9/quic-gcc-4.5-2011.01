@@ -1,1 +1,24 @@
-EXTRA_MULTILIB_PARTS = crtbegin.o crtbeginT.o crtend.o
+
+LIB1ASMFUNCS += _qdsp_memcpy_likely_aligned_min32bytes_mult8bytes
+
+# Assemble startup files.
+$(T)crti.o: $(srcdir)/config/qdsp6/crti.asm $(GCC_PASSES)
+	$(GCC_FOR_TARGET) $(GCC_CFLAGS) $(MULTILIB_CFLAGS) $(INCLUDES) \
+	-c -o $(T)crti.o -x assembler $(srcdir)/config/qdsp6/crti.asm
+
+$(T)crtn.o: $(srcdir)/config/qdsp6/crtn.asm $(GCC_PASSES)
+	$(GCC_FOR_TARGET) $(GCC_CFLAGS) $(MULTILIB_CFLAGS) $(INCLUDES) \
+	-c -o $(T)crtn.o -x assembler $(srcdir)/config/qdsp6/crtn.asm
+
+# Compile crtbeginS.o and crtendS.o with pic.
+CRTSTUFF_T_CFLAGS_S = $(CRTSTUFF_T_CFLAGS) -fPIC
+# Compile libgcc.a with pic.
+TARGET_LIBGCC2_CFLAGS = -fPIC
+
+MULTILIB_OPTIONS    = march=qdsp6v3 mG0lib fpic
+MULTILIB_DIRNAMES   = v3 G0 fpic
+MULTILIB_MATCHES    = fpic=fPIC
+MULTILIB_EXCEPTIONS =
+MULTILIB_EXTRA_OPTS = mbuilding-multilib G0
+
+EXTRA_MULTILIB_PARTS = crtbegin.o crtend.o crti.o crtn.o crtbeginS.o crtendS.o

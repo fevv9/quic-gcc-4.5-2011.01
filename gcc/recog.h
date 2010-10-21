@@ -84,10 +84,10 @@ extern int num_validated_changes (void);
 extern void cancel_changes (int);
 extern int constrain_operands (int);
 extern int constrain_operands_cached (int);
-extern int memory_address_addr_space_p (enum machine_mode, rtx, addr_space_t);
+extern int memory_address_addr_space_p (enum machine_mode, const_rtx, addr_space_t);
 #define memory_address_p(mode,addr) \
 	memory_address_addr_space_p ((mode), (addr), ADDR_SPACE_GENERIC)
-extern int strict_memory_address_addr_space_p (enum machine_mode, rtx,
+extern int strict_memory_address_addr_space_p (enum machine_mode, const_rtx,
 					       addr_space_t);
 #define strict_memory_address_p(mode,addr) \
 	strict_memory_address_addr_space_p ((mode), (addr), ADDR_SPACE_GENERIC)
@@ -106,7 +106,7 @@ extern int reg_fits_class_p (rtx, enum reg_class, int, enum machine_mode);
 
 extern int offsettable_memref_p (rtx);
 extern int offsettable_nonstrict_memref_p (rtx);
-extern int offsettable_address_addr_space_p (int, enum machine_mode, rtx,
+extern int offsettable_address_addr_space_p (int, enum machine_mode, const_rtx,
 					     addr_space_t);
 #define offsettable_address_p(strict,mode,addr) \
 	offsettable_address_addr_space_p ((strict), (mode), (addr), \
@@ -246,7 +246,7 @@ extern struct operand_alternative recog_op_alt[MAX_RECOG_OPERANDS][MAX_RECOG_ALT
 /* A table defined in insn-output.c that give information about
    each insn-code value.  */
 
-typedef int (*insn_operand_predicate_fn) (rtx, enum machine_mode);
+typedef int (*insn_operand_predicate_fn) (const_rtx, enum machine_mode);
 typedef const char * (*insn_output_fn) (rtx *, rtx);
 typedef rtx (*insn_gen_fn) (rtx, ...);
 

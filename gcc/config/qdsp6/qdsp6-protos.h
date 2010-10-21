@@ -1,8 +1,3 @@
-/*****************************************************************
-# Copyright (c) $Date$ Qualcomm Innovation Center, Inc..
-# All Rights Reserved.
-# Modified by Qualcomm Innovation Center, Inc. on $Date$
-*****************************************************************/
 /* Prototypes for qdsp6.c functions used in the md file & elsewhere.
    Copyright (C) 1999, 2000, 2002 Free Software Foundation, Inc.
 
@@ -43,10 +38,7 @@ extern void qdsp6_hardware_loop (void);
 #ifdef TREE_CODE
 extern int  qdsp6_data_alignment(tree, int);
 extern int  qdsp6_constant_alignment(tree, int);
-extern int  qdsp6_local_alignment(tree, int);
-#if GCC_3_4_6
-extern bool qdsp6_must_pass_in_stack(enum machine_mode, tree);
-#endif /* GCC_3_4_6 */
+extern unsigned int qdsp6_local_alignment(tree, int);
 extern int  qdsp6_function_arg_advance(CUMULATIVE_ARGS, enum machine_mode, tree, int);
 extern void qdsp6_asm_output_aligned_decl_common(
               FILE *,
@@ -63,33 +55,28 @@ extern void qdsp6_asm_output_aligned_decl_local(
 #endif /* TREE_CODE */
 
 #ifdef RTX_CODE
-#if GCC_3_4_6
-extern enum reg_class qdsp6_secondary_reload_class(rtx, enum reg_class);
-#endif /* GCC_3_4_6 */
 extern rtx  qdsp6_return_addr_rtx(int, rtx);
 extern bool qdsp6_legitimate_address_p(enum machine_mode, rtx, bool, const char *);
-#if GCC_3_4_6
-extern bool qdsp6_reg_ok_for_base_p(rtx, bool);
-#endif /* GCC_3_4_6 */
+extern bool qdsp6_loop_invalid_for_forced_unroll(rtx loop_header);
 extern void qdsp6_final_prescan_insn(rtx, rtx *, int);
-extern void qdsp6_print_operand(FILE *, rtx, int);
-extern void qdsp6_print_operand_address(FILE *, rtx);
-extern bool qdsp6_expand_movstr(rtx[]);
+extern void qdsp6_print_operand(FILE *, const_rtx, int);
+extern void qdsp6_print_operand_address(FILE *, const_rtx);
+extern rtx  qdsp6_expand_compare(enum rtx_code);
+extern rtx  qdsp6_expand_compare2(enum rtx_code, rtx op0, rtx op1);
 extern bool qdsp6_expand_movmem(rtx[]);
 extern bool qdsp6_expand_setmem(rtx[]);
-extern bool qdsp6_expand_clrstr(rtx[]);
-extern bool qdsp6_expand_strlen(rtx[]);
-extern bool qdsp6_expand_cmpstr(rtx[]);
-extern rtx  qdsp6_expand_compare(enum rtx_code);
-extern rtx  qdsp6_expand_compare2(enum rtx_code code, rtx op0, rtx op1);
-extern int  qdsp6_GP_or_reg_operand_c(rtx, enum machine_mode);
-extern int  qdsp6_nonimmediate_operand_with_GP_c(rtx, enum machine_mode);
+extern rtx  qdsp6_branch_hint(rtx);
 extern int  qdsp6_instructions_dependent(rtx, rtx);
+extern unsigned HOST_WIDE_INT sdata_symbolic_operand_smallest_accessable_size(rtx);
 #endif /* RTX_CODE */
+
+extern void qdsp6_fast_math_libfunc(rtx);
 
 #if defined(TREE_CODE) && defined(RTX_CODE)
 extern rtx  qdsp6_function_arg(CUMULATIVE_ARGS, enum machine_mode, tree, int);
-#if GCC_3_4_6
-extern rtx  qdsp6_function_value(tree, tree, bool);
-#endif /* GCC_3_4_6 */
 #endif /* TREE_CODE && RTX_CODE */
+
+/* PIC support */
+extern rtx legitimize_pic_address(rtx, enum machine_mode, rtx);
+extern rtx qdsp6_legitimize_address (rtx, rtx, enum machine_mode);
+extern void require_pic_register (void);

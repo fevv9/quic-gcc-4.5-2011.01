@@ -145,6 +145,9 @@ int do_collecting = 1;
 int do_collecting = 0;
 #endif
 
+#if _WIN32 
+static char *collect2_arg_temp_file = NULL;
+#endif
 /* Cook up an always defined indication of whether we proceed the
    "EXPORT_LIST" way.  */
 
@@ -1999,6 +2002,13 @@ collect_wait (const char *prog, struct pex_obj *pex)
       if (WIFEXITED (status))
 	return WEXITSTATUS (status);
     }
+#if _WIN32 
+  if (collect2_arg_temp_file)
+  {
+    unlink_if_ordinary(collect2_arg_temp_file);
+    collect2_arg_temp_file = NULL;
+  }
+#endif
   return 0;
 }
 
@@ -2100,8 +2110,19 @@ collect_execute (const char *prog, char **argv, const char *outname,
   if (pex == NULL)
     fatal_perror ("pex_init failed");
 
+#if _WIN32
+  {
+    char **newargv = check_arg_size(argv, &collect2_arg_temp_file);
+    if (collect2_arg_temp_file && debug)
+        fprintf(stderr, "Passing args in file %s to %s\n", collect2_arg_temp_file,
+                         newargv[0]);
+    errmsg = pex_run (pex, PEX_LAST | PEX_SEARCH, newargv[0], newargv, outname,
+		    errname, &err);
+  }
+#else
   errmsg = pex_run (pex, flags, argv[0], argv, outname,
 		    errname, &err);
+#endif
   if (errmsg != NULL)
     {
       if (err != 0)
