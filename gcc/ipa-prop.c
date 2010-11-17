@@ -1597,7 +1597,7 @@ ipa_modify_formal_parameters (tree fndecl, ipa_parm_adjustment_vec adjustments,
        || (VEC_index (ipa_parm_adjustment_t, adjustments, 0)->copy_param
 	 && VEC_index (ipa_parm_adjustment_t, adjustments, 0)->base_index == 0))
     {
-      new_type = copy_node (orig_type);
+      new_type = build_distinct_type_copy (orig_type);
       TYPE_ARG_TYPES (new_type) = new_reversed;
     }
   else
@@ -1607,6 +1607,12 @@ ipa_modify_formal_parameters (tree fndecl, ipa_parm_adjustment_vec adjustments,
 							 new_reversed));
       TYPE_CONTEXT (new_type) = TYPE_CONTEXT (orig_type);
       DECL_VINDEX (fndecl) = NULL_TREE;
+    }
+  /* When signature changes, we need to clear builtin info.  */
+  if (DECL_BUILT_IN (fndecl))
+    {
+      DECL_BUILT_IN_CLASS (fndecl) = NOT_BUILT_IN;
+      DECL_FUNCTION_CODE (fndecl) = (enum built_in_function) 0;
     }
 
   /* This is a new type, not a copy of an old type.  Need to reassociate

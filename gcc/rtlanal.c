@@ -2223,6 +2223,11 @@ may_trap_p_1 (const_rtx x, unsigned flags)
   if (x == 0)
     return 0;
   code = GET_CODE (x);
+  
+  // _LSY_ 
+  //fprintf(stderr,"[may_trap_p_1] (%s) flags (%d)\t",GET_RTX_NAME(code),flags); 
+  //print_rtl_single(stderr,x); 
+  
   switch (code)
     {
       /* Handle these cases quickly.  */

@@ -8379,7 +8379,7 @@ qdsp6_can_speculate_p(struct qdsp6_insn_info *insn_info, basic_block bb)
   /* Don't speculate any control insns, stores, or insns that might trap. */
   if(QDSP6_CONTROL_P (insn_info)
      || insn_info->stores
-     || may_trap_p(PATTERN (insn_info->insn))){
+     || may_trap_or_fault_p(PATTERN (insn_info->insn))){
     return false;
   }
 
@@ -9467,6 +9467,7 @@ qdsp6_can_add_insn_to_packet_p(
 {
   struct qdsp6_insn_info *original_insn = *insn;
 
+  
   if(qdsp6_packet_insn_dependence_p(packet, insn, false)){
     gcc_assert(*insn == original_insn);
     return false;
@@ -10090,7 +10091,7 @@ qdsp6_pull_up_insns(void)
               if(target_packet == packet){
                 break;
               }
-            }
+            }		  
             qdsp6_remove_insn_from_packet(packet, original_insn);
             qdsp6_add_insn_to_packet(target_packet, insn, false);
             break;
@@ -10216,7 +10217,6 @@ qdsp6_pull_up_insns(void)
     fputs("\n\n\n\n", dump_file);
     print_rtl(dump_file, get_insns());
   }
-
 #if 0
   verify_flow_info();
 #endif /* 0 */
@@ -11755,6 +11755,7 @@ static void qdsp6_pack_duplex_insns(void)
         }
   
 }
+
 
 
 /*------------------------------
