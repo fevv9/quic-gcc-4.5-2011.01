@@ -9750,25 +9750,26 @@
   ""
 )
 
-
-
-(define_peephole2
-  [(set (match_operand:SI 0 "gr_register_operand" "")
-        (match_operand:SI 1 "gr_register_operand" ""))
-   (set (match_operand:SI 2 "gr_register_operand" "")
-        (match_operand:SI 3 "gr_register_operand" ""))]
-  "   (   true_regnum(operands[0]) % 2 == 0
-       && true_regnum(operands[0]) + 1 == true_regnum(operands[2]))
-   || (   true_regnum(operands[2]) % 2 == 0
-       && true_regnum(operands[2]) + 1 == true_regnum(operands[0]))"
-  [(parallel [(set (match_dup 0) (match_dup 1))
-              (set (match_dup 2) (match_dup 3))])]
-  {
-    if(true_regnum(operands[3]) == true_regnum(operands[0])){
-      operands[3] = operands[1];
-    }
-  }
-)
+; This functionality is now covered by qdsp6_local_combine_pass
+; This pattern needs to be disabled since it can potentially 
+; produce deadlock swap situation. See bug 3855 for details.
+;(define_peephole2
+;  [(set (match_operand:SI 0 "gr_register_operand" "")
+;        (match_operand:SI 1 "gr_register_operand" ""))
+;   (set (match_operand:SI 2 "gr_register_operand" "")
+;        (match_operand:SI 3 "gr_register_operand" ""))]
+;  "   (   true_regnum(operands[0]) % 2 == 0
+;       && true_regnum(operands[0]) + 1 == true_regnum(operands[2]))
+;   || (   true_regnum(operands[2]) % 2 == 0
+;       && true_regnum(operands[2]) + 1 == true_regnum(operands[0]))"
+;  [(parallel [(set (match_dup 0) (match_dup 1))
+;              (set (match_dup 2) (match_dup 3))])]
+;  {
+;    if(true_regnum(operands[3]) == true_regnum(operands[0])){
+;      operands[3] = operands[1];
+;    }
+;  }
+;)
 
 (define_peephole2
   [(set (match_operand:SI 0 "gr_register_operand" "")

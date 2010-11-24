@@ -772,6 +772,7 @@ qdsp6_optimization_options(int level, int size)
     target_flags |= MASK_PACKETS;
     target_flags |= MASK_PULLUP;
     target_flags |= MASK_AGGREGATE_ACCESS;
+    target_flags |= MASK_LOCAL_COMBINE;
   }
 
   qdsp6_falign = QDSP6_NO_FALIGN;
