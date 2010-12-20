@@ -6962,6 +6962,12 @@ qdsp6_expand_compare2(enum rtx_code code, rtx op0, rtx op1)
 
   p_reg = gen_reg_rtx (BImode);
 
+  if (!gr_register_operand(op0, GET_MODE(op0)))
+  {
+    gcc_assert (!reload_completed);
+    op0 = copy_to_mode_reg (GET_MODE(op0), op0);
+  }
+
   /* emit (set (reg:BI p_reg) (compare_code:BI op0 op1)) */
   emit_insn(gen_rtx_SET (VOIDmode, p_reg,
                          gen_rtx_fmt_ee(compare_code, BImode, op0, op1)));
@@ -8083,8 +8089,8 @@ qdsp6_register_copy_word_p (rtx insn)
       return false;
     }
   
-  dest_reg = register_operand(SET_DEST (reg_copy), SImode);
-  src_reg_imm = register_operand(SET_SRC (reg_copy), SImode) || 
+  dest_reg = gr_register_operand(SET_DEST (reg_copy), SImode);
+  src_reg_imm = gr_register_operand(SET_SRC (reg_copy), SImode) || 
     const_int_operand(SET_SRC (reg_copy), SImode);
 
   return (dest_reg && src_reg_imm);
