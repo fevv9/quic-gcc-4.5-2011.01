@@ -1364,6 +1364,7 @@ OBJS-common = \
 	tree-ssa-dce.o \
 	tree-ssa-dom.o \
 	tree-ssa-dse.o \
+	tree-ssa-machine.o \
 	tree-ssa-forwprop.o \
 	tree-ssa-ifcombine.o \
 	tree-ssa-live.o \
@@ -2322,6 +2323,11 @@ tree-ssa-dse.o : tree-ssa-dse.c $(CONFIG_H) $(SYSTEM_H) coretypes.h \
    $(TM_H) $(GGC_H) $(TREE_H) $(RTL_H) $(TM_P_H) $(BASIC_BLOCK_H) \
    $(TREE_FLOW_H) $(TREE_PASS_H) $(TREE_DUMP_H) domwalk.h $(FLAGS_H) \
    $(DIAGNOSTIC_H) $(TIMEVAR_H) langhooks.h
+tree-ssa-machine.o : tree-ssa-machine.c $(CONFIG_H) $(SYSTEM_H) $(TREE_H) \
+	$(RTL_H) $(TM_P_H) $(TREE_FLOW_H) $(DIAGNOSTIC_H) $(TIMEVAR_H) $(TM_H) \
+	coretypes.h $(TREE_DUMP_H) tree-pass.h $(FLAGS_H) $(BASIC_BLOCK_H) \
+	$(GGC_H) hard-reg-set.h $(OBSTACK_H) $(GIMPLE_H) $(CFGLOOP_H) \
+	tree-scalar-evolution.h
 tree-ssa-forwprop.o : tree-ssa-forwprop.c $(CONFIG_H) $(SYSTEM_H) coretypes.h \
    $(TM_H) $(GGC_H) $(TREE_H) $(RTL_H) $(TM_P_H) $(BASIC_BLOCK_H) \
    $(TREE_FLOW_H) $(TREE_PASS_H) $(TREE_DUMP_H) $(DIAGNOSTIC_H) $(TIMEVAR_H) \

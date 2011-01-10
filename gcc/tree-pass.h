@@ -378,6 +378,7 @@ extern struct gimple_opt_pass pass_tree_loop_done;
 extern struct gimple_opt_pass pass_ch;
 extern struct gimple_opt_pass pass_ccp;
 extern struct gimple_opt_pass pass_phi_only_cprop;
+extern struct gimple_opt_pass pass_tree_machine;
 extern struct gimple_opt_pass pass_build_ssa;
 extern struct gimple_opt_pass pass_build_alias;
 extern struct gimple_opt_pass pass_build_ealias;

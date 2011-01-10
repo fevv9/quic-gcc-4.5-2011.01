@@ -1277,6 +1277,10 @@ ftree-dce
 Common Report Var(flag_tree_dce) Optimization
 Enable SSA dead code elimination optimization on trees
 
+ftree-machine
+Common Report Var(flag_tree_machine) Optimization
+Enable Machine Specific optimisation pass on tree from
+
 ftree-dominator-opts
 Common Report Var(flag_tree_dom) Optimization
 Enable dominator optimizations

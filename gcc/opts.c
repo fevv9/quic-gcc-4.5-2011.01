@@ -870,6 +870,7 @@ decode_options (unsigned int argc, const char **argv)
   flag_tree_dce = opt1;
   flag_tree_dom = opt1;
   flag_tree_dse = opt1;
+  flag_tree_machine = 0;
   flag_tree_ter = opt1;
   flag_tree_sra = opt1;
   flag_tree_copyrename = opt1;

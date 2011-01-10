@@ -3464,6 +3464,65 @@ insert_into_preds_of_block (basic_block block, unsigned int exprnum,
   return true;
 }
 
+/* See if we want to prevent this speculation */ 
+static int 
+ignore_this_set (bitmap_set_t set, pre_expr val)
+{
+  tree dst_name = NULL; 
+  unsigned i;
+  bitmap_iterator bi; 
+
+  if(!val || !set || !flag_tree_machine)  return 0; 
+
+  switch (val->kind) 
+    {
+    case NAME:
+      dst_name = PRE_EXPR_NAME (val); 
+      break;
+    case CONSTANT: 
+    case NARY:
+    case REFERENCE:
+    default:
+      return 0;
+      break; 
+    }
+
+  FOR_EACH_EXPR_ID_IN_SET (set, i, bi) 
+    {
+      const pre_expr expr = expression_for_id (i);
+
+      switch (expr->kind) 
+        {
+        case NARY:
+            {
+              unsigned int i;
+              vn_nary_op_t nary = PRE_EXPR_NARY (expr);
+              for (i = 0; i < nary->length; i++) 
+                {
+                  if((nary->opcode == MULT_EXPR) 
+                     && (dst_name == nary->op[i]))
+                    {
+                      if(dump_file)
+                        {
+                          fprintf(dump_file,
+                            "Machine specific refuse to speculate expr: ");
+                          print_pre_expr (dump_file, expr);  
+                          fprintf(dump_file,"\n"); 
+                        }
+                      return 1; 
+                    }
+                }
+            }
+          break;
+        case CONSTANT:
+        case NAME: 
+        case REFERENCE:
+        default: 
+          break;
+        }
+    }
+  return 0; 
+}
 
 
 /* Perform insertion of partially redundant values.
@@ -3491,6 +3550,7 @@ do_regular_insertion (basic_block block, basic_block dom)
   VEC (pre_expr, heap) *exprs = sorted_array_from_bitmap_set (ANTIC_IN (block));
   pre_expr expr;
   int i;
+  pre_expr dst_to_be_moved = NULL; 
 
   for (i = 0; VEC_iterate (pre_expr, exprs, i, expr); i++)
     {
@@ -3507,6 +3567,8 @@ do_regular_insertion (basic_block block, basic_block dom)
 	  pre_expr eprime = NULL;
 	  edge_iterator ei;
 	  pre_expr edoubleprime = NULL;
+      unsigned int val_id = 0; 
+      unsigned int val_expr_id = 0; 
 	  bool do_insertion = false;
 
 	  val = get_expr_value_id (expr);
@@ -3567,14 +3629,20 @@ do_regular_insertion (basic_block block, basic_block dom)
 		    first_s = edoubleprime;
 		  else if (!pre_expr_eq (first_s, edoubleprime))
 		    all_same = false;
+          
+          dst_to_be_moved = edoubleprime; 
+          val_id = get_expression_id (edoubleprime); 
+          val_expr_id = get_expr_value_id (edoubleprime); 
 		}
 	    }
 	  /* If we can insert it, it's not the same value
 	     already existing along every predecessor, and
 	     it's defined by some predecessor, it is
 	     partially redundant.  */
-	  if (!cant_insert && !all_same && by_some && do_insertion
-	      && dbg_cnt (treepre_insert))
+	  if (!cant_insert && !all_same 
+          && by_some && do_insertion
+	      && dbg_cnt (treepre_insert) 
+          && !ignore_this_set( ANTIC_IN (block),dst_to_be_moved))
 	    {
 	      if (insert_into_preds_of_block (block, get_expression_id (expr),
 					      avail))

@@ -6861,6 +6861,12 @@ qdsp6_expand_compare(enum rtx_code code)
 
   p_reg = gen_reg_rtx (BImode);
 
+  if (!gr_register_operand(op0, GET_MODE(op0)))
+  {
+    gcc_assert (!reload_completed);
+    op0 = copy_to_mode_reg (GET_MODE(op0), op0);
+  }
+  
   /* emit (set (reg:BI p_reg) (compare_code:BI op0 op1)) */
   emit_insn(gen_rtx_SET (VOIDmode, p_reg,
                          gen_rtx_fmt_ee(compare_code, BImode, op0, op1)));

@@ -349,6 +349,7 @@ const_iteration_count (rtx count_reg, basic_block pre_header,
   get_ebb_head_tail (pre_header, pre_header, &head, &tail);
 
   for (insn = tail; insn != PREV_INSN (head); insn = PREV_INSN (insn))
+  {
     if (NONDEBUG_INSN_P (insn) && single_set (insn) &&
 	rtx_equal_p (count_reg, SET_DEST (single_set (insn))))
       {
@@ -362,6 +363,36 @@ const_iteration_count (rtx count_reg, basic_block pre_header,
 
 	return NULL_RTX;
       }
+      else if (INSN_P (insn) && GET_CODE (PATTERN (insn)) == PARALLEL )
+      {
+        /* Here we have this kind of instruction:
+            { lc0 = #1000; sa0 = #94; [nil] = clobber() }
+                (insn 67 39 46 2 pipe.c:7 (parallel [
+                    (set (reg:SI 37 lc0)
+                        (const_int 1000 [0x3e8]))
+                    (set (reg:SI 36 sa0)
+                        (const_int 94 [0x5e]))
+                    (clobber (scratch:SI))
+                ]) 149 {doloop_begin0} (nil))
+        */ 
+        int i; 
+        rtx reg; 
+        rtx side_effect = PATTERN (insn); 
+        rtx parallel = side_effect;
+
+        for(i = 0; i < XVECLEN (parallel,0); i++){
+            side_effect = XVECEXP (parallel,0, i);
+            if(GET_CODE (side_effect) == SET){
+                reg = SET_DEST (side_effect);
+                if (rtx_equal_p (count_reg,reg) && GET_CODE (SET_SRC (side_effect)) == CONST_INT)
+                {
+                   *count = INTVAL (SET_SRC (side_effect));
+                   return side_effect;
+                } 
+            }
+        }
+      }
+  }
 
   return NULL_RTX;
 }
@@ -1300,9 +1331,11 @@ sms_schedule (void)
 	     }
 
 	  /* Set new iteration count of loop kernel.  */
-          if (count_reg && count_init)
-	    SET_SRC (single_set (count_init)) = GEN_INT (loop_count
+          if (count_reg && count_init){
+	    if(single_set (count_init)) SET_SRC (single_set (count_init)) = GEN_INT (loop_count
 						     - stage_count + 1);
+        else  SET_SRC (count_init) = GEN_INT (loop_count - stage_count + 1);
+           }
 
 	  /* Now apply the scheduled kernel to the RTL of the loop.  */
 	  permute_partial_schedule (ps, g->closing_branch->first_note);
