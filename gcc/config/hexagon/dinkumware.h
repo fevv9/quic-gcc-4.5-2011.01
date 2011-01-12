@@ -22,7 +22,7 @@ Miscellaneous Parameters
 
 
 /*------------
-QDSP6 specific
+HEXAGON specific
 ------------*/
 
-#define QDSP6_DINKUMWARE 1
+#define HEXAGON_DINKUMWARE 1

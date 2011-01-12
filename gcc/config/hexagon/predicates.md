@@ -299,7 +299,7 @@
   (if_then_else (match_test "!reload_completed")
                 (match_operand 0 "nonimmediate_operand")
                 (ior (and (match_operand 0 "memory_operand")
-                          (match_test "qdsp6_legitimate_address_p(GET_MODE (op),
+                          (match_test "hexagon_legitimate_address_p(GET_MODE (op),
                                                                   XEXP (op, 0),
                                                                   true,
                                                                   \"econd\")"))
@@ -349,7 +349,7 @@
   (if_then_else (match_test "!reload_completed")
                 (match_operand 0 "general_operand")
                 (ior (and (match_operand 0 "memory_operand")
-                          (match_test "qdsp6_legitimate_address_p(GET_MODE (op),
+                          (match_test "hexagon_legitimate_address_p(GET_MODE (op),
                                                                   XEXP (op, 0),
                                                                   true,
                                                                   \"econd\")"))

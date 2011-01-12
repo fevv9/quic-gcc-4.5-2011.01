@@ -1,4 +1,4 @@
-/* libgcc routines for the QDSP6.
+/* libgcc routines for the HEXAGON.
    Copyright (C) 1998, 1999 Free Software Foundation, Inc.
 
 This file is part of GCC.
@@ -513,7 +513,7 @@ FUNC_END moddi3
 #endif /* L_moddi3 */
 
 #ifdef L_qdsp_memcpy_likely_aligned_min32bytes_mult8bytes
-#if __QDSP6_ARCH__ >= 4
+#if __HEXAGON_ARCH__ >= 4
 FUNC_START qdsp_memcpy_likely_aligned_min32bytes_mult8bytes
 	{
 		p0 = bitsclr(r1,#7)
@@ -594,7 +594,7 @@ FUNC_START qdsp_memcpy_likely_aligned_min32bytes_mult8bytes
 2:	jump memcpy
 #endif
 FUNC_END qdsp_memcpy_likely_aligned_min32bytes_mult8bytes
-#endif /* __QDSP6_ARCH__ >= 4 */
+#endif /* __HEXAGON_ARCH__ >= 4 */
 #endif /* L_qdsp_memcpy_likely_aligned_min32bytes_mult8bytes */
 
 
@@ -734,7 +734,7 @@ FUNC_END deallocframe
    fp+#-32, r25:24 at fp+#-40, and r27:26 at fp+#-48. */
 
 
-#if __QDSP6_ARCH__ >= 4
+#if __HEXAGON_ARCH__ >= 4
 /* The compiler knows that the save_* functions clobber LR.  No other
    registers should be used without informing the compiler. */
 
@@ -866,7 +866,7 @@ FUNC_END __deallocframe
 
 
 
-#else /* __QDSP6_ARCH__ < 4 */
+#else /* __HEXAGON_ARCH__ < 4 */
 
 
 
@@ -995,7 +995,7 @@ FUNC_START __deallocframe
 		deallocframe
 		jumpr lr
 FUNC_END __deallocframe
-#endif /* __QDSP6_ARCH__ < 4 */
+#endif /* __HEXAGON_ARCH__ < 4 */
 
 /*common_entry_exit_abi1.S*/
 /* Save r25:24 at fp+#-8 and r27:26 at fp+#-16. */
@@ -1128,15 +1128,15 @@ thread_create:
  	.type thread_stop, @function
 
 thread_stop:
-#if __QDSP6_ARCH__ < 4
+#if __HEXAGON_ARCH__ < 4
 	r0 = ssr
-#endif /* __QDSP6_ARCH__ < 4 */
+#endif /* __HEXAGON_ARCH__ < 4 */
 {
-#if __QDSP6_ARCH__ < 4
+#if __HEXAGON_ARCH__ < 4
 	r0 = extractu (r0, #3, #19)
-#else /* __QDSP6_ARCH__ >= 4 */
+#else /* __HEXAGON_ARCH__ >= 4 */
 	r0 = htid
-#endif /* __QDSP6_ARCH__ >= 4 */
+#endif /* __HEXAGON_ARCH__ >= 4 */
 	r1 = #1
 }
 	r1 = lsl (r1, r0)
@@ -1159,15 +1159,15 @@ thread_stop:
 	/* R0 = thread mask */
 thread_join:
 	/* Firstly, remove the current thread from the mask. */
-#if __QDSP6_ARCH__ < 4
+#if __HEXAGON_ARCH__ < 4
 	r1 = ssr
-#endif /* __QDSP6_ARCH__ < 4 */
+#endif /* __HEXAGON_ARCH__ < 4 */
 {
-#if __QDSP6_ARCH__ < 4
+#if __HEXAGON_ARCH__ < 4
 	r1 = extractu (r1, #3, #19)
-#else /* __QDSP6_ARCH__ >= 4 */
+#else /* __HEXAGON_ARCH__ >= 4 */
 	r1 = htid
-#endif /* __QDSP6_ARCH__ >= 4 */
+#endif /* __HEXAGON_ARCH__ >= 4 */
 	r3 = #1
 }
 	r1 = asl (r3, r1)
@@ -1179,7 +1179,7 @@ thread_join:
 	r2 = modectl
 	r2 = and (r0, r2)
 	{ p0 = cmp.eq (r2, #0)
-#if __QDSP6_ARCH__ >= 3
+#if __HEXAGON_ARCH__ >= 3
 	  if (p0.new) jumpr:nt lr }
 	/* Save some power on V3 and later. */
 	pause (#1)
@@ -1200,15 +1200,15 @@ thread_join:
  	.type thread_get_tnum, @function
 
 thread_get_tnum:
-#if __QDSP6_ARCH__ < 4
+#if __HEXAGON_ARCH__ < 4
 	r0 = ssr
-#endif /* __QDSP6_ARCH__ < 4 */
+#endif /* __HEXAGON_ARCH__ < 4 */
 {
-#if __QDSP6_ARCH__ < 4
+#if __HEXAGON_ARCH__ < 4
 	r0 = extractu (r0, #3, #19)
-#else /* __QDSP6_ARCH__ >= 4 */
+#else /* __HEXAGON_ARCH__ >= 4 */
 	r0 = htid
-#endif /* __QDSP6_ARCH__ >= 4 */
+#endif /* __HEXAGON_ARCH__ >= 4 */
 	jumpr lr
 }
 

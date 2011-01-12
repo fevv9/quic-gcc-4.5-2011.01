@@ -2112,20 +2112,20 @@ powerpc-xilinx-eabi*)
   	extra_options="${extra_options} rs6000/sysv4.opt"
   	tmake_file="rs6000/t-fprules rs6000/t-fprules-fpbit rs6000/t-ppcgas rs6000/t-ppccomm"
   	;;
-qdsp6-*-elf*)
+hexagon-*-elf*)
 	if test x$with_dinkumware = xyes ; then
-		tm_file="${tm_file} dbxelf.h elfos.h svr4.h qdsp6/elf.h qdsp6/dinkumware.h"
+		tm_file="${tm_file} dbxelf.h elfos.h svr4.h hexagon/elf.h hexagon/dinkumware.h"
 	else
-		tm_file="${tm_file} dbxelf.h elfos.h svr4.h qdsp6/elf.h qdsp6/newlib.h"
+		tm_file="${tm_file} dbxelf.h elfos.h svr4.h hexagon/elf.h hexagon/newlib.h"
 	fi
-	tmake_file="${tmake_file} qdsp6/t-qdsp6 qdsp6/t-elf"
+	tmake_file="${tmake_file} hexagon/t-hexagon hexagon/t-elf"
 	extra_parts="crti.o crtn.o crtbegin.o crtend.o"
 	need_64bit_hwint=yes
 	default_use_cxa_atexit=no
 	;;
-qdsp6-*-linux*)
-	tm_file="${tm_file} dbxelf.h elfos.h qdsp6/elf.h linux.h qdsp6/linux.h"
-	tmake_file="${tmake_file} qdsp6/t-qdsp6 qdsp6/t-linux"
+hexagon-*-linux*)
+	tm_file="${tm_file} dbxelf.h elfos.h hexagon/elf.h linux.h hexagon/linux.h"
+	tmake_file="${tmake_file} hexagon/t-hexagon hexagon/t-linux"
 	extra_parts="crtbegin.o crtbeginT.o crtend.o"
 	need_64bit_hwint=yes
 	;;

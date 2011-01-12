@@ -1,5 +1,5 @@
 
-/* QDSP6 specific functions
+/* HEXAGON specific functions
    Copyright (C) 1998, 1999, 2000, 2001, 2002 Free Software Foundation, Inc.
 
    This file is part of GCC.
@@ -64,344 +64,347 @@
 
 
 
-enum qdsp6_architecture qdsp6_arch = QDSP6_ARCH_UNSPECIFIED;
-enum qdsp6_abi qdsp6_abi = QDSP6_ABI_UNSPECIFIED;
-int qdsp6_features;
-enum qdsp6_falign qdsp6_falign = QDSP6_FALIGN_UNSPECIFIED;
-bool qdsp6_dual_memory_accesses = true;
+enum hexagon_architecture hexagon_arch = HEXAGON_ARCH_UNSPECIFIED;
+enum hexagon_abi hexagon_abi = HEXAGON_ABI_UNSPECIFIED;
+int hexagon_features;
+enum hexagon_falign hexagon_falign = HEXAGON_FALIGN_UNSPECIFIED;
+bool hexagon_dual_memory_accesses = true;
 
-static GTY(()) struct qdsp6_packet_info *qdsp6_head_packet;
-static GTY(()) struct qdsp6_packet_info *qdsp6_tail_packet;
-static struct qdsp6_bb_aux_info *qdsp6_head_bb_aux;
+/* Used for qdsp6 compatibility */
+int hexagon_qdsp6_compat = 0;
+
+static GTY(()) struct hexagon_packet_info *hexagon_head_packet;
+static GTY(()) struct hexagon_packet_info *hexagon_tail_packet;
+static struct hexagon_bb_aux_info *hexagon_head_bb_aux;
 
 
 
 
-static bool qdsp6_handle_option(size_t code, const char *arg, int value);
+static bool hexagon_handle_option(size_t code, const char *arg, int value);
 
-static struct machine_function *qdsp6_init_machine_status(void);
+static struct machine_function *hexagon_init_machine_status(void);
 
-static int qdsp6_array_alignment(tree type, int align);
-static bool qdsp6_align_anon_bitfield(void);
+static int hexagon_array_alignment(tree type, int align);
+static bool hexagon_align_anon_bitfield(void);
 
-static bool qdsp6_default_short_enums(void);
+static bool hexagon_default_short_enums(void);
 
-static enum reg_class qdsp6_secondary_reload(
+static enum reg_class hexagon_secondary_reload(
                         bool in_p,
                         rtx x,
                         enum reg_class reload_class,
                         enum machine_mode reload_mode,
                         secondary_reload_info *sri);
 
-static bool qdsp6_save_register_p(unsigned int regno);
-static void qdsp6_make_prologue_epilogue_decisions(
-              struct qdsp6_frame_info *info);
-static struct qdsp6_frame_info *qdsp6_frame_info(void);
+static bool hexagon_save_register_p(unsigned int regno);
+static void hexagon_make_prologue_epilogue_decisions(
+              struct hexagon_frame_info *info);
+static struct hexagon_frame_info *hexagon_frame_info(void);
 
-static bool qdsp6_must_pass_in_stack(enum machine_mode mode, const_tree type);
+static bool hexagon_must_pass_in_stack(enum machine_mode mode, const_tree type);
 
-static bool qdsp6_vector_mode_supported_p(enum machine_mode mode);
+static bool hexagon_vector_mode_supported_p(enum machine_mode mode);
 
-static rtx qdsp6_function_value(
+static rtx hexagon_function_value(
              const_tree ret_type,
              const_tree fn_decl_or_type,
              bool outgoing);
 
-static bool qdsp6_return_in_memory(const_tree type, const_tree fntype);
+static bool hexagon_return_in_memory(const_tree type, const_tree fntype);
 
-static void qdsp6_asm_function_prologue(FILE *file, HOST_WIDE_INT size);
+static void hexagon_asm_function_prologue(FILE *file, HOST_WIDE_INT size);
 
-static bool qdsp6_function_ok_for_sibcall(tree decl, tree exp);
+static bool hexagon_function_ok_for_sibcall(tree decl, tree exp);
 
-#if QDSP6_DINKUMWARE
-static void qdsp6_init_libfuncs(void);
-#endif /* QDSP6_DINKUMWARE */
+#if HEXAGON_DINKUMWARE
+static void hexagon_init_libfuncs(void);
+#endif /* HEXAGON_DINKUMWARE */
 
-static bool qdsp6_legit_addr_const_p(
+static bool hexagon_legit_addr_const_p(
               HOST_WIDE_INT value,
               enum machine_mode mode,
               int num_bits);
-static bool qdsp6_reg_ok_for_base_p(rtx x, bool reg_ok_strict_p);
-static bool qdsp6_reg_ok_for_index_p(rtx x, bool reg_ok_strict_p);
-static tree qdsp6_vectorize_builtin_mask_for_load(void);
+static bool hexagon_reg_ok_for_base_p(rtx x, bool reg_ok_strict_p);
+static bool hexagon_reg_ok_for_index_p(rtx x, bool reg_ok_strict_p);
+static tree hexagon_vectorize_builtin_mask_for_load(void);
 
-static bool qdsp6_free_immediate(rtx x, int outer_code, int value);
-static bool qdsp6_rtx_costs(
+static bool hexagon_free_immediate(rtx x, int outer_code, int value);
+static bool hexagon_rtx_costs(
               rtx x,
               int code,
               int outer_code,
               int *total,
               bool speed);
-bool qdsp6_rtx_costs_debug(
+bool hexagon_rtx_costs_debug(
        rtx x,
        int code,
        int outer_code,
        int *total,
        bool speed);
-static int qdsp6_address_cost(rtx address, bool speed);
-int qdsp6_address_cost_debug(rtx address, bool speed);
+static int hexagon_address_cost(rtx address, bool speed);
+int hexagon_address_cost_debug(rtx address, bool speed);
 
-static int qdsp6_sched_issue_rate(void);
-static void qdsp6_sched_dependencies_eval (rtx, rtx);
-static int qdsp6_sched_first_cycle_multipass_dfa_lookahead(void);
+static int hexagon_sched_issue_rate(void);
+static void hexagon_sched_dependencies_eval (rtx, rtx);
+static int hexagon_sched_first_cycle_multipass_dfa_lookahead(void);
 
-static section *qdsp6_asm_select_rtx_section(
+static section *hexagon_asm_select_rtx_section(
                   enum machine_mode mode,
                   rtx x,
                   unsigned HOST_WIDE_INT align);
-static section * qdsp6_select_section (tree decl, int reloc, unsigned HOST_WIDE_INT align ATTRIBUTE_UNUSED); 
-static bool qdsp6_in_small_data_p(const_tree exp);
+static section * hexagon_select_section (tree decl, int reloc, unsigned HOST_WIDE_INT align ATTRIBUTE_UNUSED); 
+static bool hexagon_in_small_data_p(const_tree exp);
 static void qpds6_load_pic_register (void);
-static void qdsp6_unique_section (tree decl, int reloc); 
-static void qdsp6_elf_asm_named_section (const char *name, unsigned int flags,tree decl ATTRIBUTE_UNUSED); 
+static void hexagon_unique_section (tree decl, int reloc); 
+static void hexagon_elf_asm_named_section (const char *name, unsigned int flags,tree decl ATTRIBUTE_UNUSED); 
 
-static void qdsp6_output_operand(FILE *f, rtx x, int code);
+static void hexagon_output_operand(FILE *f, rtx x, int code);
 
-static void qdsp6_fixup_cfg(void);
-static void qdsp6_fixup_doloops(void);
-static void qdsp6_machine_dependent_reorg(void);
-static void qdsp6_local_combine_pass(void);
+static void hexagon_fixup_cfg(void);
+static void hexagon_fixup_doloops(void);
+static void hexagon_machine_dependent_reorg(void);
+static void hexagon_local_combine_pass(void);
 
-static void qdsp6_init_builtins(void);
+static void hexagon_init_builtins(void);
 
-static tree qdsp6_builtin_decl (unsigned code, bool initialize_p ATTRIBUTE_UNUSED);
+static tree hexagon_builtin_decl (unsigned code, bool initialize_p ATTRIBUTE_UNUSED);
 
 static rtx expand_one_builtin(
              enum insn_code icode,
              rtx target,
              tree exp,
              int nargs);
-static rtx qdsp6_expand_builtin(
+static rtx hexagon_expand_builtin(
              tree exp,
              rtx target,
              rtx subtarget,
              enum machine_mode mode,
              int ignore);
-static const char *qdsp6_invalid_within_doloop(const_rtx insn);
-static void qdsp6_print_jump(FILE *file, const_rtx x);
-static void qdsp6_print_transfer(FILE *file, const_rtx x);
-static void qdsp6_print_condition(FILE *file, const_rtx x, bool non_inverted);
-static void qdsp6_print_address(FILE *file, const_rtx x);
-static void qdsp6_print_unary_op(FILE *file, const char *op, const_rtx x);
-static void qdsp6_print_binary_op(FILE *file, const char *op, const_rtx x);
-static void qdsp6_print_swapped_binary_op(FILE *file, const char *op, const_rtx x);
-static void qdsp6_print_binary_op_with_option(FILE *file, const char *op, const char *option, const_rtx x);
-static void qdsp6_print_trinary_op(FILE *file, const char *op, const_rtx x);
-static void qdsp6_print_vecexp(FILE *file, const char *open, const char *separator, const char *close, const_rtx x);
-static void qdsp6_print_rtx(FILE *file, const_rtx x);
-static void qdsp6_print_rtl_pseudo_asm(FILE *stream, const_rtx x);
+static const char *hexagon_invalid_within_doloop(const_rtx insn);
+static void hexagon_print_jump(FILE *file, const_rtx x);
+static void hexagon_print_transfer(FILE *file, const_rtx x);
+static void hexagon_print_condition(FILE *file, const_rtx x, bool non_inverted);
+static void hexagon_print_address(FILE *file, const_rtx x);
+static void hexagon_print_unary_op(FILE *file, const char *op, const_rtx x);
+static void hexagon_print_binary_op(FILE *file, const char *op, const_rtx x);
+static void hexagon_print_swapped_binary_op(FILE *file, const char *op, const_rtx x);
+static void hexagon_print_binary_op_with_option(FILE *file, const char *op, const char *option, const_rtx x);
+static void hexagon_print_trinary_op(FILE *file, const char *op, const_rtx x);
+static void hexagon_print_vecexp(FILE *file, const char *open, const char *separator, const char *close, const_rtx x);
+static void hexagon_print_rtx(FILE *file, const_rtx x);
+static void hexagon_print_rtl_pseudo_asm(FILE *stream, const_rtx x);
 
-static void qdsp6_compute_dwarf_frame_information(void);
-static void qdsp6_allocate_stack(
+static void hexagon_compute_dwarf_frame_information(void);
+static void hexagon_allocate_stack(
               unsigned HOST_WIDE_INT size,
               int allocate_stack_insn);
-static void qdsp6_deallocate_stack(unsigned HOST_WIDE_INT size);
-static tree qdsp6_special_case_memcpy_fn(const char *name);
-static void qdsp6_emit_special_case_memcpy_fn(
+static void hexagon_deallocate_stack(unsigned HOST_WIDE_INT size);
+static tree hexagon_special_case_memcpy_fn(const char *name);
+static void hexagon_emit_special_case_memcpy_fn(
               tree *fn,
               const char *name,
               rtx dst,
               rtx src,
               rtx size,
               bool tailcall);
-static void qdsp6_expand_movmem_inline(rtx operands[], bool volatile_p);
+static void hexagon_expand_movmem_inline(rtx operands[], bool volatile_p);
 
-void qdsp6_print_insn_info(FILE *file, struct qdsp6_insn_info *insn_info);
-void qdsp6_debug_insn_info(struct qdsp6_insn_info *insn_info);
-void qdsp6_print_packet(FILE *file, struct qdsp6_packet_info *packet);
-void qdsp6_print_packets(FILE *file, struct qdsp6_packet_info *packet);
-void qdsp6_debug_packet(struct qdsp6_packet_info *packet);
-void qdsp6_debug_packets(void);
-void qdsp6_print_bb_packets(FILE *file, basic_block bb);
-void qdsp6_debug_all_bb_packets(void);
-void qdsp6_debug_bb_packets(basic_block bb);
+void hexagon_print_insn_info(FILE *file, struct hexagon_insn_info *insn_info);
+void hexagon_debug_insn_info(struct hexagon_insn_info *insn_info);
+void hexagon_print_packet(FILE *file, struct hexagon_packet_info *packet);
+void hexagon_print_packets(FILE *file, struct hexagon_packet_info *packet);
+void hexagon_debug_packet(struct hexagon_packet_info *packet);
+void hexagon_debug_packets(void);
+void hexagon_print_bb_packets(FILE *file, basic_block bb);
+void hexagon_debug_all_bb_packets(void);
+void hexagon_debug_bb_packets(basic_block bb);
 
-static int  qdsp6_get_flags(rtx insn);
-static struct qdsp6_reg_access *qdsp6_add_reg_access(
-                                  struct qdsp6_reg_access *accesses,
+static int  hexagon_get_flags(rtx insn);
+static struct hexagon_reg_access *hexagon_add_reg_access(
+                                  struct hexagon_reg_access *accesses,
                                   rtx reg,
                                   int flags);
-static struct qdsp6_mem_access *qdsp6_add_mem_access(
-                                  struct qdsp6_mem_access *accesses,
+static struct hexagon_mem_access *hexagon_add_mem_access(
+                                  struct hexagon_mem_access *accesses,
                                   rtx mem,
                                   int flags);
-static int  qdsp6_record_writes(rtx *x, void *insn_info);
-static int  qdsp6_record_reads(rtx *x, void *insn_info);
-static struct qdsp6_insn_info *qdsp6_get_insn_info(rtx insn);
-static struct qdsp6_packet_info *qdsp6_start_new_packet(void);
-static void qdsp6_add_insn_to_packet(
-              struct qdsp6_packet_info *packet,
-              struct qdsp6_insn_info *insn_info,
+static int  hexagon_record_writes(rtx *x, void *insn_info);
+static int  hexagon_record_reads(rtx *x, void *insn_info);
+static struct hexagon_insn_info *hexagon_get_insn_info(rtx insn);
+static struct hexagon_packet_info *hexagon_start_new_packet(void);
+static void hexagon_add_insn_to_packet(
+              struct hexagon_packet_info *packet,
+              struct hexagon_insn_info *insn_info,
               bool add_to_beginning);
-static void qdsp6_remove_insn_from_packet(
-              struct qdsp6_packet_info *packet,
-              struct qdsp6_insn_info *insn_info);
-static bool qdsp6_can_speculate_p(
-              struct qdsp6_insn_info *insn_info,
+static void hexagon_remove_insn_from_packet(
+              struct hexagon_packet_info *packet,
+              struct hexagon_insn_info *insn_info);
+static bool hexagon_can_speculate_p(
+              struct hexagon_insn_info *insn_info,
               basic_block bb);
-static void qdsp6_add_live_out(struct qdsp6_insn_info *insn_info, basic_block bb);
-static bool qdsp6_predicable_p(struct qdsp6_insn_info *insn_info);
-static struct qdsp6_insn_info *qdsp6_predicate_insn(
-                                 struct qdsp6_insn_info *insn_info,
-                                 struct qdsp6_insn_info *jump_insn_info,
+static void hexagon_add_live_out(struct hexagon_insn_info *insn_info, basic_block bb);
+static bool hexagon_predicable_p(struct hexagon_insn_info *insn_info);
+static struct hexagon_insn_info *hexagon_predicate_insn(
+                                 struct hexagon_insn_info *insn_info,
+                                 struct hexagon_insn_info *jump_insn_info,
                                  bool invert_condition);
-static bool qdsp6_gpr_dot_newable_p(
-              struct qdsp6_insn_info *producer,
-              struct qdsp6_insn_info *consumer,
-              struct qdsp6_dependence *dependence);
-static struct qdsp6_insn_info *qdsp6_dot_newify_gpr(
-                                 struct qdsp6_insn_info *insn_info,
-                                 struct qdsp6_dependence *dependence);
-static int qdsp6_find_new_value(rtx *x, void *y);
-static void qdsp6_dot_oldify_gpr(struct qdsp6_insn_info *insn_info);
-static bool qdsp6_predicate_dot_newable_p(struct qdsp6_insn_info *insn_info);
-static struct qdsp6_insn_info *qdsp6_dot_newify_predicate(
-                                 struct qdsp6_insn_info *insn_info);
-static bool qdsp6_prologue_insn_p(struct qdsp6_insn_info *insn_info);
-static struct qdsp6_dependence *qdsp6_add_dependence(
-                                  struct qdsp6_dependence *dependencies,
-                                  enum qdsp6_dependence_type type,
+static bool hexagon_gpr_dot_newable_p(
+              struct hexagon_insn_info *producer,
+              struct hexagon_insn_info *consumer,
+              struct hexagon_dependence *dependence);
+static struct hexagon_insn_info *hexagon_dot_newify_gpr(
+                                 struct hexagon_insn_info *insn_info,
+                                 struct hexagon_dependence *dependence);
+static int hexagon_find_new_value(rtx *x, void *y);
+static void hexagon_dot_oldify_gpr(struct hexagon_insn_info *insn_info);
+static bool hexagon_predicate_dot_newable_p(struct hexagon_insn_info *insn_info);
+static struct hexagon_insn_info *hexagon_dot_newify_predicate(
+                                 struct hexagon_insn_info *insn_info);
+static bool hexagon_prologue_insn_p(struct hexagon_insn_info *insn_info);
+static struct hexagon_dependence *hexagon_add_dependence(
+                                  struct hexagon_dependence *dependencies,
+                                  enum hexagon_dependence_type type,
                                   rtx set,
                                   rtx use);
-static struct qdsp6_dependence *qdsp6_remove_dependence(
-                                  struct qdsp6_dependence *dependencies,
-                                  struct qdsp6_dependence *dependence);
-static struct qdsp6_dependence *qdsp6_concat_dependencies(
-                                  struct qdsp6_dependence *a,
-                                  struct qdsp6_dependence *b);
-static struct qdsp6_dependence *qdsp6_control_dependencies(
-                                  struct qdsp6_insn_info *first,
-                                  struct qdsp6_insn_info *second);
-static struct qdsp6_dependence *qdsp6_true_dependencies(
-                                  struct qdsp6_insn_info *writer,
-                                  struct qdsp6_insn_info *reader);
-static struct qdsp6_dependence *qdsp6_output_dependencies(
-                                  struct qdsp6_insn_info *insn0,
-                                  struct qdsp6_insn_info *insn1);
-static struct qdsp6_dependence *qdsp6_anti_dependencies(
-                                  struct qdsp6_insn_info *earlier,
-                                  struct qdsp6_insn_info *later);
-static bool qdsp6_packet_insn_dependence_p(
-              struct qdsp6_packet_info *packet,
-              struct qdsp6_insn_info **insn_info,
+static struct hexagon_dependence *hexagon_remove_dependence(
+                                  struct hexagon_dependence *dependencies,
+                                  struct hexagon_dependence *dependence);
+static struct hexagon_dependence *hexagon_concat_dependencies(
+                                  struct hexagon_dependence *a,
+                                  struct hexagon_dependence *b);
+static struct hexagon_dependence *hexagon_control_dependencies(
+                                  struct hexagon_insn_info *first,
+                                  struct hexagon_insn_info *second);
+static struct hexagon_dependence *hexagon_true_dependencies(
+                                  struct hexagon_insn_info *writer,
+                                  struct hexagon_insn_info *reader);
+static struct hexagon_dependence *hexagon_output_dependencies(
+                                  struct hexagon_insn_info *insn0,
+                                  struct hexagon_insn_info *insn1);
+static struct hexagon_dependence *hexagon_anti_dependencies(
+                                  struct hexagon_insn_info *earlier,
+                                  struct hexagon_insn_info *later);
+static bool hexagon_packet_insn_dependence_p(
+              struct hexagon_packet_info *packet,
+              struct hexagon_insn_info **insn_info,
               bool ignore_jumps);
-static bool qdsp6_packet_insn_internal_dependence_p(
-              struct qdsp6_packet_info *packet,
-              struct qdsp6_insn_info *insn_info);
-static bool qdsp6_insn_fits_in_packet_p(
-              struct qdsp6_insn_info *insn,
-              struct qdsp6_packet_info *packet);
-static bool qdsp6_can_add_insn_to_packet_p(
-              struct qdsp6_insn_info **insn,
-              struct qdsp6_packet_info *packet);
-static rtx  qdsp6_bb_real_head_insn(basic_block bb);
-static rtx  qdsp6_bb_real_end_insn(basic_block bb);
-static void qdsp6_create_bb_sentinel_packet(struct qdsp6_packet_info *packet);
-static void qdsp6_finalize_transformations(
-              struct qdsp6_packet_info *first,
-              struct qdsp6_packet_info *last);
-static void qdsp6_pack_insns(bool need_bb_info);
-static void qdsp6_move_insn(
-              struct qdsp6_insn_info *old_insn,
-              struct qdsp6_packet_info *from_packet,
-              struct qdsp6_insn_info *new_insn,
-              struct qdsp6_packet_info *to_packet,
+static bool hexagon_packet_insn_internal_dependence_p(
+              struct hexagon_packet_info *packet,
+              struct hexagon_insn_info *insn_info);
+static bool hexagon_insn_fits_in_packet_p(
+              struct hexagon_insn_info *insn,
+              struct hexagon_packet_info *packet);
+static bool hexagon_can_add_insn_to_packet_p(
+              struct hexagon_insn_info **insn,
+              struct hexagon_packet_info *packet);
+static rtx  hexagon_bb_real_head_insn(basic_block bb);
+static rtx  hexagon_bb_real_end_insn(basic_block bb);
+static void hexagon_create_bb_sentinel_packet(struct hexagon_packet_info *packet);
+static void hexagon_finalize_transformations(
+              struct hexagon_packet_info *first,
+              struct hexagon_packet_info *last);
+static void hexagon_pack_insns(bool need_bb_info);
+static void hexagon_move_insn(
+              struct hexagon_insn_info *old_insn,
+              struct hexagon_packet_info *from_packet,
+              struct hexagon_insn_info *new_insn,
+              struct hexagon_packet_info *to_packet,
               bool move_to_beginning);
-static void qdsp6_sanity_check_cfg_packet_info(void);
-static void qdsp6_pull_up_insns(void);
-static void qdsp6_init_packing_info(bool need_bb_info);
-static void qdsp6_remove_new_values(void);
-static void qdsp6_free_packing_info(bool free_bb_info);
-static void qdsp6_packet_optimizations(void);
-static bool qdsp6_move_insn_down_p(struct qdsp6_insn_info* insn, 
-             struct qdsp6_packet_info* pred_packet, 
-             struct qdsp6_packet_info* succ_packet);
+static void hexagon_sanity_check_cfg_packet_info(void);
+static void hexagon_pull_up_insns(void);
+static void hexagon_init_packing_info(bool need_bb_info);
+static void hexagon_remove_new_values(void);
+static void hexagon_free_packing_info(bool free_bb_info);
+static void hexagon_packet_optimizations(void);
+static bool hexagon_move_insn_down_p(struct hexagon_insn_info* insn, 
+             struct hexagon_packet_info* pred_packet, 
+             struct hexagon_packet_info* succ_packet);
 
-static void qdsp6_final_pack_insns(void);
-static void qdsp6_pack_duplex_insns(void);
+static void hexagon_final_pack_insns(void);
+static void hexagon_pack_duplex_insns(void);
 
 
 bool is_restrict_qualified (tree t);
 
-static bool qdsp6_can_be_new_value_store_p(
-  struct qdsp6_insn_info *producer, 
-  struct qdsp6_insn_info *consumer,
-  struct qdsp6_dependence *dependencer);
+static bool hexagon_can_be_new_value_store_p(
+  struct hexagon_insn_info *producer, 
+  struct hexagon_insn_info *consumer,
+  struct hexagon_dependence *dependencer);
 
-static bool qdsp6_can_be_new_value_p(
-  struct qdsp6_insn_info *producer, 
-  struct qdsp6_insn_info *consumer,
-  struct qdsp6_dependence *dependencer);
+static bool hexagon_can_be_new_value_p(
+  struct hexagon_insn_info *producer, 
+  struct hexagon_insn_info *consumer,
+  struct hexagon_dependence *dependencer);
 
 /*generate a new value nump for V4 */
-static bool qdsp6_can_be_new_value_jump_p(
-  struct qdsp6_insn_info *consumer,
-  struct qdsp6_dependence *dependencer);
-static void qdsp6_new_value_jump(void ); 
-static struct qdsp6_insn_info * qdsp6_nvj_query_jump(
-              struct qdsp6_packet_info *packet, 
+static bool hexagon_can_be_new_value_jump_p(
+  struct hexagon_insn_info *consumer,
+  struct hexagon_dependence *dependencer);
+static void hexagon_new_value_jump(void ); 
+static struct hexagon_insn_info * hexagon_nvj_query_jump(
+              struct hexagon_packet_info *packet, 
               bool *dot_new_predicate,
               basic_block bb);
-static struct qdsp6_insn_info * qdsp6_nvj_query_compare (
-              struct qdsp6_packet_info *packet,
-              struct qdsp6_insn_info *jump_p_insn_info);
-static bool qdsp6_used_operands( 
-              struct qdsp6_packet_info *packet, 
-              struct qdsp6_insn_info *jump_p_insn_info,
-              struct qdsp6_insn_info *compare_insn_info);
-static bool qdsp6_register_defined(
-              struct qdsp6_insn_info *insn, 
+static struct hexagon_insn_info * hexagon_nvj_query_compare (
+              struct hexagon_packet_info *packet,
+              struct hexagon_insn_info *jump_p_insn_info);
+static bool hexagon_used_operands( 
+              struct hexagon_packet_info *packet, 
+              struct hexagon_insn_info *jump_p_insn_info,
+              struct hexagon_insn_info *compare_insn_info);
+static bool hexagon_register_defined(
+              struct hexagon_insn_info *insn, 
               unsigned int reg_no );
-static bool qdsp6_register_used(
-              struct qdsp6_insn_info *insn,
+static bool hexagon_register_used(
+              struct hexagon_insn_info *insn,
               unsigned int reg_no  );
-static struct qdsp6_packet_info * qdsp6_get_source_packet(
-              struct qdsp6_packet_info *packet, 
+static struct hexagon_packet_info * hexagon_get_source_packet(
+              struct hexagon_packet_info *packet, 
               rtx feeder_reg, 
-              struct qdsp6_insn_info *d_insn,
-              struct qdsp6_insn_info **s_insn);
-static bool qdsp6_move_insn_across_packet_down( 
-              struct qdsp6_packet_info *from_packet, 
-              struct qdsp6_packet_info *to_packet, 
-              struct qdsp6_insn_info *insn);
-static bool qdsp6_nvj_move_possible(
-              struct qdsp6_packet_info *candidate_packet,
-              struct qdsp6_packet_info *prev_packet,
-              struct qdsp6_insn_info *jump_p_insn_info, 
-              struct qdsp6_insn_info *compare_info_info, 
+              struct hexagon_insn_info *d_insn,
+              struct hexagon_insn_info **s_insn);
+static bool hexagon_move_insn_across_packet_down( 
+              struct hexagon_packet_info *from_packet, 
+              struct hexagon_packet_info *to_packet, 
+              struct hexagon_insn_info *insn);
+static bool hexagon_nvj_move_possible(
+              struct hexagon_packet_info *candidate_packet,
+              struct hexagon_packet_info *prev_packet,
+              struct hexagon_insn_info *jump_p_insn_info, 
+              struct hexagon_insn_info *compare_info_info, 
               rtx *operator, 
               rtx *pred,
               rtx *op1, 
               rtx *op2,
               rtx *b_label,
-              struct qdsp6_packet_info **src_packet,
-              struct qdsp6_insn_info **src_insn,
+              struct hexagon_packet_info **src_packet,
+              struct hexagon_insn_info **src_insn,
               int *op_cnt);
 
-static bool qdsp6_nvj_compare_p(rtx insn);
-static int  qdsp6_get_reads_count(struct qdsp6_insn_info *insn_info);
+static bool hexagon_nvj_compare_p(rtx insn);
+static int  hexagon_get_reads_count(struct hexagon_insn_info *insn_info);
 
-static bool qdsp6_nvj_new_gpr_p(
-              struct qdsp6_insn_info *consumer,
-              struct qdsp6_dependence *dependence);
-static bool qdsp6_nvj_check_resources ( 
-              struct qdsp6_insn_info *q_insn, 
-              struct qdsp6_packet_info *nvj_packet,
-              struct qdsp6_insn_info *comp_insn, 
-              struct qdsp6_insn_info *jump_insn, 
+static bool hexagon_nvj_new_gpr_p(
+              struct hexagon_insn_info *consumer,
+              struct hexagon_dependence *dependence);
+static bool hexagon_nvj_check_resources ( 
+              struct hexagon_insn_info *q_insn, 
+              struct hexagon_packet_info *nvj_packet,
+              struct hexagon_insn_info *comp_insn, 
+              struct hexagon_insn_info *jump_insn, 
               rtx nvj_insn_rtx );
-static bool qdsp6_in_bb_live_out( 
+static bool hexagon_in_bb_live_out( 
               basic_block bb, 
-              struct qdsp6_insn_info *q_insn);
-static void qdsp6_remove_empty_packet( 
+              struct hexagon_insn_info *q_insn);
+static void hexagon_remove_empty_packet( 
               basic_block bb,
-              struct qdsp6_packet_info *packet);
-static bool qdsp6_predicate_use_DImode( struct qdsp6_insn_info *insn_info);
-static rtx qdsp6_nvj_swap_operands(rtx insn);
-static rtx qdsp6_nvj_get_compare( rtx nvj_insn, int elem_num);
-static rtx qdsp6_nvj_get_operand( rtx insn, int op_count);
+              struct hexagon_packet_info *packet);
+static bool hexagon_predicate_use_DImode( struct hexagon_insn_info *insn_info);
+static rtx hexagon_nvj_swap_operands(rtx insn);
+static rtx hexagon_nvj_get_compare( rtx nvj_insn, int elem_num);
+static rtx hexagon_nvj_get_operand( rtx insn, int op_count);
 void 
-qdsp6_duplicate_doloop_begin(basic_block condition_bb, struct loop *loop);
+hexagon_duplicate_doloop_begin(basic_block condition_bb, struct loop *loop);
 
 
 /* Initialize the GCC target structure. */
@@ -418,7 +421,7 @@ Run-time Target Specification
    | MASK_DEEP_PHI_MATCH)
 
 #undef TARGET_HANDLE_OPTION
-#define TARGET_HANDLE_OPTION qdsp6_handle_option
+#define TARGET_HANDLE_OPTION hexagon_handle_option
 
 
 /*------------
@@ -431,7 +434,7 @@ Storage Layout
 #define TARGET_PROMOTE_FUNCTION_MODE default_promote_function_mode_always_promote
 
 #undef TARGET_ALIGN_ANON_BITFIELD
-#define TARGET_ALIGN_ANON_BITFIELD qdsp6_align_anon_bitfield
+#define TARGET_ALIGN_ANON_BITFIELD hexagon_align_anon_bitfield
 
 /*bool TARGET_VECTOR_OPAQUE_P (tree type)*/ /* ??? Should this be true? */
 
@@ -441,7 +444,7 @@ Layout of Source Language Data Types
 ----------------------------------*/
 
 #undef TARGET_DEFAULT_SHORT_ENUMS
-#define TARGET_DEFAULT_SHORT_ENUMS qdsp6_default_short_enums
+#define TARGET_DEFAULT_SHORT_ENUMS hexagon_default_short_enums
 
 
 /*--------------
@@ -449,7 +452,7 @@ Register Classes
 --------------*/
 
 #undef TARGET_SECONDARY_RELOAD
-#define TARGET_SECONDARY_RELOAD qdsp6_secondary_reload
+#define TARGET_SECONDARY_RELOAD hexagon_secondary_reload
 
 
 /*----------------------------
@@ -457,10 +460,10 @@ Passing Arguments in Registers
 ----------------------------*/
 
 #undef TARGET_MUST_PASS_IN_STACK
-#define TARGET_MUST_PASS_IN_STACK qdsp6_must_pass_in_stack
+#define TARGET_MUST_PASS_IN_STACK hexagon_must_pass_in_stack
 
 #undef TARGET_VECTOR_MODE_SUPPORTED_P
-#define TARGET_VECTOR_MODE_SUPPORTED_P qdsp6_vector_mode_supported_p
+#define TARGET_VECTOR_MODE_SUPPORTED_P hexagon_vector_mode_supported_p
 
 
 /*-------------------------------------
@@ -468,7 +471,7 @@ How Scalar Function Values Are Returned
 -------------------------------------*/
 
 #undef TARGET_FUNCTION_VALUE
-#define TARGET_FUNCTION_VALUE qdsp6_function_value
+#define TARGET_FUNCTION_VALUE hexagon_function_value
 
 
 /*---------------------------
@@ -476,7 +479,7 @@ How Large Values Are Returned
 ---------------------------*/
 
 #undef TARGET_RETURN_IN_MEMORY
-#define TARGET_RETURN_IN_MEMORY qdsp6_return_in_memory
+#define TARGET_RETURN_IN_MEMORY hexagon_return_in_memory
 
 
 /*---------------------
@@ -484,7 +487,7 @@ Function Entry and Exit
 ---------------------*/
 
 #undef TARGET_ASM_FUNCTION_PROLOGUE
-#define TARGET_ASM_FUNCTION_PROLOGUE qdsp6_asm_function_prologue
+#define TARGET_ASM_FUNCTION_PROLOGUE hexagon_asm_function_prologue
 
 
 /*-------------------
@@ -492,7 +495,7 @@ Permitting tail calls
 -------------------*/
 
 #undef  TARGET_FUNCTION_OK_FOR_SIBCALL
-#define TARGET_FUNCTION_OK_FOR_SIBCALL qdsp6_function_ok_for_sibcall
+#define TARGET_FUNCTION_OK_FOR_SIBCALL hexagon_function_ok_for_sibcall
 
 
 /*-----------------------------
@@ -507,10 +510,10 @@ Implementing the Varargs Macros
 Implicit Calls to Library Routines
 --------------------------------*/
 
-#if QDSP6_DINKUMWARE
+#if HEXAGON_DINKUMWARE
 #undef TARGET_INIT_LIBFUNCS
-#define TARGET_INIT_LIBFUNCS qdsp6_init_libfuncs
-#endif /* QDSP6_DINKUMWARE */
+#define TARGET_INIT_LIBFUNCS hexagon_init_libfuncs
+#endif /* HEXAGON_DINKUMWARE */
 
 
 /*--------------
@@ -519,7 +522,7 @@ Addressing Modes
 
 #undef TARGET_VECTORIZE_BUILTIN_MASK_FOR_LOAD
 #define TARGET_VECTORIZE_BUILTIN_MASK_FOR_LOAD \
-  qdsp6_vectorize_builtin_mask_for_load
+  hexagon_vectorize_builtin_mask_for_load
 
 
 /*-------------------------------------
@@ -527,10 +530,10 @@ Describing Relative Costs of Operations
 -------------------------------------*/
 
 #undef TARGET_RTX_COSTS
-#define TARGET_RTX_COSTS qdsp6_rtx_costs
+#define TARGET_RTX_COSTS hexagon_rtx_costs
 
 #undef TARGET_ADDRESS_COST
-#define TARGET_ADDRESS_COST qdsp6_address_cost
+#define TARGET_ADDRESS_COST hexagon_address_cost
 
 
 /*---------------------------------
@@ -538,33 +541,33 @@ Adjusting the Instruction Scheduler
 ---------------------------------*/
 
 #undef TARGET_SCHED_ISSUE_RATE
-#define TARGET_SCHED_ISSUE_RATE qdsp6_sched_issue_rate
+#define TARGET_SCHED_ISSUE_RATE hexagon_sched_issue_rate
 
 #undef TARGET_SCHED_FIRST_CYCLE_MULTIPASS_DFA_LOOKAHEAD
 #define TARGET_SCHED_FIRST_CYCLE_MULTIPASS_DFA_LOOKAHEAD \
-  qdsp6_sched_first_cycle_multipass_dfa_lookahead
+  hexagon_sched_first_cycle_multipass_dfa_lookahead
 
 /*--------------------------------------------------
 Dividing the Output into Sections (Texts, Data, ...)
 --------------------------------------------------*/
 
 #undef TARGET_ASM_SELECT_RTX_SECTION
-#define TARGET_ASM_SELECT_RTX_SECTION qdsp6_asm_select_rtx_section
+#define TARGET_ASM_SELECT_RTX_SECTION hexagon_asm_select_rtx_section
 
 #undef TARGET_IN_SMALL_DATA_P
-#define TARGET_IN_SMALL_DATA_P qdsp6_in_small_data_p
+#define TARGET_IN_SMALL_DATA_P hexagon_in_small_data_p
 
 #undef TARGET_ASM_UNIQUE_SECTION
-#define TARGET_ASM_UNIQUE_SECTION qdsp6_unique_section // _LSY_ 
+#define TARGET_ASM_UNIQUE_SECTION hexagon_unique_section // _LSY_ 
 
 #undef TARGET_ASM_SELECT_SECTION
-#define TARGET_ASM_SELECT_SECTION qdsp6_select_section // _LSY_ 
+#define TARGET_ASM_SELECT_SECTION hexagon_select_section // _LSY_ 
 
 #undef TARGET_ASM_NAMED_SECTION
-#define TARGET_ASM_NAMED_SECTION  qdsp6_elf_asm_named_section // _LSY_ 
+#define TARGET_ASM_NAMED_SECTION  hexagon_elf_asm_named_section // _LSY_ 
 
 //#undef TARGET_IRA_COVER_CLASSES
-//#define TARGET_IRA_COVER_CLASSES qdsp6_ira_cover_classes
+//#define TARGET_IRA_COVER_CLASSES hexagon_ira_cover_classes
 
 
 /*------------
@@ -583,69 +586,69 @@ Miscellaneous Parameters
 ----------------------*/
 
 #undef TARGET_MACHINE_DEPENDENT_REORG
-#define TARGET_MACHINE_DEPENDENT_REORG qdsp6_machine_dependent_reorg
+#define TARGET_MACHINE_DEPENDENT_REORG hexagon_machine_dependent_reorg
 
 #undef TARGET_INIT_BUILTINS
-#define TARGET_INIT_BUILTINS  qdsp6_init_builtins
+#define TARGET_INIT_BUILTINS  hexagon_init_builtins
 
 #undef TARGET_BUILTIN_DECL
-#define TARGET_BUILTIN_DECL qdsp6_builtin_decl
+#define TARGET_BUILTIN_DECL hexagon_builtin_decl
 
 #undef TARGET_EXPAND_BUILTIN
-#define TARGET_EXPAND_BUILTIN qdsp6_expand_builtin
+#define TARGET_EXPAND_BUILTIN hexagon_expand_builtin
 
 /*tree TARGET_RESOLVE_OVERLOADED_BUILTIN (tree fndecl, tree arglist)*/
 /*tree TARGET_FOLD_BUILTIN (tree fndecl, tree arglist, bool ignore)*/
 
 #undef TARGET_INVALID_WITHIN_DOLOOP
-#define TARGET_INVALID_WITHIN_DOLOOP qdsp6_invalid_within_doloop
+#define TARGET_INVALID_WITHIN_DOLOOP hexagon_invalid_within_doloop
 
 /* ??? Should this be GENERAL_REGS? */
 /*int TARGET_BRANCH_TARGET_REGISTER_CLASS (void)*/
 
 #undef TARGET_PRINT_RTL_PSEUDO_ASM
-#define TARGET_PRINT_RTL_PSEUDO_ASM qdsp6_print_rtl_pseudo_asm
+#define TARGET_PRINT_RTL_PSEUDO_ASM hexagon_print_rtl_pseudo_asm
 
 #undef TARGET_LOOP_INVALID_FOR_FORCED_UNROLL
-#define TARGET_LOOP_INVALID_FOR_FORCED_UNROLL   qdsp6_loop_invalid_for_forced_unroll
+#define TARGET_LOOP_INVALID_FOR_FORCED_UNROLL   hexagon_loop_invalid_for_forced_unroll
 
 
 struct gcc_target targetm = TARGET_INITIALIZER;
 
-static enum section_category	qdsp6_categorize_decl_for_section (const_tree decl, int reloc); 
+static enum section_category	hexagon_categorize_decl_for_section (const_tree decl, int reloc); 
 void default_unique_section_2 (tree decl, int reloc); 
 unsigned HOST_WIDE_INT  smallest_accessable_entity_in_declaration(tree decl); 
 bool has_this_tree_been_visited(tree node); 
 void remember_this_tree(tree node); 
 unsigned int descent_smallest(const char *prefix, tree node, unsigned int smallest); 
-int qdsp6_named_section_sbss (tree decl, const char *name, int reloc); 
+int hexagon_named_section_sbss (tree decl, const char *name, int reloc); 
 extern section * get_named_section (tree decl, const char *name, int reloc); 
 /*---------------------------
 Run-time Target Specification
 ---------------------------*/
 
-static const struct qdsp6_arch_table_entry qdsp6_arch_table[NUM_QDSP6_ARCH] =
-  QDSP6_ARCH_TABLE_INITIALIZER;
+static const struct hexagon_arch_table_entry hexagon_arch_table[NUM_HEXAGON_ARCH] =
+  HEXAGON_ARCH_TABLE_INITIALIZER;
 
-static const struct qdsp6_abi_table_entry qdsp6_abi_table[NUM_QDSP6_ABI] =
-  QDSP6_ABI_TABLE_INITIALIZER;
+static const struct hexagon_abi_table_entry hexagon_abi_table[NUM_HEXAGON_ABI] =
+  HEXAGON_ABI_TABLE_INITIALIZER;
 
 /* Implements hook TARGET_HANDLE_OPTION
 
    Process command-line options such as -march. */
 
 static bool
-qdsp6_handle_option(size_t code, const char *arg, int value ATTRIBUTE_UNUSED)
+hexagon_handle_option(size_t code, const char *arg, int value ATTRIBUTE_UNUSED)
 {
   int i;
 
   switch(code){
     case OPT_march_:
     case OPT_mcpu_:
-      for(i = 0; i < NUM_QDSP6_ARCH; i++){
-        if(strcmp(arg, qdsp6_arch_table[i].name) == 0){
-          qdsp6_arch = qdsp6_arch_table[i].arch;
-          qdsp6_features = qdsp6_arch_table[i].features;
+      for(i = 0; i < NUM_HEXAGON_ARCH; i++){
+        if(strcmp(arg, hexagon_arch_table[i].name) == 0){
+          hexagon_arch = hexagon_arch_table[i].arch;
+          hexagon_features = hexagon_arch_table[i].features;
           return true;
         }
       }
@@ -653,25 +656,28 @@ qdsp6_handle_option(size_t code, const char *arg, int value ATTRIBUTE_UNUSED)
             arg, code == OPT_march_ ? "arch" : "cpu");
       return false;
     case OPT_mabi_:
-      for(i = 0; i < NUM_QDSP6_ABI; i++){
-        if(strcmp(arg, qdsp6_abi_table[i].name) == 0){
-          qdsp6_abi = qdsp6_abi_table[i].abi;
+      for(i = 0; i < NUM_HEXAGON_ABI; i++){
+        if(strcmp(arg, hexagon_abi_table[i].name) == 0){
+          hexagon_abi = hexagon_abi_table[i].abi;
           return true;
         }
       }
       error("bad value (%s) for -mabi= option", arg);
       return false;
     case OPT_mno_falign:
-      qdsp6_falign = QDSP6_NO_FALIGN;
+      hexagon_falign = HEXAGON_NO_FALIGN;
       return true;
     case OPT_mfalign_loops:
-      qdsp6_falign = QDSP6_FALIGN_LOOPS;
+      hexagon_falign = HEXAGON_FALIGN_LOOPS;
       return true;
     case OPT_mfalign_labels:
-      qdsp6_falign = QDSP6_FALIGN_LABELS;
+      hexagon_falign = HEXAGON_FALIGN_LABELS;
       return true;
     case OPT_mfalign_all:
-      qdsp6_falign = QDSP6_FALIGN_ALL;
+      hexagon_falign = HEXAGON_FALIGN_ALL;
+      return true;
+    case OPT_mqdsp6_compat:
+      hexagon_qdsp6_compat = 1;
       return true;
   }
   return true;
@@ -685,29 +691,29 @@ qdsp6_handle_option(size_t code, const char *arg, int value ATTRIBUTE_UNUSED)
    Make any necessary final decisions about command-line options. */
 
 void
-qdsp6_override_options(void)
+hexagon_override_options(void)
 {
   int arch_index;
   int abi_index;
 
-  if(qdsp6_arch == QDSP6_ARCH_UNSPECIFIED){
-    arch_index = QDSP6_ARCH_TABLE_DEFAULT_INDEX;
-    qdsp6_arch = qdsp6_arch_table[arch_index].arch;
-    qdsp6_features = qdsp6_arch_table[arch_index].features;
+  if(hexagon_arch == HEXAGON_ARCH_UNSPECIFIED){
+    arch_index = HEXAGON_ARCH_TABLE_DEFAULT_INDEX;
+    hexagon_arch = hexagon_arch_table[arch_index].arch;
+    hexagon_features = hexagon_arch_table[arch_index].features;
   }
 
-  if(qdsp6_arch == QDSP6_ARCH_V1){
-    error("Architecture qdsp6v1 is no longer supported.");
+  if(hexagon_arch == HEXAGON_ARCH_V1){
+    error("Architecture hexagonv1 is no longer supported.");
   }
 
-  if(qdsp6_abi == QDSP6_ABI_UNSPECIFIED){
-    abi_index = QDSP6_ABI_TABLE_DEFAULT_INDEX;
-    qdsp6_abi = qdsp6_abi_table[abi_index].abi;
+  if(hexagon_abi == HEXAGON_ABI_UNSPECIFIED){
+    abi_index = HEXAGON_ABI_TABLE_DEFAULT_INDEX;
+    hexagon_abi = hexagon_abi_table[abi_index].abi;
   }
 
   if(TARGET_UNCACHED_DATA){
-    if(qdsp6_arch == QDSP6_ARCH_V1 || qdsp6_arch == QDSP6_ARCH_V2){
-      qdsp6_dual_memory_accesses = false;
+    if(hexagon_arch == HEXAGON_ARCH_V1 || hexagon_arch == HEXAGON_ARCH_V2){
+      hexagon_dual_memory_accesses = false;
     }
     else {
       warning(0, "Ignoring the -mv1-v2-uncached-data option as it is only valid for V1 an V2.");
@@ -721,7 +727,7 @@ qdsp6_override_options(void)
   if(!optimize){
     target_flags &= ~MASK_PACKETS;
     target_flags &= ~MASK_PULLUP;
-    qdsp6_falign = QDSP6_NO_FALIGN;
+    hexagon_falign = HEXAGON_NO_FALIGN;
   }
 
   if(!g_switch_set){
@@ -739,7 +745,7 @@ qdsp6_override_options(void)
     align_functions = 16;
   }
 
-  if(!TARGET_CONST32 || !TARGET_LITERAL_POOL_ADDRESSES || qdsp6_arch >= QDSP6_ARCH_V4)
+  if(!TARGET_CONST32 || !TARGET_LITERAL_POOL_ADDRESSES || hexagon_arch >= HEXAGON_ARCH_V4)
     target_flags &= ~MASK_AGGREGATE_ACCESS;
 
   /* Taxis code degraded immensely because of the subreg1 pass.  The pass splits
@@ -760,7 +766,7 @@ qdsp6_override_options(void)
    Set defaults for flags based on optimization level. */
 
 void
-qdsp6_optimization_options(int level, int size)
+hexagon_optimization_options(int level, int size)
 {
   if(size){
     target_flags |= MASK_EXTENDED_CROSSJUMPING;
@@ -775,12 +781,12 @@ qdsp6_optimization_options(int level, int size)
     target_flags |= MASK_LOCAL_COMBINE;
   }
 
-  qdsp6_falign = QDSP6_NO_FALIGN;
+  hexagon_falign = HEXAGON_NO_FALIGN;
   if(level >= 3 && !size){
-    qdsp6_falign = QDSP6_FALIGN_ALL;
+    hexagon_falign = HEXAGON_FALIGN_ALL;
   }
   else if(level >= 1 && !size){
-    qdsp6_falign = QDSP6_FALIGN_LOOPS;
+    hexagon_falign = HEXAGON_FALIGN_LOOPS;
   }
 }
 
@@ -794,9 +800,9 @@ Defining data structures for per-function information
 /* Implements macro INIT_EXPANDERS */
 
 void
-qdsp6_init_expanders(void)
+hexagon_init_expanders(void)
 {
-  init_machine_status = qdsp6_init_machine_status;
+  init_machine_status = hexagon_init_machine_status;
 }
 
 
@@ -805,7 +811,7 @@ qdsp6_init_expanders(void)
 /* initializes the machine specific per-function data */
 
 static struct machine_function *
-qdsp6_init_machine_status(void)
+hexagon_init_machine_status(void)
 {
   struct machine_function *mf;
   mf = (struct machine_function *)ggc_alloc_cleared(sizeof(struct machine_function));
@@ -842,7 +848,7 @@ get_inner_array_type (const_tree array)
    to BIGGEST_ALIGNMENT.  This facilitates vectorization. */
 
 static int
-qdsp6_array_alignment(tree type, int align)
+hexagon_array_alignment(tree type, int align)
 {
   tree elem_type = get_inner_array_type(type);
 
@@ -866,10 +872,10 @@ qdsp6_array_alignment(tree type, int align)
    vectorization. */
 
 int
-qdsp6_data_alignment(tree type, int align)
+hexagon_data_alignment(tree type, int align)
 {
   if(TREE_CODE (type) == ARRAY_TYPE){
-    return qdsp6_array_alignment(type, align);
+    return hexagon_array_alignment(type, align);
   }
 
   return align;
@@ -883,7 +889,7 @@ qdsp6_data_alignment(tree type, int align)
    Doubleword align constant strings. */
 
 int
-qdsp6_constant_alignment(tree constant, int align)
+hexagon_constant_alignment(tree constant, int align)
 {
   if(!optimize_size && TREE_CODE (constant) == STRING_CST
      && TREE_STRING_LENGTH (constant) >= BIGGEST_ALIGNMENT
@@ -904,10 +910,10 @@ qdsp6_constant_alignment(tree constant, int align)
    vectorization. */
 
 unsigned int
-qdsp6_local_alignment(tree type, int align)
+hexagon_local_alignment(tree type, int align)
 {
   if(TREE_CODE (type) == ARRAY_TYPE){
-    return qdsp6_array_alignment(type, align);
+    return hexagon_array_alignment(type, align);
   }
 
   return align;
@@ -922,7 +928,7 @@ qdsp6_local_alignment(tree type, int align)
    bitfields do. */
 
 static bool
-qdsp6_align_anon_bitfield(void)
+hexagon_align_anon_bitfield(void)
 {
   return true;
 }
@@ -941,9 +947,9 @@ Layout of Source Language Data Types
    the enumerated type.  Linux requires its ABI to specify non-short enums. */
 
 static bool
-qdsp6_default_short_enums(void)
+hexagon_default_short_enums(void)
 {
-  return qdsp6_abi != QDSP6_ABI_LINUX;
+  return hexagon_abi != HEXAGON_ABI_LINUX;
 }
 
 
@@ -955,13 +961,13 @@ Basic Characteristics of Registers
 
 /* Implements macro CONDITIONAL_REGISTER_USAGE
 
-   QDSP6 ABI 2 increases the number of callee save registers from 4 to 12. */
+   HEXAGON ABI 2 increases the number of callee save registers from 4 to 12. */
 
 void
-qdsp6_conditional_register_usage(void)
+hexagon_conditional_register_usage(void)
 {
   int i;
-  if(qdsp6_abi != QDSP6_ABI_1){
+  if(hexagon_abi != HEXAGON_ABI_1){
     for(i = 16; i < 24; i++){
       if(!fixed_regs[i]){
         call_used_regs[i] = 0;
@@ -988,7 +994,7 @@ Register Classes
    Prevent predicates from being represented as QImode SUBREGs of SImode. */
 
 bool
-qdsp6_cannot_change_mode_class(
+hexagon_cannot_change_mode_class(
   enum machine_mode from,
   enum machine_mode to,
   enum reg_class rclass
@@ -1033,7 +1039,7 @@ qdsp6_cannot_change_mode_class(
    Konenot32 means one's complements of Konehot32 constants */
 
 bool
-qdsp6_const_ok_for_constraint_p(HOST_WIDE_INT value, char c, const char *str)
+hexagon_const_ok_for_constraint_p(HOST_WIDE_INT value, char c, const char *str)
 {
   const char *p;
   HOST_WIDE_INT bits;
@@ -1101,44 +1107,44 @@ qdsp6_const_ok_for_constraint_p(HOST_WIDE_INT value, char c, const char *str)
       return low <= value && value <= high && scale_bits == 0;
 
     case 'K':
-      if(QDSP6_CONSTRAINT_P(str, -1)){
+      if(HEXAGON_CONSTRAINT_P(str, -1)){
         return value == -1;
       }
-      else if(QDSP6_CONSTRAINT_P(str, 01)){
+      else if(HEXAGON_CONSTRAINT_P(str, 01)){
         return value == 1;
       }
-      else if(QDSP6_CONSTRAINT_P(str, 16)){
+      else if(HEXAGON_CONSTRAINT_P(str, 16)){
         return value == 16;
       }
-      else if(QDSP6_CONSTRAINT_P(str, 32)){
+      else if(HEXAGON_CONSTRAINT_P(str, 32)){
         return value == 32;
       }
-      else if(QDSP6_CONSTRAINT_P(str, u7p1)){
+      else if(HEXAGON_CONSTRAINT_P(str, u7p1)){
         return IN_RANGE (value, 1, 128);
       }
-      else if(QDSP6_CONSTRAINT_P(str, s8p1)){
+      else if(HEXAGON_CONSTRAINT_P(str, s8p1)){
         return IN_RANGE (value, -127, 128);
       }
-      else if(QDSP6_CONSTRAINT_P(str, u5_3p8)){
+      else if(HEXAGON_CONSTRAINT_P(str, u5_3p8)){
         return IN_RANGE (value, 8, 256);
       }
-      else if(QDSP6_CONSTRAINT_P(str, u9p1)){
+      else if(HEXAGON_CONSTRAINT_P(str, u9p1)){
         return IN_RANGE (value, 1, 512);
       }
-      else if(QDSP6_CONSTRAINT_P(str, s10p1)){
+      else if(HEXAGON_CONSTRAINT_P(str, s10p1)){
         return IN_RANGE (value, -511, 512);
       }
-      else if(QDSP6_CONSTRAINT_P(str, s8s8)){
+      else if(HEXAGON_CONSTRAINT_P(str, s8s8)){
         high = value >> 32ULL;
         low = value & 0xFFFFFFFFULL;
         return ((high & 0xFFFFFF00) == (high & 0x80 ? 0xFFFFFF00 : 0))
             && ((low  & 0xFFFFFF00) == (low  & 0x80 ? 0xFFFFFF00 : 0));
       }
-      else if(QDSP6_CONSTRAINT_P(str, onehot32)){
+      else if(HEXAGON_CONSTRAINT_P(str, onehot32)){
         value &= 0xFFFFFFFFULL;
         return value == (value & -value);
       }
-      else if(QDSP6_CONSTRAINT_P(str, onenot32)){
+      else if(HEXAGON_CONSTRAINT_P(str, onenot32)){
         value = ~value & 0xFFFFFFFFULL;
         return value == (value & -value);
       }
@@ -1158,7 +1164,7 @@ qdsp6_const_ok_for_constraint_p(HOST_WIDE_INT value, char c, const char *str)
    The value must first be moved to a general purpose register. */
 
 static enum reg_class
-qdsp6_secondary_reload(
+hexagon_secondary_reload(
   bool in_p ATTRIBUTE_UNUSED,
   rtx x,
   enum reg_class reload_class,
@@ -1191,7 +1197,7 @@ Basic Stack Layout
    the address of the stack frame COUNT frames above the current one. */
 
 rtx
-qdsp6_return_addr_rtx(int count, rtx frame)
+hexagon_return_addr_rtx(int count, rtx frame)
 {
   rtx return_addr;
 
@@ -1216,7 +1222,7 @@ qdsp6_return_addr_rtx(int count, rtx frame)
 Eliminating Frame Pointer and Arg Pointer
 ---------------------------------------*/
 
-/* QDSP6 stack frames look like:
+/* HEXAGON stack frames look like:
 
              Before call                       After call
 
@@ -1266,7 +1272,7 @@ Eliminating Frame Pointer and Arg Pointer
    True if register REGNO should be saved/restored in the prologue/epilogue. */
 
 static bool
-qdsp6_save_register_p(unsigned int regno)
+hexagon_save_register_p(unsigned int regno)
 {
   unsigned int eh_regno;
   unsigned int i;
@@ -1308,15 +1314,15 @@ qdsp6_save_register_p(unsigned int regno)
 #define MAX_MEMW_OFFSET      ( (1 << 12) - 4)
 #define MAX_MEMD_OFFSET      ( (1 << 13) - 8)
 
-#define QDSP6_BIGGEST_ALIGN(SIZE) \
+#define HEXAGON_BIGGEST_ALIGN(SIZE) \
   (((SIZE) + BIGGEST_ALIGNMENT / 8 - 1) & ~(BIGGEST_ALIGNMENT / 8 - 1))
 
-/* Helper function for qdsp6_frame_info
+/* Helper function for hexagon_frame_info
 
    Make all of the decisions about how to generate the prologue and epilogue. */
 
 static void
-qdsp6_make_prologue_epilogue_decisions(struct qdsp6_frame_info *info)
+hexagon_make_prologue_epilogue_decisions(struct hexagon_frame_info *info)
 {
   static struct {
     enum insn_code prologue_function;
@@ -1407,7 +1413,7 @@ qdsp6_make_prologue_epilogue_decisions(struct qdsp6_frame_info *info)
   unsigned int j;
 
   /* Select the set of prologue and epilogue functions for the target ABI. */
-  if(qdsp6_abi == QDSP6_ABI_2){
+  if(hexagon_abi == HEXAGON_ABI_2){
     prologue_epilogue_functions = prologue_epilogue_functions_abi2;
     max_function_saved_pairs = ARRAY_SIZE (prologue_epilogue_functions_abi2)
                                - 1;
@@ -1605,10 +1611,10 @@ qdsp6_make_prologue_epilogue_decisions(struct qdsp6_frame_info *info)
 /* Fills in the frame info in the frame_info structure
    and returns a pointer to that structure */
 
-static struct qdsp6_frame_info *
-qdsp6_frame_info(void)
+static struct hexagon_frame_info *
+hexagon_frame_info(void)
 {
-  struct qdsp6_frame_info *info;
+  struct hexagon_frame_info *info;
   unsigned int regno;
 
   info = &cfun->machine->frame_info;
@@ -1618,30 +1624,30 @@ qdsp6_frame_info(void)
   }
 
   /* Space for outgoing arguments */
-  info->args_size = QDSP6_BIGGEST_ALIGN (crtl->outgoing_args_size);
+  info->args_size = HEXAGON_BIGGEST_ALIGN (crtl->outgoing_args_size);
 
   /* Space for local variables, temporaries, and spills */
-  info->var_size = QDSP6_BIGGEST_ALIGN (get_frame_size());
+  info->var_size = HEXAGON_BIGGEST_ALIGN (get_frame_size());
 
   /* Space needed for callee-save registers */
   info->num_saved_pairs = 0;
   info->num_saved_singles = 0;
   for(regno = 0; regno < FIRST_PSEUDO_REGISTER; regno += 2){
-    if(qdsp6_save_register_p(regno)){
-      if(qdsp6_save_register_p(regno + 1)){
+    if(hexagon_save_register_p(regno)){
+      if(hexagon_save_register_p(regno + 1)){
         info->saved_pairs[info->num_saved_pairs++] = regno;
       }
       else {
         info->saved_singles[info->num_saved_singles++] = regno;
       }
     }
-    else if(qdsp6_save_register_p(regno + 1)){
+    else if(hexagon_save_register_p(regno + 1)){
       info->saved_singles[info->num_saved_singles++] = regno + 1;
     }
   }
   info->reg_size = 2 * UNITS_PER_WORD * info->num_saved_pairs
                    + UNITS_PER_WORD * info->num_saved_singles;
-  info->reg_size = QDSP6_BIGGEST_ALIGN (info->reg_size);
+  info->reg_size = HEXAGON_BIGGEST_ALIGN (info->reg_size);
 
   info->frame_size = info->args_size + info->var_size + info->reg_size;
 
@@ -1681,7 +1687,7 @@ qdsp6_frame_info(void)
   info->total_size = info->frame_size + info->lrfp_size;
 
   if(reload_completed){
-    qdsp6_make_prologue_epilogue_decisions(info);
+    hexagon_make_prologue_epilogue_decisions(info);
   }
 
   info->computed = reload_completed != 0;
@@ -1700,11 +1706,11 @@ qdsp6_frame_info(void)
    for the current function. */
 
 HOST_WIDE_INT
-qdsp6_initial_elimination_offset(int from_reg, int to_reg)
+hexagon_initial_elimination_offset(int from_reg, int to_reg)
 {
-  struct qdsp6_frame_info *frame;
+  struct hexagon_frame_info *frame;
 
-  frame = qdsp6_frame_info();
+  frame = hexagon_frame_info();
 
   if(      from_reg == ARG_POINTER_REGNUM
           && to_reg == STACK_POINTER_REGNUM){
@@ -1743,7 +1749,7 @@ Passing Arguments in Registers
    and if so, which register. */
 
 rtx
-qdsp6_function_arg(
+hexagon_function_arg(
   CUMULATIVE_ARGS cum,
   enum machine_mode mode,
   tree type,
@@ -1756,7 +1762,7 @@ qdsp6_function_arg(
     return NULL_RTX;
   }
 
-  if(qdsp6_must_pass_in_stack(mode, type)){
+  if(hexagon_must_pass_in_stack(mode, type)){
     return NULL_RTX;
   }
 
@@ -1775,7 +1781,7 @@ qdsp6_function_arg(
     }
   }
 
-  if(cum >= QDSP6_NUM_ARG_REGS){
+  if(cum >= HEXAGON_NUM_ARG_REGS){
     return NULL_RTX;
   }
 
@@ -1796,7 +1802,7 @@ qdsp6_function_arg(
    - if the type is > 8 bytes. */
 
 static bool
-qdsp6_must_pass_in_stack(enum machine_mode mode ATTRIBUTE_UNUSED, const_tree type)
+hexagon_must_pass_in_stack(enum machine_mode mode ATTRIBUTE_UNUSED, const_tree type)
 {
   return type && TYPE_SIZE (type)
          && (TREE_CODE (TYPE_SIZE (type)) != INTEGER_CST
@@ -1812,7 +1818,7 @@ qdsp6_must_pass_in_stack(enum machine_mode mode ATTRIBUTE_UNUSED, const_tree typ
    Advance the cumulative arg pointer past the current argument. */
 
 int
-qdsp6_function_arg_advance(
+hexagon_function_arg_advance(
   CUMULATIVE_ARGS cum,
   enum machine_mode mode,
   tree type,
@@ -1825,7 +1831,7 @@ qdsp6_function_arg_advance(
     return cum;
   }
 
-  if(qdsp6_must_pass_in_stack(mode, type)){
+  if(hexagon_must_pass_in_stack(mode, type)){
     return cum;
   }
 
@@ -1853,7 +1859,7 @@ qdsp6_function_arg_advance(
 /* Implements hook TARGET_VECTOR_MODE_SUPPORTED_P */
 
 static bool
-qdsp6_vector_mode_supported_p(enum machine_mode mode)
+hexagon_vector_mode_supported_p(enum machine_mode mode)
 {
   return    mode == V2SImode
          || mode == V4HImode
@@ -1872,7 +1878,7 @@ How Scalar Function Values Are Returned
 /* Implements hook TARGET_FUNCTION_VALUE */
 
 static rtx
-qdsp6_function_value(
+hexagon_function_value(
   const_tree ret_type,
   const_tree fn_decl_or_type ATTRIBUTE_UNUSED,
   bool outgoing ATTRIBUTE_UNUSED
@@ -1899,7 +1905,7 @@ How Large Values Are Returned
    Return false if it is in a register. */
 
 static bool
-qdsp6_return_in_memory(const_tree type, const_tree fntype ATTRIBUTE_UNUSED)
+hexagon_return_in_memory(const_tree type, const_tree fntype ATTRIBUTE_UNUSED)
 {
   enum machine_mode mode;
   HOST_WIDE_INT byte_size;
@@ -1923,13 +1929,13 @@ Function Entry and Exit
 /* Implements hook TARGET_ASM_FUNCTION_PROLOGUE */
 
 static void
-qdsp6_asm_function_prologue(
+hexagon_asm_function_prologue(
   FILE *file,
   HOST_WIDE_INT size ATTRIBUTE_UNUSED
 )
 {
-  struct qdsp6_frame_info *frame;
-  frame = qdsp6_frame_info();
+  struct hexagon_frame_info *frame;
+  frame = hexagon_frame_info();
   fprintf(file, "\t%s saved LR + FP regs size (bytes) = "
                 HOST_WIDE_INT_PRINT_UNSIGNED "\n"
                 "\t%s callee saved regs size (bytes) = "
@@ -1944,9 +1950,9 @@ qdsp6_asm_function_prologue(
                 ASM_COMMENT_START, frame->args_size
          );
 
-  qdsp6_final_pack_insns();
+  hexagon_final_pack_insns();
 
-  qdsp6_compute_dwarf_frame_information();
+  hexagon_compute_dwarf_frame_information();
 }
 
 
@@ -1959,7 +1965,7 @@ Permitting tail calls
 /* Implements hook TARGET_FUNCTION_OK_FOR_SIBCALL */
 
 static bool
-qdsp6_function_ok_for_sibcall(tree decl, tree exp ATTRIBUTE_UNUSED)
+hexagon_function_ok_for_sibcall(tree decl, tree exp ATTRIBUTE_UNUSED)
 {
   if(TARGET_LONG_CALLS){
     return false;
@@ -1974,11 +1980,11 @@ qdsp6_function_ok_for_sibcall(tree decl, tree exp ATTRIBUTE_UNUSED)
 Implicit Calls to Library Routines
 --------------------------------*/
 
-#if QDSP6_DINKUMWARE
+#if HEXAGON_DINKUMWARE
 /* Implements hook TARGET_INIT_LIBFUNCS */
 
 static void
-qdsp6_init_libfuncs(void)
+hexagon_init_libfuncs(void)
 {
   set_optab_libfunc(sdiv_optab, SImode, "__qdsp_divsi3");
   set_optab_libfunc(sdiv_optab, DImode, "__qdsp_divdi3");
@@ -2125,7 +2131,7 @@ qdsp6_init_libfuncs(void)
   set_conv_libfunc(ufloat_optab, DFmode, SImode, "__qdsp_floatunsidf");
   set_conv_libfunc(ufloat_optab, DFmode, DImode, "__qdsp_floatundidf");
 }
-#endif /* QDSP6_DINKUMWARE */
+#endif /* HEXAGON_DINKUMWARE */
 
 
 
@@ -2134,14 +2140,14 @@ qdsp6_init_libfuncs(void)
 Addressing Modes
 --------------*/
 
-/* Helper for qdsp6_legitimate_address_p
+/* Helper for hexagon_legitimate_address_p
 
    Determine if the constant fits in the encoding
      - Check the range based on the number of bits and signedness
      - Check that the "scaling" bits are zero */
 
 static bool
-qdsp6_legit_addr_const_p(
+hexagon_legit_addr_const_p(
   HOST_WIDE_INT value,
   enum machine_mode mode,
   int num_bits
@@ -2169,10 +2175,10 @@ qdsp6_legit_addr_const_p(
 
 
 
-/* Helper function for qdsp6_legitimate_address_p */
+/* Helper function for hexagon_legitimate_address_p */
 
 static bool
-qdsp6_reg_ok_for_base_p(rtx x, bool reg_ok_strict_p)
+hexagon_reg_ok_for_base_p(rtx x, bool reg_ok_strict_p)
 {
   if(reg_ok_strict_p){
     return G_REG_P (x) || REGNO (x) == FRAME_POINTER_REGNUM
@@ -2188,10 +2194,10 @@ qdsp6_reg_ok_for_base_p(rtx x, bool reg_ok_strict_p)
 
 
 
-/* Helper function for qdsp6_legitimate_address_p */
+/* Helper function for hexagon_legitimate_address_p */
 
 static bool
-qdsp6_reg_ok_for_index_p(rtx x, bool reg_ok_strict_p)
+hexagon_reg_ok_for_index_p(rtx x, bool reg_ok_strict_p)
 {
   if(reg_ok_strict_p){
     return G_REG_P (x);
@@ -2225,7 +2231,7 @@ qdsp6_reg_ok_for_index_p(rtx x, bool reg_ok_strict_p)
    ememop  load-op-stores, allowing an immediate extender */
 
 bool
-qdsp6_legitimate_address_p(
+hexagon_legitimate_address_p(
   enum machine_mode mode,
   rtx x,
   bool reg_ok_strict_p,
@@ -2372,7 +2378,7 @@ qdsp6_legitimate_address_p(
 
   /* register-indirect address */
   if(REG_P (x)){
-    return qdsp6_reg_ok_for_base_p(x, reg_ok_strict_p);
+    return hexagon_reg_ok_for_base_p(x, reg_ok_strict_p);
   }
 
   /* We allow FP+offset addresses here because that is necessary for SP+offset
@@ -2387,7 +2393,7 @@ qdsp6_legitimate_address_p(
 
   /* base+offset/index address */
   if(   GET_CODE (x) == PLUS
-     && ((REG_P (xop0) && qdsp6_reg_ok_for_base_p(xop0, reg_ok_strict_p))
+     && ((REG_P (xop0) && hexagon_reg_ok_for_base_p(xop0, reg_ok_strict_p))
          || (allow_immediate_base && allow_extension
              && CONSTANT_P (xop0) && !CONSTANT_P (xop1)))){
     rtx offset = xop1;
@@ -2404,17 +2410,17 @@ qdsp6_legitimate_address_p(
 
     /* base+offset address */
     if(GET_CODE (offset) == CONST_INT){
-      return qdsp6_legit_addr_const_p(INTVAL (offset), mode, offset_bits);
+      return hexagon_legit_addr_const_p(INTVAL (offset), mode, offset_bits);
     }
 
     /* base+index address */
     if(allow_base_plus_index){
       if(REG_P (offset)){
-        return qdsp6_reg_ok_for_base_p(offset, reg_ok_strict_p);
+        return hexagon_reg_ok_for_base_p(offset, reg_ok_strict_p);
       }
       if(GET_CODE (offset) == MULT){
         return    REG_P (index)
-               && qdsp6_reg_ok_for_index_p(index, reg_ok_strict_p)
+               && hexagon_reg_ok_for_index_p(index, reg_ok_strict_p)
                && GET_CODE (scale) == CONST_INT
                && (   INTVAL (scale) == 1
                    || INTVAL (scale) == 2
@@ -2423,7 +2429,7 @@ qdsp6_legitimate_address_p(
       }
       if(GET_CODE (offset) == ASHIFT){
         return    REG_P (index)
-               && qdsp6_reg_ok_for_index_p(index, reg_ok_strict_p)
+               && hexagon_reg_ok_for_index_p(index, reg_ok_strict_p)
                && GET_CODE (scale) == CONST_INT
                && IN_RANGE (INTVAL (scale), 0, 3);
       }
@@ -2434,18 +2440,18 @@ qdsp6_legitimate_address_p(
     /* post increment/decrement address with the increment/decrement equal to
        the access size */
     if(GET_CODE (x) == POST_INC || GET_CODE (x) == POST_DEC){
-      return REG_P (xop0) && qdsp6_reg_ok_for_base_p(xop0, reg_ok_strict_p);
+      return REG_P (xop0) && hexagon_reg_ok_for_base_p(xop0, reg_ok_strict_p);
     }
 
     /* post increment/decrement address */
     if(GET_CODE (x) == POST_MODIFY){
       return    REG_P (xop0)
-             && qdsp6_reg_ok_for_base_p(xop0, reg_ok_strict_p)
+             && hexagon_reg_ok_for_base_p(xop0, reg_ok_strict_p)
              && GET_CODE (xop1) == PLUS
              && REG_P (xop1op0)
              && REGNO (xop1op0) == REGNO (xop0)
              && GET_CODE (xop1op1) == CONST_INT
-             && qdsp6_legit_addr_const_p(INTVAL (xop1op1), mode, -4);
+             && hexagon_legit_addr_const_p(INTVAL (xop1op1), mode, -4);
     }
   }
 
@@ -2459,7 +2465,7 @@ qdsp6_legitimate_address_p(
 */                                          
 
 /* 
- *  Helper function for qdsp6_legitimate_pic_operand_p()
+ *  Helper function for hexagon_legitimate_pic_operand_p()
  *  Return TRUE if X references a symbol  
  *  Simple proposition for now; can be expanded
  */
@@ -2471,7 +2477,7 @@ symbol_mentioned_p (rtx x)
 
 
 /* 
- *  Helper function for qdsp6_legitimate_pic_operand_p()
+ *  Helper function for hexagon_legitimate_pic_operand_p()
  *  Return TRUE if X references a label  
  *  Simple proposition for now; can be expanded
  */
@@ -2486,7 +2492,7 @@ label_mentioned_p (rtx x)
  * Implements macro LEGITIMATE_PIC_OPERAND_P
  */
 bool
-qdsp6_legitimate_pic_operand_p(rtx operand) 
+hexagon_legitimate_pic_operand_p(rtx operand) 
 {
   /* Taken from the ARM code.  It recogonizes the case when a pic symbol
    * is used within an expression, which we disallow because the symbol
@@ -2534,7 +2540,7 @@ require_pic_register (void)
  * assumes the pic option has been set.
  */
 static void
-qdsp6_load_pic_register() {
+hexagon_load_pic_register() {
   
   rtx dummy_pic, pic_reg, label, seq;
   
@@ -2552,7 +2558,7 @@ qdsp6_load_pic_register() {
 }
 
 /*
- * Helper function for qdsp6_legitimize_address() for PIC compilation
+ * Helper function for hexagon_legitimize_address() for PIC compilation
  * Make addresses conform to PIC mode
  */
 rtx
@@ -2664,7 +2670,7 @@ legitimize_pic_address(rtx orig, enum machine_mode mode, rtx reg)
  * Disabled for now. We may need to enable this
  */
 rtx
-qdsp6_legitimize_address (rtx x, rtx old_x, enum machine_mode mode)
+hexagon_legitimize_address (rtx x, rtx old_x, enum machine_mode mode)
 {
 
   if (flag_pic) 
@@ -2785,7 +2791,7 @@ default_unique_section_2 (tree decl, int reloc)
 
 
 static void
-qdsp6_unique_section (tree decl, int reloc)
+hexagon_unique_section (tree decl, int reloc)
 {
   default_unique_section_2 (decl, reloc);
 }
@@ -2838,14 +2844,14 @@ sdata_symbolic_operand_smallest_accessable_size(rtx op)
 
 
 
-static GTY(()) tree qdsp6_builtin_mask_for_load;
+static GTY(()) tree hexagon_builtin_mask_for_load;
 
 /* Implements hook TARGET_VECTORIZE_BUILTIN_MASK_FOR_LOAD */
 
 static tree
-qdsp6_vectorize_builtin_mask_for_load(void)
+hexagon_vectorize_builtin_mask_for_load(void)
 {
-  return qdsp6_builtin_mask_for_load;
+  return hexagon_builtin_mask_for_load;
 }
 
 
@@ -2858,7 +2864,7 @@ Describing Relative Costs of Operations
 /* Implements hook STORE_BY_PIECES_P */
 
 bool
-qdsp6_store_by_pieces_p(unsigned HOST_WIDE_INT size, unsigned int alignment)
+hexagon_store_by_pieces_p(unsigned HOST_WIDE_INT size, unsigned int alignment)
 {
   unsigned HOST_WIDE_INT ninsns;
   unsigned int store_width = MIN (MAX (alignment, 1), 4);
@@ -2881,10 +2887,10 @@ qdsp6_store_by_pieces_p(unsigned HOST_WIDE_INT size, unsigned int alignment)
 
 
 
-/* Helper function for qdsp6_rtx_costs */
+/* Helper function for hexagon_rtx_costs */
 
 static bool
-qdsp6_free_immediate(rtx x ATTRIBUTE_UNUSED, int outer_code ATTRIBUTE_UNUSED, int value ATTRIBUTE_UNUSED)
+hexagon_free_immediate(rtx x ATTRIBUTE_UNUSED, int outer_code ATTRIBUTE_UNUSED, int value ATTRIBUTE_UNUSED)
 {
   return true;
 }
@@ -2895,13 +2901,13 @@ qdsp6_free_immediate(rtx x ATTRIBUTE_UNUSED, int outer_code ATTRIBUTE_UNUSED, in
 /* Implements hook TARGET_RTX_COSTS */
 
 static bool
-qdsp6_rtx_costs(rtx x, int code, int outer_code, int *total, bool speed ATTRIBUTE_UNUSED)
+hexagon_rtx_costs(rtx x, int code, int outer_code, int *total, bool speed ATTRIBUTE_UNUSED)
 {
   enum machine_mode mode = GET_MODE (x);
 
   switch(code){
     case CONST_INT:
-      if(qdsp6_free_immediate(x,outer_code,INTVAL(x))){
+      if(hexagon_free_immediate(x,outer_code,INTVAL(x))){
         *total = 0;
         return true;
       }
@@ -3092,12 +3098,12 @@ qdsp6_rtx_costs(rtx x, int code, int outer_code, int *total, bool speed ATTRIBUT
 
 
 bool
-qdsp6_rtx_costs_debug(rtx x, int code, int outer_code, int *total, bool speed)
+hexagon_rtx_costs_debug(rtx x, int code, int outer_code, int *total, bool speed)
 {
   bool retval;
 
   debug_rtx(x);
-  retval = qdsp6_rtx_costs(x, code, outer_code, total, speed);
+  retval = hexagon_rtx_costs(x, code, outer_code, total, speed);
   fprintf(stderr, "rtx_cost:  %d, %s\n\n", *total, retval ? "true" : "false");
 
   return retval;
@@ -3109,7 +3115,7 @@ qdsp6_rtx_costs_debug(rtx x, int code, int outer_code, int *total, bool speed)
 /* Implements hook TARGET_ADDRESS_COST */
 
 static int
-qdsp6_address_cost(rtx address, bool speed ATTRIBUTE_UNUSED)
+hexagon_address_cost(rtx address, bool speed ATTRIBUTE_UNUSED)
 {
   enum rtx_code code = GET_CODE(address);
   rtx mod;
@@ -3197,12 +3203,12 @@ qdsp6_address_cost(rtx address, bool speed ATTRIBUTE_UNUSED)
 
 
 int
-qdsp6_address_cost_debug(rtx address, bool speed)
+hexagon_address_cost_debug(rtx address, bool speed)
 {
   int retval;
 
   debug_rtx(address);
-  retval = qdsp6_address_cost(address, speed);
+  retval = hexagon_address_cost(address, speed);
   fprintf(stderr, "address_cost:  %d\n\n", retval);
 
   return retval;
@@ -3218,7 +3224,7 @@ Adjusting the Instruction Scheduler
 /* Implements hook TARGET_SCHED_ISSUE_RATE */
 
 static int
-qdsp6_sched_issue_rate(void)
+hexagon_sched_issue_rate(void)
 {
   return 6; /* ??? 4 or 6? */
 }
@@ -3331,7 +3337,7 @@ get_usable_reg_num
 /* Implements hook TARGET_SCHED_FIRST_CYCLE_MULTIPASS_DFA_LOOKAHEAD */
 
 static int
-qdsp6_sched_first_cycle_multipass_dfa_lookahead(void)
+hexagon_sched_first_cycle_multipass_dfa_lookahead(void)
 {
   return 8; /* ??? dunno */
 }
@@ -3346,7 +3352,7 @@ Dividing the Output into Sections (Texts, Data, ...)
 /* Implements hook TARGET_ASM_SELECT_RTX_SECTION */
 
 static section *
-qdsp6_asm_select_rtx_section(
+hexagon_asm_select_rtx_section(
   enum machine_mode mode,
   rtx x,
   unsigned HOST_WIDE_INT align
@@ -3576,7 +3582,7 @@ bss_initializer_p (const_tree decl)
 
 /* Copycat from similar internal declaration */ 
 enum section_category
-qdsp6_categorize_decl_for_section (const_tree decl, int reloc)
+hexagon_categorize_decl_for_section (const_tree decl, int reloc)
 {
   enum section_category ret;
 
@@ -3657,12 +3663,12 @@ qdsp6_categorize_decl_for_section (const_tree decl, int reloc)
 extern section *mergeable_string_section (tree decl ATTRIBUTE_UNUSED,unsigned HOST_WIDE_INT align ATTRIBUTE_UNUSED,unsigned int flags ATTRIBUTE_UNUSED); 
 
 section *
-qdsp6_select_section (tree decl, int reloc,
+hexagon_select_section (tree decl, int reloc,
                         unsigned HOST_WIDE_INT align)
 {
   const char *sname;
 
-  switch (qdsp6_categorize_decl_for_section (decl, reloc)){ 
+  switch (hexagon_categorize_decl_for_section (decl, reloc)){ 
     case SECCAT_TEXT:
       /* We're not supposed to be called on FUNCTION_DECLs.  */
       gcc_unreachable ();
@@ -3731,7 +3737,7 @@ qdsp6_select_section (tree decl, int reloc,
 
 
 void
-qdsp6_elf_asm_named_section (const char *name, unsigned int flags,
+hexagon_elf_asm_named_section (const char *name, unsigned int flags,
 			       tree decl ATTRIBUTE_UNUSED)
 {
   char flagchars[10], *f = flagchars;
@@ -3815,7 +3821,7 @@ qdsp6_elf_asm_named_section (const char *name, unsigned int flags,
 /* Implements hook TARGET_IN_SMALL_DATA_P */
 
 static bool
-qdsp6_in_small_data_p(const_tree exp)
+hexagon_in_small_data_p(const_tree exp)
 {
   /* We want to merge strings, so we never consider them small data. */
   if(TREE_CODE (exp) == STRING_CST){
@@ -3857,7 +3863,7 @@ Output of Uninitialized Variables
 /* Implements macro ASM_OUTPUT_ALIGNED_DECL_COMMON */
 
 void
-qdsp6_asm_output_aligned_decl_common(
+hexagon_asm_output_aligned_decl_common(
   FILE *stream,
   tree decl,
   const char *name,
@@ -3902,7 +3908,7 @@ qdsp6_asm_output_aligned_decl_common(
 /* ??? Is that still true? */
 
 void
-qdsp6_asm_output_aligned_decl_local(
+hexagon_asm_output_aligned_decl_local(
   FILE *stream,
   tree decl,
   const char *name,
@@ -3939,10 +3945,10 @@ qdsp6_asm_output_aligned_decl_local(
 Output of Assembler Instructions
 ------------------------------*/
 
-/* Helper function for qdsp6_asm_output_opcode */
+/* Helper function for hexagon_asm_output_opcode */
 
 static void
-qdsp6_output_operand(FILE *f, rtx x, int code ATTRIBUTE_UNUSED)
+hexagon_output_operand(FILE *f, rtx x, int code ATTRIBUTE_UNUSED)
 {
   if(x && GET_CODE (x) == SUBREG){
     x = alter_subreg(&x);
@@ -3960,9 +3966,9 @@ qdsp6_output_operand(FILE *f, rtx x, int code ATTRIBUTE_UNUSED)
    and adds brackets as needed */
 
 const char *
-qdsp6_asm_output_opcode(FILE *f, const char *ptr)
+hexagon_asm_output_opcode(FILE *f, const char *ptr)
 {
-  struct qdsp6_final_info *final_info;
+  struct hexagon_final_info *final_info;
   int c;
   int oporder[MAX_RECOG_OPERANDS];
   char opoutput[MAX_RECOG_OPERANDS];
@@ -4016,7 +4022,7 @@ qdsp6_asm_output_opcode(FILE *f, const char *ptr)
         /* % followed by a letter and some digits
            outputs an operand in a special way depending on the letter.
            Letters `acln' are implemented directly.
-           Other letters are passed to `qdsp6_output_operand' so that
+           Other letters are passed to `hexagon_output_operand' so that
            the PRINT_OPERAND macro can define them. */
         else if(ISALPHA (*ptr)){
           int letter = *ptr++;
@@ -4039,7 +4045,7 @@ qdsp6_asm_output_opcode(FILE *f, const char *ptr)
               output_addr_const(f, final_info->insn_ops[opnum]);
             }
             else {
-              qdsp6_output_operand(f, final_info->insn_ops[opnum], 'c');
+              hexagon_output_operand(f, final_info->insn_ops[opnum], 'c');
             }
           }
           else if(letter == 'n'){
@@ -4053,7 +4059,7 @@ qdsp6_asm_output_opcode(FILE *f, const char *ptr)
             }
           }
           else {
-            qdsp6_output_operand(f, final_info->insn_ops[opnum], letter);
+            hexagon_output_operand(f, final_info->insn_ops[opnum], letter);
           }
 
           if(!opoutput[opnum]){
@@ -4070,7 +4076,7 @@ qdsp6_asm_output_opcode(FILE *f, const char *ptr)
           char *endptr;
 
           opnum = strtoul(ptr, &endptr, 10);
-          qdsp6_output_operand(f, final_info->insn_ops[opnum], 0);
+          hexagon_output_operand(f, final_info->insn_ops[opnum], 0);
 
           if(!opoutput[opnum]){
             oporder[ops++] = opnum;
@@ -4126,16 +4132,16 @@ qdsp6_asm_output_opcode(FILE *f, const char *ptr)
    order to begin or end a packet. */
 
 void
-qdsp6_final_prescan_insn(
+hexagon_final_prescan_insn(
   rtx insn,
   rtx *ops,
   int numops ATTRIBUTE_UNUSED
 )
 {
-  static struct qdsp6_packet_info *current_packet = NULL;
+  static struct hexagon_packet_info *current_packet = NULL;
   static int current_insn = 0;
 
-  struct qdsp6_final_info *final_info;
+  struct hexagon_final_info *final_info;
   int i;
 
   if(!TARGET_PACKETS){
@@ -4157,11 +4163,11 @@ qdsp6_final_prescan_insn(
   final_info->dot_new_gpr_p = false;
   final_info->dot_new_predicate_p = false;
 
-  gcc_assert(qdsp6_head_packet && qdsp6_head_packet->num_insns > 0);
+  gcc_assert(hexagon_head_packet && hexagon_head_packet->num_insns > 0);
 
   /* If CURRENT_PACKET is NULL, then we are at the start of a new function. */
   if(!current_packet){
-    current_packet = qdsp6_head_packet;
+    current_packet = hexagon_head_packet;
     current_insn = 0;
   }
 
@@ -4187,10 +4193,10 @@ qdsp6_final_prescan_insn(
     return;
   }
 
-  if(QDSP6_NEW_PREDICATE_P (current_packet->insns[current_insn])){
+  if(HEXAGON_NEW_PREDICATE_P (current_packet->insns[current_insn])){
     final_info->dot_new_predicate_p = true;
   }
-  if(QDSP6_NEW_GPR_P (current_packet->insns[current_insn])){
+  if(HEXAGON_NEW_GPR_P (current_packet->insns[current_insn])){
     final_info->dot_new_gpr_p = true;
   }
 
@@ -4221,13 +4227,13 @@ qdsp6_final_prescan_insn(
      in the current packet, and this is not the end of the function, and the
      next insn is not already an .falign, and the current packet contains a
      call, then print an .falign directive after the current packet. */
-  if(qdsp6_falign == QDSP6_FALIGN_ALL
+  if(hexagon_falign == HEXAGON_FALIGN_ALL
      && current_insn + 1 == current_packet->num_insns
      && current_packet->next
      && INSN_CODE (current_packet->next->insns[0]->insn) != CODE_FOR_falign){
     for(i = 0; i < current_packet->num_insns; i++){
-      if(QDSP6_CALL_P (current_packet->insns[i])
-         || QDSP6_EMULATION_CALL_P (current_packet->insns[i])){
+      if(HEXAGON_CALL_P (current_packet->insns[i])
+         || HEXAGON_EMULATION_CALL_P (current_packet->insns[i])){
         final_info->print_falign = true;
         break;
       }
@@ -4260,28 +4266,28 @@ qdsp6_final_prescan_insn(
 
   /* If there is no next packet, then we are done with the current function. */
   if(!current_packet){
-    qdsp6_free_packing_info(false);
+    hexagon_free_packing_info(false);
   }
 }
 
 
 
 
-/* globals used to pass information from qdsp6_print_operand to
-   qdsp6_print_operand_address */
+/* globals used to pass information from hexagon_print_operand to
+   hexagon_print_operand_address */
 
 /* whether the current operand contains an extended constant */
-static bool qdsp6_extended_constant;
+static bool hexagon_extended_constant;
 
 /* the mode of the current address being printed */
-static enum machine_mode qdsp6_address_mode;
+static enum machine_mode hexagon_address_mode;
 
 /* Implements macro PRINT_OPERAND */
 
 void
-qdsp6_print_operand(FILE *stream, const_rtx x, int code)
+hexagon_print_operand(FILE *stream, const_rtx x, int code)
 {
-  qdsp6_extended_constant = false;
+  hexagon_extended_constant = false;
 
   switch(code){
     case 'P':
@@ -4290,7 +4296,7 @@ qdsp6_print_operand(FILE *stream, const_rtx x, int code)
         fprintf(stream, "%s:%d", reg_names[REGNO (x) + 1], REGNO (x));
       }
       else {
-        output_operand_lossage("qdsp6_print_operand: invalid operand for %%P");
+        output_operand_lossage("hexagon_print_operand: invalid operand for %%P");
       }
       return;
 
@@ -4300,7 +4306,7 @@ qdsp6_print_operand(FILE *stream, const_rtx x, int code)
         fputs(reg_names[REGNO (x) + 1], stream);
       }
       else {
-        output_operand_lossage("qdsp6_print_operand: invalid operand for %%H");
+        output_operand_lossage("hexagon_print_operand: invalid operand for %%H");
       }
       return;
 
@@ -4310,7 +4316,7 @@ qdsp6_print_operand(FILE *stream, const_rtx x, int code)
         fputs(reg_names[REGNO (x)], stream);
       }
       else {
-        output_operand_lossage("qdsp6_print_operand: invalid operand for %%L");
+        output_operand_lossage("hexagon_print_operand: invalid operand for %%L");
       }
       return;
 
@@ -4328,10 +4334,10 @@ qdsp6_print_operand(FILE *stream, const_rtx x, int code)
       }
       else {
         if(code == 'C'){
-          output_operand_lossage("qdsp6_print_operand: invalid operand for %%C");
+          output_operand_lossage("hexagon_print_operand: invalid operand for %%C");
         }
         else {
-          output_operand_lossage("qdsp6_print_operand: invalid operand for %%I");
+          output_operand_lossage("hexagon_print_operand: invalid operand for %%I");
         }
       }
       return;
@@ -4351,7 +4357,7 @@ qdsp6_print_operand(FILE *stream, const_rtx x, int code)
         }
       }
       else {
-        output_operand_lossage("qdsp6_print_operand: invalid operand for %%h");
+        output_operand_lossage("hexagon_print_operand: invalid operand for %%h");
       }
       return;
 
@@ -4359,7 +4365,7 @@ qdsp6_print_operand(FILE *stream, const_rtx x, int code)
       {
         int log = exact_log2(INTVAL (x) & 0xFFFFFFFFULL);
         if(log == -1){
-          output_operand_lossage("qdsp6_print_operand: invalid operand for %%J");
+          output_operand_lossage("hexagon_print_operand: invalid operand for %%J");
         }
         else {
           fprintf(stream, "%d", log);
@@ -4371,7 +4377,7 @@ qdsp6_print_operand(FILE *stream, const_rtx x, int code)
       {
         int log = exact_log2(~INTVAL (x) & 0xFFFFFFFFULL);
         if(log == -1){
-          output_operand_lossage("qdsp6_print_operand: invalid operand for %%K");
+          output_operand_lossage("hexagon_print_operand: invalid operand for %%K");
         }
         else {
           fprintf(stream, "%d", log);
@@ -4381,7 +4387,7 @@ qdsp6_print_operand(FILE *stream, const_rtx x, int code)
 
     case 'E':
       gcc_assert(TARGET_V4_FEATURES);
-      qdsp6_extended_constant = true;
+      hexagon_extended_constant = true;
       /* handled below */
       break;
 
@@ -4390,7 +4396,7 @@ qdsp6_print_operand(FILE *stream, const_rtx x, int code)
       break;
 
     default:
-      output_operand_lossage("qdsp6_print_operand: unknown code, 0x%x", code);
+      output_operand_lossage("hexagon_print_operand: unknown code, 0x%x", code);
       return;
   }
 
@@ -4406,13 +4412,13 @@ qdsp6_print_operand(FILE *stream, const_rtx x, int code)
           }
         }
         else {
-          output_operand_lossage("qdsp6_print_operand: invalid register");
+          output_operand_lossage("hexagon_print_operand: invalid register");
         }
       }
       return;
 
     case MEM:
-      qdsp6_address_mode = GET_MODE (x);
+      hexagon_address_mode = GET_MODE (x);
       output_address(XEXP (x, 0));
       return;
 
@@ -4463,7 +4469,7 @@ qdsp6_print_operand(FILE *stream, const_rtx x, int code)
    Print a memory address as an operand to reference that memory location. */
 
 void
-qdsp6_print_operand_address(FILE *stream, const_rtx x)
+hexagon_print_operand_address(FILE *stream, const_rtx x)
 {
   switch(GET_CODE (x)){
     case REG:
@@ -4472,7 +4478,7 @@ qdsp6_print_operand_address(FILE *stream, const_rtx x)
         fputs("+#0", stream);
       }
       else {
-        output_operand_lossage("qdsp6_print_operand_address: invalid base register");
+        output_operand_lossage("hexagon_print_operand_address: invalid base register");
       }
       break;
 
@@ -4503,13 +4509,13 @@ qdsp6_print_operand_address(FILE *stream, const_rtx x)
           fputc('+', stream);
         }
         else if(!CONSTANT_P (base)){
-          output_operand_lossage("qdsp6_print_operand_address: invalid base+index base");
+          output_operand_lossage("hexagon_print_operand_address: invalid base+index base");
           break;
         }
 
         if(CONSTANT_P (offset)){
           fputc('#', stream);
-          if(qdsp6_extended_constant){
+          if(hexagon_extended_constant){
             fputc('#', stream);
           }
           output_addr_const(stream, offset);
@@ -4522,7 +4528,7 @@ qdsp6_print_operand_address(FILE *stream, const_rtx x)
                 && GET_CODE (scale) == CONST_INT){
           int log = exact_log2(INTVAL (scale) & 0xFFFFFFFFULL);
           if(log == -1){
-            output_operand_lossage("qdsp6_print_operand_address: invalid base+index scale amount");
+            output_operand_lossage("hexagon_print_operand_address: invalid base+index scale amount");
           }
           else {
             fprintf(stream, "%s<<#%d", reg_names[REGNO (index)], log);
@@ -4534,13 +4540,13 @@ qdsp6_print_operand_address(FILE *stream, const_rtx x)
           fprintf(stream, "%s<<#" HOST_WIDE_INT_PRINT_DEC, reg_names[REGNO (index)], INTVAL (scale));
         }
         else {
-          output_operand_lossage("qdsp6_print_operand_address: invalid base+index index");
+          output_operand_lossage("hexagon_print_operand_address: invalid base+index index");
         }
 
         if(CONSTANT_P (base)){
           fputc('+', stream);
           fputc('#', stream);
-          if(qdsp6_extended_constant){
+          if(hexagon_extended_constant){
             fputc('#', stream);
           }
           output_addr_const(stream, base);
@@ -4550,19 +4556,19 @@ qdsp6_print_operand_address(FILE *stream, const_rtx x)
 
     case POST_INC:
       if(G_REG_P (XEXP (x, 0))){
-        fprintf(stream, "%s++#%d", reg_names[REGNO (XEXP (x, 0))], GET_MODE_SIZE (qdsp6_address_mode));
+        fprintf(stream, "%s++#%d", reg_names[REGNO (XEXP (x, 0))], GET_MODE_SIZE (hexagon_address_mode));
       }
       else {
-        output_operand_lossage("qdsp6_print_operand_address: invalid post increment base register");
+        output_operand_lossage("hexagon_print_operand_address: invalid post increment base register");
       }
       break;
 
     case POST_DEC:
       if(G_REG_P (XEXP (x, 0))){
-        fprintf(stream, "%s++#-%d", reg_names[REGNO (XEXP (x, 0))], GET_MODE_SIZE (qdsp6_address_mode));
+        fprintf(stream, "%s++#-%d", reg_names[REGNO (XEXP (x, 0))], GET_MODE_SIZE (hexagon_address_mode));
       }
       else {
-        output_operand_lossage("qdsp6_print_operand_address: invalid post decrement base register");
+        output_operand_lossage("hexagon_print_operand_address: invalid post decrement base register");
       }
       break;
 
@@ -4574,7 +4580,7 @@ qdsp6_print_operand_address(FILE *stream, const_rtx x)
           fprintf(stream, "%s++#" HOST_WIDE_INT_PRINT_DEC, reg_names[REGNO (basereg)], INTVAL (XEXP (mod, 1)));
         }
         else {
-          output_operand_lossage("qdsp6_print_operand_address: invalid post modify base register");
+          output_operand_lossage("hexagon_print_operand_address: invalid post modify base register");
         }
       }
       break;
@@ -4583,7 +4589,7 @@ qdsp6_print_operand_address(FILE *stream, const_rtx x)
     case CONST:
     case CONST_INT:
     case LABEL_REF:
-      if(sdata_symbolic_operand(x, Pmode) && !qdsp6_extended_constant){
+      if(sdata_symbolic_operand(x, Pmode) && !hexagon_extended_constant){
         fputc('#', stream);
       }
       else if(CONSTANT_P (x)){
@@ -4593,7 +4599,7 @@ qdsp6_print_operand_address(FILE *stream, const_rtx x)
       break;
 
     default:
-      output_operand_lossage("qdsp6_print_operand_address: invalid address code 0x%x", GET_CODE (x));
+      output_operand_lossage("hexagon_print_operand_address: invalid address code 0x%x", GET_CODE (x));
       break;
   }
 }
@@ -4606,7 +4612,7 @@ Miscellaneous Parameters
 ----------------------*/
 
 static void
-qdsp6_fixup_cfg(void)
+hexagon_fixup_cfg(void)
 {
   basic_block bb;
   rtx head_insn;
@@ -4643,7 +4649,7 @@ qdsp6_fixup_cfg(void)
    to unroll it forcefullt */ 
 
 bool
-qdsp6_loop_invalid_for_forced_unroll(rtx tail){
+hexagon_loop_invalid_for_forced_unroll(rtx tail){
 
     int tail_code;
 
@@ -4669,7 +4675,7 @@ qdsp6_loop_invalid_for_forced_unroll(rtx tail){
  * Called in sms_schedule(), after loop_version.
  */
 void
-qdsp6_duplicate_doloop_begin(basic_block condition_bb, struct loop *loop)
+hexagon_duplicate_doloop_begin(basic_block condition_bb, struct loop *loop)
 {
     
     edge true_edge = NULL;
@@ -4755,7 +4761,7 @@ qdsp6_duplicate_doloop_begin(basic_block condition_bb, struct loop *loop)
 
 
 static void
-qdsp6_fixup_doloops(void)
+hexagon_fixup_doloops(void)
 {
   basic_block bb;
   rtx tail;
@@ -4770,7 +4776,7 @@ qdsp6_fixup_doloops(void)
   rtx (*gen_loop_setup)(rtx, rtx);
 
   if(dump_file){
-    fprintf(dump_file, ";; qdsp6 org loops starting\n");
+    fprintf(dump_file, ";; hexagon org loops starting\n");
   }
 
   FOR_EACH_BB (bb){
@@ -4849,13 +4855,13 @@ qdsp6_fixup_doloops(void)
 
 
 static void
-qdsp6_insert_faligns(void)
+hexagon_insert_faligns(void)
 {
   rtx insn;
   rtx next;
   rtx label;
 
-  if(qdsp6_falign == QDSP6_FALIGN_LABELS || qdsp6_falign == QDSP6_FALIGN_ALL){
+  if(hexagon_falign == HEXAGON_FALIGN_LABELS || hexagon_falign == HEXAGON_FALIGN_ALL){
     for(insn = get_insns(); insn; insn = NEXT_INSN (insn)){
       if(LABEL_P (insn)){
         if(!(next = next_real_insn(insn))){
@@ -4868,7 +4874,7 @@ qdsp6_insert_faligns(void)
       }
     }
   }
-  else if(qdsp6_falign == QDSP6_FALIGN_LOOPS){
+  else if(hexagon_falign == HEXAGON_FALIGN_LOOPS){
 
     /* Go backwards and falign only labels that are targets for backward
        jumps. */
@@ -4896,7 +4902,7 @@ qdsp6_insert_faligns(void)
 /* Implements hook TARGET_MACHINE_DEPENDENT_REORG */
 
 static void
-qdsp6_machine_dependent_reorg(void)
+hexagon_machine_dependent_reorg(void)
 {
   compute_bb_for_insn();
 
@@ -4906,26 +4912,26 @@ qdsp6_machine_dependent_reorg(void)
 
   if(cfun->machine->has_hardware_loops
      || TARGET_PACKET_OPTIMIZATIONS){
-    qdsp6_fixup_cfg();
+    hexagon_fixup_cfg();
   }
 
   if (TARGET_LOCAL_COMBINE) 
     {
-      qdsp6_local_combine_pass();
+      hexagon_local_combine_pass();
     }
 
   if(TARGET_PACKET_OPTIMIZATIONS){
-    qdsp6_packet_optimizations();
+    hexagon_packet_optimizations();
   }
 
   /* doloop fixups */
   if(cfun->machine->has_hardware_loops){
-    qdsp6_fixup_doloops();
+    hexagon_fixup_doloops();
   }
   
   /* Insert .faligns. */
-  if(qdsp6_falign != QDSP6_NO_FALIGN){
-    qdsp6_insert_faligns();
+  if(hexagon_falign != HEXAGON_NO_FALIGN){
+    hexagon_insert_faligns();
   }
 
 #if 0
@@ -4933,7 +4939,7 @@ qdsp6_machine_dependent_reorg(void)
 #endif /* 0 */
 }
 
-static GTY(()) tree qdsp6_builtins[(int) CODE_FOR_nothing];
+static GTY(()) tree hexagon_builtins[(int) CODE_FOR_nothing];
 
 
 
@@ -4944,9 +4950,9 @@ static GTY(()) tree qdsp6_builtins[(int) CODE_FOR_nothing];
                              BUILT_IN_MD, NULL, \
                              tree_cons(get_identifier("const"), \
                                        NULL_TREE, NULL_TREE));  \
-    qdsp6_builtins[(int) END_BUILTINS + 1 + CODE] = t; \
-    if (CODE == QDSP6_BUILTIN_val_for_valignb) { \
-      qdsp6_builtin_mask_for_load = t; \
+    hexagon_builtins[(int) END_BUILTINS + 1 + CODE] = t; \
+    if (CODE == HEXAGON_BUILTIN_val_for_valignb) { \
+      hexagon_builtin_mask_for_load = t; \
     } \
   } while (0);
 #define def_builtin_nonconst(NAME, TYPE, CODE) \
@@ -4954,8 +4960,8 @@ static GTY(()) tree qdsp6_builtins[(int) CODE_FOR_nothing];
     tree t; \
     t = add_builtin_function(NAME, TYPE, END_BUILTINS + 1 + CODE, \
                              BUILT_IN_MD, NULL, NULL_TREE);  \
-    if (CODE == QDSP6_BUILTIN_val_for_valignb) { \
-      qdsp6_builtin_mask_for_load = t; \
+    if (CODE == HEXAGON_BUILTIN_val_for_valignb) { \
+      hexagon_builtin_mask_for_load = t; \
     } \
   } while (0);
 
@@ -4971,7 +4977,7 @@ static GTY(()) tree qdsp6_builtins[(int) CODE_FOR_nothing];
 /* Implements hook TARGET_INIT_BUILTINS */
 
 static void
-qdsp6_init_builtins(void)
+hexagon_init_builtins(void)
 {
   tree endlink ATTRIBUTE_UNUSED;
   tree QI_ftype_MEM      ATTRIBUTE_UNUSED;
@@ -5321,29 +5327,29 @@ qdsp6_init_builtins(void)
                         endlink))));
 
 #define BUILTIN_INFO(TAG, TYPE, NARGS) \
-  def_builtin("__builtin_" #TAG, TYPE, QDSP6_BUILTIN_##TAG);
+  def_builtin("__builtin_" #TAG, TYPE, HEXAGON_BUILTIN_##TAG);
 #define BUILTIN_INFO_NONCONST(TAG, TYPE, NARGS) \
-  def_builtin_nonconst("__builtin_" #TAG, TYPE, QDSP6_BUILTIN_##TAG);
+  def_builtin_nonconst("__builtin_" #TAG, TYPE, HEXAGON_BUILTIN_##TAG);
 #include "builtins.def"
 #include "manual_builtins.def"
 #undef BUILTIN_INFO
 #undef BUILTIN_INFO_NONCONST
 
-  gcc_assert(qdsp6_builtin_mask_for_load);
+  gcc_assert(hexagon_builtin_mask_for_load);
 }
 
 static tree
-qdsp6_builtin_decl (unsigned code, bool initialize_p ATTRIBUTE_UNUSED)
+hexagon_builtin_decl (unsigned code, bool initialize_p ATTRIBUTE_UNUSED)
 {
   if (code >= CODE_FOR_nothing)
     return error_mark_node;
 
-  return qdsp6_builtins[code];
+  return hexagon_builtins[code];
 }
 
 
 
-/* Helper function for qdsp6_expand_builtin */
+/* Helper function for hexagon_expand_builtin */
 
 static rtx
 expand_one_builtin(enum insn_code icode, rtx target, tree exp, int nargs)
@@ -5437,7 +5443,7 @@ expand_one_builtin(enum insn_code icode, rtx target, tree exp, int nargs)
 /* Implements hook TARGET_EXPAND_BUILTIN */
 
 static rtx
-qdsp6_expand_builtin(
+hexagon_expand_builtin(
   tree exp,
   rtx target,
   rtx subtarget ATTRIBUTE_UNUSED,
@@ -5449,12 +5455,12 @@ qdsp6_expand_builtin(
   int fcode = DECL_FUNCTION_CODE (fndecl);
   switch(fcode - (END_BUILTINS + 1)){
 #define BUILTIN_INFO(TAG, TYPE, NARGS) \
-    case QDSP6_BUILTIN_##TAG: \
-      return expand_one_builtin(CODE_FOR_qdsp6_builtin_##TAG, \
+    case HEXAGON_BUILTIN_##TAG: \
+      return expand_one_builtin(CODE_FOR_hexagon_builtin_##TAG, \
                                 target, exp, NARGS);
 #define BUILTIN_INFO_NONCONST(TAG, TYPE, NARGS) \
-    case QDSP6_BUILTIN_##TAG: \
-      return expand_one_builtin(CODE_FOR_qdsp6_builtin_##TAG, \
+    case HEXAGON_BUILTIN_##TAG: \
+      return expand_one_builtin(CODE_FOR_hexagon_builtin_##TAG, \
                                 target, exp, NARGS);
 #include "builtins.def"
 #include "manual_builtins.def"
@@ -5475,7 +5481,7 @@ qdsp6_expand_builtin(
    register. */
 
 static const char *
-qdsp6_invalid_within_doloop(const_rtx insn)
+hexagon_invalid_within_doloop(const_rtx insn)
 {
   rtx side_effect;
   rtx parallel;
@@ -5557,43 +5563,43 @@ qdsp6_invalid_within_doloop(const_rtx insn)
 
 
 
-/* Helper function for qdsp6_print_rtl_pseudo_asm
+/* Helper function for hexagon_print_rtl_pseudo_asm
 
    (set (pc) (...)) */
 
 static void
-qdsp6_print_jump(FILE *stream, const_rtx x)
+hexagon_print_jump(FILE *stream, const_rtx x)
 {
   /* (set (pc) (if_then_else (...) (...) (...))) */
   if(x && GET_CODE (x) == SET
      && SET_SRC (x) && GET_CODE (SET_SRC (x)) == IF_THEN_ELSE){
     /* (set (pc) (if_then_else (...) (pc) (...))) */
     if(XEXP (SET_SRC (x), 1) && XEXP (SET_SRC (x), 1) == pc_rtx){
-      qdsp6_print_condition(stream, XEXP (SET_SRC (x), 0), false);
+      hexagon_print_condition(stream, XEXP (SET_SRC (x), 0), false);
       /* (set (pc) (if_then_else (...) (pc) (label))) */
       if(GET_CODE (XEXP (SET_SRC (x), 2)) == LABEL_REF){
         fputs("jump", stream);
       }
       else {
         fputs("jump ", stream);
-        qdsp6_print_rtx(stream, XEXP (SET_SRC (x), 2));
+        hexagon_print_rtx(stream, XEXP (SET_SRC (x), 2));
       }
     }
     /* (set (pc) (if_then_else (...) (...) (pc))) */
     else if(XEXP (SET_SRC (x), 2) && XEXP (SET_SRC (x), 2) == pc_rtx){
-      qdsp6_print_condition(stream, XEXP (SET_SRC (x), 0), true);
+      hexagon_print_condition(stream, XEXP (SET_SRC (x), 0), true);
       /* (set (pc) (if_then_else (...) (label) (pc))) */
       if(GET_CODE (XEXP (SET_SRC (x), 1)) == LABEL_REF){
         fputs("jump", stream);
       }
       else {
         fputs("jump ", stream);
-        qdsp6_print_rtx(stream, XEXP (SET_SRC (x), 1));
+        hexagon_print_rtx(stream, XEXP (SET_SRC (x), 1));
       }
     }
     else {
       fputs("jump ", stream);
-      qdsp6_print_rtx(stream, SET_SRC (x));
+      hexagon_print_rtx(stream, SET_SRC (x));
     }
   }
   /* (set (pc) (reg)) */
@@ -5601,7 +5607,7 @@ qdsp6_print_jump(FILE *stream, const_rtx x)
           && SET_DEST (x) == pc_rtx
           && SET_SRC (x) && REG_P (SET_SRC (x))){
     fputs("jump ", stream);
-    qdsp6_print_rtx(stream, SET_SRC (x));
+    hexagon_print_rtx(stream, SET_SRC (x));
   }
   else {
     fputs("jump", stream);
@@ -5611,19 +5617,19 @@ qdsp6_print_jump(FILE *stream, const_rtx x)
 
 
 
-/* Helper function for qdsp6_print_rtl_pseudo_asm
+/* Helper function for hexagon_print_rtl_pseudo_asm
 
    (set (...) (...)) */
 
 static void
-qdsp6_print_transfer(FILE *stream, const_rtx x)
+hexagon_print_transfer(FILE *stream, const_rtx x)
 {
   if(!x){
-    qdsp6_print_rtx(stream, x);
+    hexagon_print_rtx(stream, x);
   }
   /* (set (pc) (...)) */
   else if(XEXP (x, 0) == pc_rtx){
-    qdsp6_print_jump(stream, x);
+    hexagon_print_jump(stream, x);
   }
   /* (set (reg) (call)) */
   else if(XEXP (x, 0) && REG_P (XEXP (x, 0))
@@ -5632,29 +5638,29 @@ qdsp6_print_transfer(FILE *stream, const_rtx x)
   }
   /* (set (zero_extract (...) (...) (...)) (...)) */
   else if(XEXP (x, 0) && GET_CODE (XEXP (x, 0)) == ZERO_EXTRACT){
-    qdsp6_print_rtx(stream, XEXP (XEXP (x, 0), 0));
+    hexagon_print_rtx(stream, XEXP (XEXP (x, 0), 0));
     fputs(" = insert(", stream);
-    qdsp6_print_rtx(stream, XEXP (x, 1));
+    hexagon_print_rtx(stream, XEXP (x, 1));
     fputc(',', stream);
-    qdsp6_print_rtx(stream, XEXP (XEXP (x, 0), 1));
+    hexagon_print_rtx(stream, XEXP (XEXP (x, 0), 1));
     fputc(',', stream);
-    qdsp6_print_rtx(stream, XEXP (XEXP (x, 0), 2));
+    hexagon_print_rtx(stream, XEXP (XEXP (x, 0), 2));
     fputc(')', stream);
   }
   /* (set (...) (high (...))) */
   else if(XEXP (x, 1) && GET_CODE (XEXP (x, 1)) == HIGH){
-    qdsp6_print_rtx(stream, XEXP (x, 0));
+    hexagon_print_rtx(stream, XEXP (x, 0));
     fputs(".h = ", stream);
-    qdsp6_print_rtx(stream, XEXP (XEXP (x, 1), 0));
+    hexagon_print_rtx(stream, XEXP (XEXP (x, 1), 0));
   }
   /* (set (reg X) (lo_sum (reg X) (...))) */
   else if(XEXP (x, 1) && GET_CODE (XEXP (x, 1)) == LO_SUM
           && XEXP (x, 0) && REG_P (XEXP (x, 0))
           && XEXP (XEXP (x, 1), 0) && REG_P (XEXP (XEXP (x, 1), 0))
           && REGNO (XEXP (x, 0)) == REGNO (XEXP (XEXP (x, 1), 0))){
-    qdsp6_print_rtx(stream, XEXP (x, 0));
+    hexagon_print_rtx(stream, XEXP (x, 0));
     fputs(".l = ", stream);
-    qdsp6_print_rtx(stream, XEXP (XEXP (x, 1), 1));
+    hexagon_print_rtx(stream, XEXP (XEXP (x, 1), 1));
   }
 /*
   else if(XEXP (x, 1) && (   GET_CODE (XEXP (x, 1)) == PLUS
@@ -5665,7 +5671,7 @@ qdsp6_print_transfer(FILE *stream, const_rtx x)
                           || GET_CODE (XEXP (x, 1)) == XOR)
           && XEXP (x, 0) && REG_P (XEXP (x, 0))
           && XEXP (XEXP (x, 1), 0) && REG_P (XEXP (XEXP (x, 1), 0))){
-    qdsp6_print_rtx(stream, XEXP (x, 0));
+    hexagon_print_rtx(stream, XEXP (x, 0));
     fputc(' ', stream);
     switch(GET_CODE (XEXP (x, 1))){
       case PLUS:
@@ -5690,7 +5696,7 @@ qdsp6_print_transfer(FILE *stream, const_rtx x)
         break;
     }
     fputs("= ", stream);
-    qdsp6_print_rtx(stream, XEXP (XEXP (x, 1), 1));
+    hexagon_print_rtx(stream, XEXP (XEXP (x, 1), 1));
   }
   else if(XEXP (x, 1) && (   GET_CODE (XEXP (x, 1)) == PLUS
                           || GET_CODE (XEXP (x, 1)) == MULT
@@ -5699,7 +5705,7 @@ qdsp6_print_transfer(FILE *stream, const_rtx x)
                           || GET_CODE (XEXP (x, 1)) == XOR)
           && XEXP (x, 0) && REG_P (XEXP (x, 0))
           && XEXP (XEXP (x, 1), 1) && REG_P (XEXP (XEXP (x, 1), 1))){
-    qdsp6_print_rtx(stream, XEXP (x, 0));
+    hexagon_print_rtx(stream, XEXP (x, 0));
     fputc(' ', stream);
     switch(GET_CODE (XEXP (x, 1))){
       case PLUS:
@@ -5721,34 +5727,34 @@ qdsp6_print_transfer(FILE *stream, const_rtx x)
         break;
     }
     fputs("= ", stream);
-    qdsp6_print_rtx(stream, XEXP (XEXP (x, 1), 0));
+    hexagon_print_rtx(stream, XEXP (XEXP (x, 1), 0));
   }
 */
   else {
-    qdsp6_print_rtx(stream, XEXP (x, 0));
+    hexagon_print_rtx(stream, XEXP (x, 0));
     fputs(" = ", stream);
-    qdsp6_print_rtx(stream, XEXP (x, 1));
+    hexagon_print_rtx(stream, XEXP (x, 1));
   }
 }
 
 
 
 
-/* Helper function for qdsp6_print_rtl_pseudo_asm */
+/* Helper function for hexagon_print_rtl_pseudo_asm */
 
 static void
-qdsp6_print_condition(FILE *stream, const_rtx x, bool non_inverted)
+hexagon_print_condition(FILE *stream, const_rtx x, bool non_inverted)
 {
   fputs("if (", stream);
   if(!x){
-    qdsp6_print_rtx(stream, x);
+    hexagon_print_rtx(stream, x);
   }
   /* (reg) */
   else if(REG_P (x)){
     if(GET_MODE (x) == BImode && !non_inverted){
       fputc('!', stream);
     }
-    qdsp6_print_rtx(stream, x);
+    hexagon_print_rtx(stream, x);
     if(GET_MODE (x) != BImode){
       fputs(non_inverted ? "!=#0" : "==#0", stream);
     }
@@ -5759,7 +5765,7 @@ qdsp6_print_condition(FILE *stream, const_rtx x, bool non_inverted)
     if(GET_MODE (XEXP (x, 0)) == BImode && !non_inverted){
       fputc('!', stream);
     }
-    qdsp6_print_rtx(stream, XEXP (x, 0));
+    hexagon_print_rtx(stream, XEXP (x, 0));
     if(GET_MODE (XEXP (x, 0)) != BImode){
       fputs(non_inverted ? "!=#0" : "==#0", stream);
     }
@@ -5770,7 +5776,7 @@ qdsp6_print_condition(FILE *stream, const_rtx x, bool non_inverted)
     if(GET_MODE (XEXP (x, 0)) == BImode && non_inverted){
       fputc('!', stream);
     }
-    qdsp6_print_rtx(stream, XEXP (x, 0));
+    hexagon_print_rtx(stream, XEXP (x, 0));
     if(GET_MODE (XEXP (x, 0)) != BImode){
       fputs(non_inverted ? "==#0" : "!=#0", stream);
     }
@@ -5780,7 +5786,7 @@ qdsp6_print_condition(FILE *stream, const_rtx x, bool non_inverted)
           && XEXP (x, 0) && REG_P (XEXP (x, 0))
           && GET_MODE (XEXP (x, 0)) != BImode
           && (XEXP (x, 1) == const0_rtx || XEXP (x, 1) == constm1_rtx)){
-    qdsp6_print_rtx(stream, XEXP (x, 0));
+    hexagon_print_rtx(stream, XEXP (x, 0));
     if(XEXP (x, 1) == const0_rtx){
       fputs(non_inverted ? ">#0" : "<=#0", stream);
     }
@@ -5793,7 +5799,7 @@ qdsp6_print_condition(FILE *stream, const_rtx x, bool non_inverted)
           && XEXP (x, 0) && REG_P (XEXP (x, 0))
           && GET_MODE (XEXP (x, 0)) != BImode
           && (XEXP (x, 1) == const0_rtx || XEXP (x, 1) == const1_rtx)){
-    qdsp6_print_rtx(stream, XEXP (x, 0));
+    hexagon_print_rtx(stream, XEXP (x, 0));
     if(XEXP (x, 1) == const0_rtx){
       fputs(non_inverted ? ">=#0" : "<#0", stream);
     }
@@ -5806,7 +5812,7 @@ qdsp6_print_condition(FILE *stream, const_rtx x, bool non_inverted)
           && XEXP (x, 0) && REG_P (XEXP (x, 0))
           && GET_MODE (XEXP (x, 0)) != BImode
           && (XEXP (x, 1) == const0_rtx || XEXP (x, 1) == const1_rtx)){
-    qdsp6_print_rtx(stream, XEXP (x, 0));
+    hexagon_print_rtx(stream, XEXP (x, 0));
     if(XEXP (x, 1) == const0_rtx){
       fputs(non_inverted ? "<#0" : ">=#0", stream);
     }
@@ -5819,7 +5825,7 @@ qdsp6_print_condition(FILE *stream, const_rtx x, bool non_inverted)
           && XEXP (x, 0) && REG_P (XEXP (x, 0))
           && GET_MODE (XEXP (x, 0)) != BImode
           && (XEXP (x, 1) == const0_rtx || XEXP (x, 1) == constm1_rtx)){
-    qdsp6_print_rtx(stream, XEXP (x, 0));
+    hexagon_print_rtx(stream, XEXP (x, 0));
     if(XEXP (x, 1) == const0_rtx){
       fputs(non_inverted ? "<=#0" : ">#0", stream);
     }
@@ -5828,7 +5834,7 @@ qdsp6_print_condition(FILE *stream, const_rtx x, bool non_inverted)
     }
   }
   else {
-    qdsp6_print_rtx(stream, x);
+    hexagon_print_rtx(stream, x);
   }
   fputs(") ", stream);
 }
@@ -5836,83 +5842,83 @@ qdsp6_print_condition(FILE *stream, const_rtx x, bool non_inverted)
 
 
 
-/* Helper function for qdsp6_print_rtl_pseudo_asm */
+/* Helper function for hexagon_print_rtl_pseudo_asm */
 
 static void
-qdsp6_print_address(FILE *stream, const_rtx x)
+hexagon_print_address(FILE *stream, const_rtx x)
 {
   /* (plus (...) (...)) */
   if(x && GET_CODE (x) == PLUS){
-    qdsp6_print_rtx(stream, XEXP (x, 0));
+    hexagon_print_rtx(stream, XEXP (x, 0));
     fputc('+', stream);
-    qdsp6_print_rtx(stream, XEXP (x, 1));
+    hexagon_print_rtx(stream, XEXP (x, 1));
   }
   else {
-    qdsp6_print_rtx(stream, x);
+    hexagon_print_rtx(stream, x);
   }
 }
 
 
 
 
-/* Helper function for qdsp6_print_rtl_pseudo_asm
+/* Helper function for hexagon_print_rtl_pseudo_asm
 
    (op (...)) */
 
 static void
-qdsp6_print_unary_op(FILE *stream, const char *op, const_rtx x)
+hexagon_print_unary_op(FILE *stream, const char *op, const_rtx x)
 {
   fputs(op, stream);
   fputc('(', stream);
-  qdsp6_print_rtx(stream, XEXP (x, 0));
+  hexagon_print_rtx(stream, XEXP (x, 0));
   fputc(')', stream);
 }
 
 
 
 
-/* Helper function for qdsp6_print_rtl_pseudo_asm
+/* Helper function for hexagon_print_rtl_pseudo_asm
 
    (op (...) (...)) */
 
 static void
-qdsp6_print_binary_op(FILE *stream, const char *op, const_rtx x)
+hexagon_print_binary_op(FILE *stream, const char *op, const_rtx x)
 {
   fputs(op, stream);
   fputc('(', stream);
-  qdsp6_print_rtx(stream, XEXP (x, 0));
+  hexagon_print_rtx(stream, XEXP (x, 0));
   fputc(',', stream);
-  qdsp6_print_rtx(stream, XEXP (x, 1));
+  hexagon_print_rtx(stream, XEXP (x, 1));
   fputc(')', stream);
 }
 
 
 
 
-/* Helper function for qdsp6_print_rtl_pseudo_asm
+/* Helper function for hexagon_print_rtl_pseudo_asm
 
    (op (...) (...)) */
 
 static void
-qdsp6_print_swapped_binary_op(FILE *stream, const char *op, const_rtx x)
+hexagon_print_swapped_binary_op(FILE *stream, const char *op, const_rtx x)
 {
   fputs(op, stream);
   fputc('(', stream);
-  qdsp6_print_rtx(stream, XEXP (x, 1));
+  hexagon_print_rtx(stream, XEXP (x, 1));
   fputc(',', stream);
-  qdsp6_print_rtx(stream, XEXP (x, 0));
+  hexagon_print_rtx(stream, XEXP (x, 0));
   fputc(')', stream);
 }
 
 
 
 
-/* Helper function for qdsp6_print_rtl_pseudo_asm
+/* Helper function for hexagon_print_rtl_pseudo_asm
 
    (op (...) (...)) */
 
 static void
-qdsp6_print_binary_op_with_option(
+hexagon_print_binary_op_with_option(
   FILE *stream,
   const char *op,
   const char *option,
@@ -5921,9 +5927,9 @@ qdsp6_print_binary_op_with_option(
 {
   fputs(op, stream);
   fputc('(', stream);
-  qdsp6_print_rtx(stream, XEXP (x, 0));
+  hexagon_print_rtx(stream, XEXP (x, 0));
   fputc(',', stream);
-  qdsp6_print_rtx(stream, XEXP (x, 1));
+  hexagon_print_rtx(stream, XEXP (x, 1));
   fputs("):", stream);
   fputs(option, stream);
 }
@@ -5931,32 +5937,32 @@ qdsp6_print_binary_op_with_option(
 
 
 
-/* Helper function for qdsp6_print_rtl_pseudo_asm
+/* Helper function for hexagon_print_rtl_pseudo_asm
 
    (op (...) (...) (...)) */
 
 static void
-qdsp6_print_trinary_op(FILE *stream, const char *op, const_rtx x)
+hexagon_print_trinary_op(FILE *stream, const char *op, const_rtx x)
 {
   fputs(op, stream);
   fputc('(', stream);
-  qdsp6_print_rtx(stream, XEXP (x, 0));
+  hexagon_print_rtx(stream, XEXP (x, 0));
   fputc(',', stream);
-  qdsp6_print_rtx(stream, XEXP (x, 1));
+  hexagon_print_rtx(stream, XEXP (x, 1));
   fputc(',', stream);
-  qdsp6_print_rtx(stream, XEXP (x, 2));
+  hexagon_print_rtx(stream, XEXP (x, 2));
   fputc(')', stream);
 }
 
 
 
 
-/* Helper function for qdsp6_print_rtl_pseudo_asm
+/* Helper function for hexagon_print_rtl_pseudo_asm
 
    (parallel/unspec/unspec_volatile [...]) */
 
 static void
-qdsp6_print_vecexp(
+hexagon_print_vecexp(
   FILE *stream,
   const char *open,
   const char *separator,
@@ -5970,7 +5976,7 @@ qdsp6_print_vecexp(
     if(i > 0){
       fputs(separator, stream);
     }
-    qdsp6_print_rtx(stream, XVECEXP (x, 0, i));
+    hexagon_print_rtx(stream, XVECEXP (x, 0, i));
   }
   fputs(close, stream);
 }
@@ -5978,10 +5984,10 @@ qdsp6_print_vecexp(
 
 
 
-/* Helper function for qdsp6_print_rtl_pseudo_asm */
+/* Helper function for hexagon_print_rtl_pseudo_asm */
 
 static void
-qdsp6_print_rtx(FILE *stream, const_rtx x)
+hexagon_print_rtx(FILE *stream, const_rtx x)
 {
   const char *op;
   int i;
@@ -5997,11 +6003,11 @@ qdsp6_print_rtx(FILE *stream, const_rtx x)
 
   switch(GET_CODE (x)){
     case SET:
-      qdsp6_print_transfer(stream, x);
+      hexagon_print_transfer(stream, x);
       break;
     case COND_EXEC:
-      qdsp6_print_condition(stream, XEXP (x, 0), true);
-      qdsp6_print_rtx(stream, XEXP (x, 1));
+      hexagon_print_condition(stream, XEXP (x, 0), true);
+      hexagon_print_rtx(stream, XEXP (x, 1));
       break;
     case PARALLEL:
       for(i = XVECLEN (x, 0) - 1; i >= 0; i--){
@@ -6015,30 +6021,30 @@ qdsp6_print_rtx(FILE *stream, const_rtx x)
                    && GET_CODE (XEXP (XVECEXP (x, 0, i - 1), 1)) == CALL))){
         }
       }
-      qdsp6_print_vecexp(stream, "{ ", "; ", " }", x);
+      hexagon_print_vecexp(stream, "{ ", "; ", " }", x);
       break;
     case UNSPEC:
       if(XINT (x, 1) == UNSPEC_NEW_VALUE){
-        qdsp6_print_rtx(stream, XVECEXP (x, 0, 0));
+        hexagon_print_rtx(stream, XVECEXP (x, 0, 0));
         fputs(".new", stream);
       }
       else {
         fprintf(stream, "unspec%d", XINT (x, 1));
-        qdsp6_print_vecexp(stream, "(", ",", ")", x);
+        hexagon_print_vecexp(stream, "(", ",", ")", x);
       }
       break;
     case UNSPEC_VOLATILE:
       fprintf(stream, "unspec_volatile%d", XINT (x, 1));
-      qdsp6_print_vecexp(stream, "(", ",", ")", x);
+      hexagon_print_vecexp(stream, "(", ",", ")", x);
       break;
     case PREFETCH:
-      qdsp6_print_unary_op(stream, "dcfetch", x);
+      hexagon_print_unary_op(stream, "dcfetch", x);
       break;
     case USE:
-      qdsp6_print_unary_op(stream, "use", x);
+      hexagon_print_unary_op(stream, "use", x);
       break;
     case CLOBBER:
-      qdsp6_print_rtx(stream, XEXP (x, 0));
+      hexagon_print_rtx(stream, XEXP (x, 0));
       fputs(" = clobber()", stream);
       break;
     case CALL:
@@ -6104,11 +6110,11 @@ qdsp6_print_rtx(FILE *stream, const_rtx x)
       }
       break;
     case SCRATCH:
-      qdsp6_print_rtx(stream, XEXP (x, 0));
+      hexagon_print_rtx(stream, XEXP (x, 0));
       break;
     case SUBREG:
       if(reload_completed){
-        qdsp6_print_rtx(stream, XEXP (x, 0));
+        hexagon_print_rtx(stream, XEXP (x, 0));
       }
       else {
         if(GET_MODE (x) == SImode
@@ -6118,7 +6124,7 @@ qdsp6_print_rtx(FILE *stream, const_rtx x)
           fputc('R', stream);
         }
         else {
-          qdsp6_print_rtx(stream, XEXP (x, 0));
+          hexagon_print_rtx(stream, XEXP (x, 0));
 /*
           fputc('.', stream);
           int size_in_bytes = 1;
@@ -6168,7 +6174,7 @@ qdsp6_print_rtx(FILE *stream, const_rtx x)
           fputc('w', stream);
       }
       fputc('(', stream);
-      qdsp6_print_address(stream, XEXP (x, 0));
+      hexagon_print_address(stream, XEXP (x, 0));
       fputc(')', stream);
       break;
     case LABEL_REF:
@@ -6181,103 +6187,103 @@ qdsp6_print_rtx(FILE *stream, const_rtx x)
       if(XEXP (x, 0) && GET_CODE (XEXP (x, 0)) == NE
          && XEXP (XEXP (x, 0), 1) == const0_rtx){
         fputs("mux(", stream);
-        qdsp6_print_rtx(stream, XEXP (XEXP (x, 0), 0));
+        hexagon_print_rtx(stream, XEXP (XEXP (x, 0), 0));
         fputc(',', stream);
-        qdsp6_print_rtx(stream, XEXP (x, 1));
+        hexagon_print_rtx(stream, XEXP (x, 1));
         fputc(',', stream);
-        qdsp6_print_rtx(stream, XEXP (x, 2));
+        hexagon_print_rtx(stream, XEXP (x, 2));
         fputc(')', stream);
       }
       else if(XEXP (x, 0) && GET_CODE (XEXP (x, 0)) == EQ
               && XEXP (XEXP (x, 0), 1) == const0_rtx){
         fputs("mux(", stream);
-        qdsp6_print_rtx(stream, XEXP (XEXP (x, 0), 0));
+        hexagon_print_rtx(stream, XEXP (XEXP (x, 0), 0));
         fputc(',', stream);
-        qdsp6_print_rtx(stream, XEXP (x, 2));
+        hexagon_print_rtx(stream, XEXP (x, 2));
         fputc(',', stream);
-        qdsp6_print_rtx(stream, XEXP (x, 1));
+        hexagon_print_rtx(stream, XEXP (x, 1));
         fputc(')', stream);
       }
       else {
-        qdsp6_print_trinary_op(stream, "mux", x);
+        hexagon_print_trinary_op(stream, "mux", x);
       }
       break;
     case PLUS:
-      qdsp6_print_binary_op(stream, "add", x);
+      hexagon_print_binary_op(stream, "add", x);
       break;
     case MINUS:
-      qdsp6_print_binary_op(stream, "sub", x);
+      hexagon_print_binary_op(stream, "sub", x);
       break;
     case NEG:
-      qdsp6_print_unary_op(stream, "neg", x);
+      hexagon_print_unary_op(stream, "neg", x);
       break;
     case MULT:
-      qdsp6_print_binary_op(stream, "mpyi", x);
+      hexagon_print_binary_op(stream, "mpyi", x);
       break;
     case AND:
-      qdsp6_print_binary_op(stream, "and", x);
+      hexagon_print_binary_op(stream, "and", x);
       break;
     case IOR:
-      qdsp6_print_binary_op(stream, "or", x);
+      hexagon_print_binary_op(stream, "or", x);
       break;
     case XOR:
-      qdsp6_print_binary_op(stream, "xor", x);
+      hexagon_print_binary_op(stream, "xor", x);
       break;
     case NOT:
-      qdsp6_print_unary_op(stream, "not", x);
+      hexagon_print_unary_op(stream, "not", x);
       break;
     case ASHIFT:
-      qdsp6_print_binary_op(stream, "asl", x);
+      hexagon_print_binary_op(stream, "asl", x);
       break;
     case ROTATE:
       if(XEXP (x, 0) && REG_P (XEXP (x, 0)) && GET_MODE (XEXP (x, 0)) == SImode
          && XEXP (x, 1) && GET_CODE (XEXP (x, 1)) == CONST_INT
          && INTVAL (XEXP (x, 1)) == 16){
         fputs("combine(", stream);
-        qdsp6_print_rtx(stream, XEXP (x, 0));
+        hexagon_print_rtx(stream, XEXP (x, 0));
         fputs(".l,", stream);
-        qdsp6_print_rtx(stream, XEXP (x, 0));
+        hexagon_print_rtx(stream, XEXP (x, 0));
         fputs(".h)", stream);
       }
       else {
-        qdsp6_print_binary_op(stream, "rotate_left", x);
+        hexagon_print_binary_op(stream, "rotate_left", x);
       }
       break;
     case ASHIFTRT:
-      qdsp6_print_binary_op(stream, "asr", x);
+      hexagon_print_binary_op(stream, "asr", x);
       break;
     case LSHIFTRT:
-      qdsp6_print_binary_op(stream, "lsr", x);
+      hexagon_print_binary_op(stream, "lsr", x);
       break;
     case ROTATERT:
       if(XEXP (x, 0) && REG_P (XEXP (x, 0)) && GET_MODE (XEXP (x, 0)) == SImode
          && XEXP (x, 1) && GET_CODE (XEXP (x, 1)) == CONST_INT
          && INTVAL (XEXP (x, 1)) == 16){
         fputs("combine(", stream);
-        qdsp6_print_rtx(stream, XEXP (x, 0));
+        hexagon_print_rtx(stream, XEXP (x, 0));
         fputs(".l,", stream);
-        qdsp6_print_rtx(stream, XEXP (x, 0));
+        hexagon_print_rtx(stream, XEXP (x, 0));
         fputs(".h)", stream);
       }
       else {
-        qdsp6_print_binary_op(stream, "rotate_right", x);
+        hexagon_print_binary_op(stream, "rotate_right", x);
       }
       break;
     case SMIN:
-      qdsp6_print_binary_op(stream, "min", x);
+      hexagon_print_binary_op(stream, "min", x);
       break;
     case SMAX:
-      qdsp6_print_binary_op(stream, "max", x);
+      hexagon_print_binary_op(stream, "max", x);
       break;
     case UMIN:
-      qdsp6_print_binary_op(stream, "minu", x);
+      hexagon_print_binary_op(stream, "minu", x);
       break;
     case UMAX:
-      qdsp6_print_binary_op(stream, "maxu", x);
+      hexagon_print_binary_op(stream, "maxu", x);
       break;
     case POST_DEC:
     case POST_INC:
-      qdsp6_print_rtx(stream, XEXP (x, 0));
+      hexagon_print_rtx(stream, XEXP (x, 0));
       fputs("++#", stream);
       break;
     case POST_MODIFY:
@@ -6285,14 +6291,14 @@ qdsp6_print_rtx(FILE *stream, const_rtx x)
          && XEXP (x, 1) && GET_CODE (XEXP (x, 1)) == PLUS
          && XEXP (XEXP (x, 1), 0) && REG_P (XEXP (XEXP (x, 1), 0))
          && REGNO (XEXP (x, 0)) == REGNO (XEXP (XEXP (x, 1), 0))){
-        qdsp6_print_rtx(stream, XEXP (x, 0));
+        hexagon_print_rtx(stream, XEXP (x, 0));
         fputs("++", stream);
-        qdsp6_print_rtx(stream, XEXP (XEXP (x, 1), 1));
+        hexagon_print_rtx(stream, XEXP (XEXP (x, 1), 1));
       }
       else {
-        qdsp6_print_rtx(stream, XEXP (x, 0));
+        hexagon_print_rtx(stream, XEXP (x, 0));
         fputs(", ", stream);
-        qdsp6_print_transfer(stream, x);
+        hexagon_print_transfer(stream, x);
       }
       break;
     case NE:
@@ -6304,45 +6310,45 @@ qdsp6_print_rtx(FILE *stream, const_rtx x)
           fputc('!', stream);
         }
         fputs("tstbit(", stream);
-        qdsp6_print_rtx(stream, XEXP (XEXP (x, 0), 0));
+        hexagon_print_rtx(stream, XEXP (XEXP (x, 0), 0));
         fputc(',', stream);
-        qdsp6_print_rtx(stream, XEXP (XEXP (x, 0), 2));
+        hexagon_print_rtx(stream, XEXP (XEXP (x, 0), 2));
         fputc(')', stream);
       }
       else {
-        qdsp6_print_binary_op(stream, GET_CODE (x) == NE ? "cmp.ne" : "cmp.eq",
+        hexagon_print_binary_op(stream, GET_CODE (x) == NE ? "cmp.ne" : "cmp.eq",
                               x);
       }
       break;
     case GE:
-      qdsp6_print_binary_op(stream, "cmp.ge", x);
+      hexagon_print_binary_op(stream, "cmp.ge", x);
       break;
     case GT:
-      qdsp6_print_binary_op(stream, "cmp.gt", x);
+      hexagon_print_binary_op(stream, "cmp.gt", x);
       break;
     case LE:
-      qdsp6_print_swapped_binary_op(stream, "cmp.gt", x);
+      hexagon_print_swapped_binary_op(stream, "cmp.gt", x);
       break;
     case LT:
-      qdsp6_print_swapped_binary_op(stream, "cmp.ge", x);
+      hexagon_print_swapped_binary_op(stream, "cmp.ge", x);
       break;
     case GEU:
-      qdsp6_print_binary_op(stream, "cmp.geu", x);
+      hexagon_print_binary_op(stream, "cmp.geu", x);
       break;
     case GTU:
-      qdsp6_print_binary_op(stream, "cmp.gtu", x);
+      hexagon_print_binary_op(stream, "cmp.gtu", x);
       break;
     case LEU:
-      qdsp6_print_swapped_binary_op(stream, "cmp.gtu", x);
+      hexagon_print_swapped_binary_op(stream, "cmp.gtu", x);
       break;
     case LTU:
-      qdsp6_print_swapped_binary_op(stream, "cmp.geu", x);
+      hexagon_print_swapped_binary_op(stream, "cmp.geu", x);
       break;
     case SIGN_EXTEND:
     case ZERO_EXTEND:
       op = GET_CODE (x) == SIGN_EXTEND ? "sxt" : "zxt";
       if(!XEXP (x, 0)){
-        qdsp6_print_unary_op(stream, op, XEXP (x, 0));
+        hexagon_print_unary_op(stream, op, XEXP (x, 0));
       }
       else {
         if(GET_CODE (XEXP (x, 0)) == MEM){
@@ -6364,16 +6370,16 @@ qdsp6_print_rtx(FILE *stream, const_rtx x)
         }
         if(GET_CODE (XEXP (x, 0)) == MEM){
           fputc('(', stream);
-          qdsp6_print_address(stream, XEXP (XEXP (x, 0), 0));
+          hexagon_print_address(stream, XEXP (XEXP (x, 0), 0));
           fputc(')', stream);
         }
         else {
-          qdsp6_print_unary_op(stream, "", x);
+          hexagon_print_unary_op(stream, "", x);
         }
       }
       break;
     case TRUNCATE:
-      qdsp6_print_rtx(stream, XEXP (x, 0));
+      hexagon_print_rtx(stream, XEXP (x, 0));
       fputc('.', stream);
       switch(GET_MODE (x)){
         case DImode:
@@ -6397,71 +6403,71 @@ qdsp6_print_rtx(FILE *stream, const_rtx x)
       fputs("[0]", stream);
       break;
     case ABS:
-      qdsp6_print_unary_op(stream, "abs", x);
+      hexagon_print_unary_op(stream, "abs", x);
       break;
     case CLZ:
-      qdsp6_print_unary_op(stream, "cl0", x);
+      hexagon_print_unary_op(stream, "cl0", x);
       break;
     case CTZ:
-      qdsp6_print_unary_op(stream, "ct0", x);
+      hexagon_print_unary_op(stream, "ct0", x);
       break;
     case POPCOUNT:
-      qdsp6_print_unary_op(stream, "count_ones", x);
+      hexagon_print_unary_op(stream, "count_ones", x);
       break;
     case PARITY:
-      qdsp6_print_unary_op(stream, "parity", x);
+      hexagon_print_unary_op(stream, "parity", x);
       break;
     case SIGN_EXTRACT:
-      qdsp6_print_trinary_op(stream, "extract", x);
+      hexagon_print_trinary_op(stream, "extract", x);
       break;
     case ZERO_EXTRACT:
-      qdsp6_print_trinary_op(stream, "extractu", x);
+      hexagon_print_trinary_op(stream, "extractu", x);
       break;
     case HIGH:
-      qdsp6_print_rtx(stream, XEXP (x, 0));
+      hexagon_print_rtx(stream, XEXP (x, 0));
       fputs(".h", stream);
       break;
     case LO_SUM:
       fputs("add(", stream);
-      qdsp6_print_rtx(stream, XEXP (x, 0));
+      hexagon_print_rtx(stream, XEXP (x, 0));
       fputc(',', stream);
-      qdsp6_print_rtx(stream, XEXP (x, 1));
+      hexagon_print_rtx(stream, XEXP (x, 1));
       fputs(".l)", stream);
       break;
     case SS_PLUS:
-      qdsp6_print_binary_op_with_option(stream, "add", "sat", x);
+      hexagon_print_binary_op_with_option(stream, "add", "sat", x);
       break;
     case US_PLUS:
-      qdsp6_print_binary_op_with_option(stream, "add", "satu", x);
+      hexagon_print_binary_op_with_option(stream, "add", "satu", x);
       break;
     case SS_MINUS:
-      qdsp6_print_binary_op_with_option(stream, "sub", "sat", x);
+      hexagon_print_binary_op_with_option(stream, "sub", "sat", x);
       break;
     case US_MINUS:
-      qdsp6_print_binary_op_with_option(stream, "sub", "satu", x);
+      hexagon_print_binary_op_with_option(stream, "sub", "satu", x);
       break;
     case SS_TRUNCATE:
       switch(GET_MODE (x)){
         case HImode:
-          qdsp6_print_unary_op(stream, "sath", x);
+          hexagon_print_unary_op(stream, "sath", x);
           break;
         case QImode:
-          qdsp6_print_unary_op(stream, "satb", x);
+          hexagon_print_unary_op(stream, "satb", x);
           break;
         default:
-          qdsp6_print_unary_op(stream, "sat", x);
+          hexagon_print_unary_op(stream, "sat", x);
       }
       break;
     case US_TRUNCATE:
       switch(GET_MODE (x)){
         case HImode:
-          qdsp6_print_unary_op(stream, "satuh", x);
+          hexagon_print_unary_op(stream, "satuh", x);
           break;
         case QImode:
-          qdsp6_print_unary_op(stream, "satub", x);
+          hexagon_print_unary_op(stream, "satub", x);
           break;
         default:
-          qdsp6_print_unary_op(stream, "satu", x);
+          hexagon_print_unary_op(stream, "satu", x);
       }
       break;
     default:
@@ -6475,13 +6481,13 @@ qdsp6_print_rtx(FILE *stream, const_rtx x)
 /* Implements hook TARGET_PRINT_RTL_PSEUDO_ASM */
 
 void
-qdsp6_print_rtl_pseudo_asm(FILE *stream, const_rtx x)
+hexagon_print_rtl_pseudo_asm(FILE *stream, const_rtx x)
 {
   if(x && INSN_P (x)){
-    qdsp6_print_rtx(stream, PATTERN (x));
+    hexagon_print_rtx(stream, PATTERN (x));
   }
   else {
-    qdsp6_print_rtx(stream, x);
+    hexagon_print_rtx(stream, x);
   }
 }
 
@@ -6496,9 +6502,9 @@ Functions called from the machine description
    exception handling and debugging. */
 
 static void
-qdsp6_compute_dwarf_frame_information(void)
+hexagon_compute_dwarf_frame_information(void)
 {
-  struct qdsp6_frame_info *frame;
+  struct hexagon_frame_info *frame;
   HOST_WIDE_INT offset;
   char *label;
   unsigned int i;
@@ -6509,7 +6515,7 @@ qdsp6_compute_dwarf_frame_information(void)
 
   label = dwarf2out_cfi_label(false);
 
-  frame = qdsp6_frame_info();
+  frame = hexagon_frame_info();
 
   /* Did we use the allocframe instruction? */
   if(frame->use_allocframe){
@@ -6544,12 +6550,12 @@ qdsp6_compute_dwarf_frame_information(void)
 
 
 
-/* Helper function for qdsp6_expand_prologue
+/* Helper function for hexagon_expand_prologue
 
    Allocate stack space by decrementing SP. */
 
 static void
-qdsp6_allocate_stack(unsigned HOST_WIDE_INT size, int allocate_stack_insn){
+hexagon_allocate_stack(unsigned HOST_WIDE_INT size, int allocate_stack_insn){
   rtx offset;
 
   if(size == 0){
@@ -6587,14 +6593,14 @@ qdsp6_allocate_stack(unsigned HOST_WIDE_INT size, int allocate_stack_insn){
    saving for the current function. */
 
 void
-qdsp6_expand_prologue(void)
+hexagon_expand_prologue(void)
 {
-  struct qdsp6_frame_info *frame;
+  struct hexagon_frame_info *frame;
   rtx base_reg;
   HOST_WIDE_INT offset;
   unsigned int i;
 
-  frame = qdsp6_frame_info();
+  frame = hexagon_frame_info();
 
   /* Do we need to use the allocframe instruction? */
   if(frame->use_allocframe){
@@ -6603,7 +6609,7 @@ qdsp6_expand_prologue(void)
   }
 
   /* Allocate any remaning stack space. */
-  qdsp6_allocate_stack(frame->sp_adjustment, frame->allocate_stack_insn);
+  hexagon_allocate_stack(frame->sp_adjustment, frame->allocate_stack_insn);
 
   /* Save callee-save registers. */
   if(frame->prologue_function != CODE_FOR_nothing){
@@ -6630,7 +6636,7 @@ qdsp6_expand_prologue(void)
   }
 
   if (flag_pic && crtl->uses_pic_offset_table) {
-    qdsp6_load_pic_register ();
+    hexagon_load_pic_register ();
   }
 
 }
@@ -6642,9 +6648,9 @@ qdsp6_expand_prologue(void)
    instruction. */
 
 bool
-qdsp6_direct_return(void)
+hexagon_direct_return(void)
 {
-  struct qdsp6_frame_info *frame = qdsp6_frame_info();
+  struct hexagon_frame_info *frame = hexagon_frame_info();
 
   return reload_completed && (frame->total_size == 0
                               || (TARGET_V4_FEATURES && frame->use_allocframe
@@ -6654,12 +6660,12 @@ qdsp6_direct_return(void)
 
 
 
-/* Helper function for qdsp6_expand_epilogue
+/* Helper function for hexagon_expand_epilogue
 
    Deallocate stack space by incrementing SP. */
 
 static void
-qdsp6_deallocate_stack(unsigned HOST_WIDE_INT size){
+hexagon_deallocate_stack(unsigned HOST_WIDE_INT size){
   rtx r28;
 
   /* If more than two add instructions would be required, then reload the offset
@@ -6692,17 +6698,17 @@ qdsp6_deallocate_stack(unsigned HOST_WIDE_INT size){
    EMIT_RETURN is true. */
 
 void
-qdsp6_expand_epilogue(bool sibcall)
+hexagon_expand_epilogue(bool sibcall)
 {
   bool emit_return;
-  struct qdsp6_frame_info *frame;
+  struct hexagon_frame_info *frame;
   rtx base_reg;
   HOST_WIDE_INT offset;
   int i;
 
   emit_return = !sibcall;
 
-  frame = qdsp6_frame_info();
+  frame = hexagon_frame_info();
 
   /* Restore callee-save registers. */
   base_reg = frame->base_reg;
@@ -6730,7 +6736,7 @@ qdsp6_expand_epilogue(bool sibcall)
   /* If LR and FP do not need to be restored, then simply deallocate the
      stack. */
   if(!frame->use_allocframe){
-    qdsp6_deallocate_stack(frame->sp_adjustment);
+    hexagon_deallocate_stack(frame->sp_adjustment);
   }
   /* Otherwise, call a function if doing so will save code size. */
   else if(!sibcall && frame->epilogue_function != CODE_FOR_nothing){
@@ -6772,7 +6778,7 @@ qdsp6_expand_epilogue(bool sibcall)
                        op1 = swap_rtx;}
 
 rtx
-qdsp6_expand_compare(enum rtx_code code)
+hexagon_expand_compare(enum rtx_code code)
 {
   rtx op0 = cfun->machine->compare_op0;
   rtx op1 = cfun->machine->compare_op1;
@@ -6876,7 +6882,7 @@ qdsp6_expand_compare(enum rtx_code code)
 }
 
 rtx
-qdsp6_expand_compare2(enum rtx_code code, rtx op0, rtx op1)
+hexagon_expand_compare2(enum rtx_code code, rtx op0, rtx op1)
 {
   enum rtx_code compare_code, jump_code;
   rtx p_reg, const_reg;
@@ -6996,7 +7002,7 @@ qdsp6_expand_compare2(enum rtx_code code, rtx op0, rtx op1)
 /* Creates a tree node for a block-move function named NAME. */
 
 static tree
-qdsp6_special_case_memcpy_fn(const char *name)
+hexagon_special_case_memcpy_fn(const char *name)
 {
   tree args, fn;
 
@@ -7027,7 +7033,7 @@ qdsp6_special_case_memcpy_fn(const char *name)
    named NAME. */
 
 static void
-qdsp6_emit_special_case_memcpy_fn(
+hexagon_emit_special_case_memcpy_fn(
   tree *fn,
   const char *name,
   rtx dst,
@@ -7061,7 +7067,7 @@ qdsp6_emit_special_case_memcpy_fn(
   size_tree = make_tree(sizetype, size);
 
   if(!*fn){
-    *fn = qdsp6_special_case_memcpy_fn(name);
+    *fn = hexagon_special_case_memcpy_fn(name);
   }
   call_expr = build_call_expr (*fn, 3, dst_tree, src_tree, size_tree);
   CALL_EXPR_TAILCALL (call_expr) = tailcall;
@@ -7081,7 +7087,7 @@ qdsp6_emit_special_case_memcpy_fn(
    contain any packets containing more than one memory access. */
 
 static void
-qdsp6_expand_movmem_inline(rtx operands[], bool volatile_p)
+hexagon_expand_movmem_inline(rtx operands[], bool volatile_p)
 {
   rtx src_0, dst_0, src_reg, dst_reg, src_mem, dst_mem, value_reg, count_reg;
   rtx label, loopcount_rtx, doloop_fixup_code;
@@ -7169,7 +7175,7 @@ qdsp6_expand_movmem_inline(rtx operands[], bool volatile_p)
 
     if(TARGET_HARDWARE_LOOPS){
       emit_jump_insn(gen_endloop0(label, doloop_fixup_code));
-      qdsp6_hardware_loop();
+      hexagon_hardware_loop();
     }
     else {
       rtx pred = gen_reg_rtx(BImode);
@@ -7240,8 +7246,8 @@ qdsp6_expand_movmem_inline(rtx operands[], bool volatile_p)
 
 /* Tree nodes for specialized block-move functions */
 
-static GTY(()) tree qdsp6_memcpy_volatile;
-static GTY(()) tree qdsp6_memcpy_likely_aligned8_min32_mult8;
+static GTY(()) tree hexagon_memcpy_volatile;
+static GTY(()) tree hexagon_memcpy_likely_aligned8_min32_mult8;
 
 /* Emits RTL to perform a block move or returns false.  OPERANDS[0] is a MEM
    containing the destination address.  OPERANDS[1] is a MEM containing the
@@ -7252,7 +7258,7 @@ static GTY(()) tree qdsp6_memcpy_likely_aligned8_min32_mult8;
    tail call. */
 
 bool
-qdsp6_expand_movmem(rtx operands[])
+hexagon_expand_movmem(rtx operands[])
 {
   HOST_WIDE_INT length, align;
   int cycles, leftovers;
@@ -7263,7 +7269,7 @@ qdsp6_expand_movmem(rtx operands[])
 
   volatile_p = !TARGET_V4_FEATURES
                && (MEM_VOLATILE_P (operands[0]) || MEM_VOLATILE_P (operands[1])
-                   || !qdsp6_dual_memory_accesses);
+                   || !hexagon_dual_memory_accesses);
 
   align = MIN (INTVAL (operands[3]), BIGGEST_ALIGNMENT / BITS_PER_UNIT);
   if(GET_CODE (operands[2]) == CONST_INT){
@@ -7291,14 +7297,14 @@ qdsp6_expand_movmem(rtx operands[])
              && length != -1
              && cycles <= (optimize >= 3 ? O3_inline_cycle_threshold
                                          : O2_inline_cycle_threshold)))){
-    qdsp6_expand_movmem_inline(operands, volatile_p);
+    hexagon_expand_movmem_inline(operands, volatile_p);
     return true;
   }
 
   if(optimize && !volatile_p
      && (align & 3) == 0 && length >= 32 && length % 8 == 0
      && cycles < likely_aligned_cycle_threshold){
-    qdsp6_emit_special_case_memcpy_fn(&qdsp6_memcpy_likely_aligned8_min32_mult8,
+    hexagon_emit_special_case_memcpy_fn(&hexagon_memcpy_likely_aligned8_min32_mult8,
                                       "__qdsp_memcpy_likely_aligned_min32bytes_mult8bytes",
                                       operands[0], operands[1], operands[2],
                                       INTVAL (operands[6]));
@@ -7306,7 +7312,7 @@ qdsp6_expand_movmem(rtx operands[])
   }
 
   if(volatile_p){
-    qdsp6_emit_special_case_memcpy_fn(&qdsp6_memcpy_volatile, "memcpy_v",
+    hexagon_emit_special_case_memcpy_fn(&hexagon_memcpy_volatile, "memcpy_v",
                                       operands[0], operands[1], operands[2],
                                       INTVAL (operands[6]));
     return true;
@@ -7341,7 +7347,7 @@ qdsp6_expand_movmem(rtx operands[])
 */
 
 bool
-qdsp6_expand_setmem(rtx operands[])
+hexagon_expand_setmem(rtx operands[])
 {
 #define MEMSET_LIBCALL_THRESHOLD 64
   HOST_WIDE_INT align_intval, nbytes_intval, initval_intval;
@@ -7447,7 +7453,7 @@ qdsp6_expand_setmem(rtx operands[])
           emit_insn(gen_addsi3(base_reg, base_reg, 
                                gen_int_mode(GET_MODE_SIZE(curr_mode), SImode)));
           emit_jump_insn(gen_endloop0(label, doloop_fixup_code));
-          qdsp6_hardware_loop();
+          hexagon_hardware_loop();
         }
 
       /* Count leftover */
@@ -7463,7 +7469,7 @@ qdsp6_expand_setmem(rtx operands[])
    taken". */
 
 rtx
-qdsp6_branch_hint(rtx insn)
+hexagon_branch_hint(rtx insn)
 {
   rtx note = find_reg_note(insn, REG_BR_PROB, 0);
   return GEN_INT (note && INTVAL (XEXP (note, 0)) > REG_BR_PROB_BASE / 2);
@@ -7473,7 +7479,7 @@ qdsp6_branch_hint(rtx insn)
 
 
 void
-qdsp6_hardware_loop(void)
+hexagon_hardware_loop(void)
 {
   cfun->machine->has_hardware_loops++;
 }
@@ -7486,10 +7492,10 @@ Functions for forming and manipulating packets
 --------------------------------------------*/
 
 void
-qdsp6_print_insn_info(FILE *file, struct qdsp6_insn_info *insn_info)
+hexagon_print_insn_info(FILE *file, struct hexagon_insn_info *insn_info)
 {
-  struct qdsp6_reg_access *reg_access;
-  struct qdsp6_mem_access *mem_access;
+  struct hexagon_reg_access *reg_access;
+  struct hexagon_mem_access *mem_access;
   bool first;
 
   if(insn_info == NULL){
@@ -7498,41 +7504,41 @@ qdsp6_print_insn_info(FILE *file, struct qdsp6_insn_info *insn_info)
   }
 
   fputs(";; condition: ", file);
-  if(QDSP6_GPR_CONDITION_P (insn_info)){
+  if(HEXAGON_GPR_CONDITION_P (insn_info)){
     fputs("gpr", file);
   }
-  else if(QDSP6_SENSE (insn_info) == QDSP6_UNCONDITIONAL){
+  else if(HEXAGON_SENSE (insn_info) == HEXAGON_UNCONDITIONAL){
     fputs("unconditional", file);
   }
-  else if(QDSP6_SENSE (insn_info) == 0){
+  else if(HEXAGON_SENSE (insn_info) == 0){
     fputs("never", file);
   }
   else {
-    if(QDSP6_SENSE (insn_info) == QDSP6_IF_FALSE){
+    if(HEXAGON_SENSE (insn_info) == HEXAGON_IF_FALSE){
       fputc('!', file);
     }
-    fputs(reg_names[P0_REGNUM + QDSP6_PREDICATE (insn_info)], file);
-    if(QDSP6_NEW_PREDICATE_P (insn_info)){
+    fputs(reg_names[P0_REGNUM + HEXAGON_PREDICATE (insn_info)], file);
+    if(HEXAGON_NEW_PREDICATE_P (insn_info)){
       fputs(".new", file);
     }
   }
   fputc('\n', file);
 
   fputs(";; control: ", file);
-  if(QDSP6_CONTROL_P (insn_info)){
-    if(QDSP6_DIRECT_JUMP_P (insn_info)){
+  if(HEXAGON_CONTROL_P (insn_info)){
+    if(HEXAGON_DIRECT_JUMP_P (insn_info)){
       fputs("jump", file);
     }
-    if(QDSP6_INDIRECT_JUMP_P (insn_info)){
+    if(HEXAGON_INDIRECT_JUMP_P (insn_info)){
       fputs("indirect jump", file);
     }
-    if(QDSP6_DIRECT_CALL_P (insn_info)){
+    if(HEXAGON_DIRECT_CALL_P (insn_info)){
       fputs("call", file);
     }
-    if(QDSP6_INDIRECT_CALL_P (insn_info)){
+    if(HEXAGON_INDIRECT_CALL_P (insn_info)){
       fputs("indirect call", file);
     }
-    if(QDSP6_ENDLOOP_P (insn_info)){
+    if(HEXAGON_ENDLOOP_P (insn_info)){
       fputs("endloop", file);
     }
   }
@@ -7543,25 +7549,25 @@ qdsp6_print_insn_info(FILE *file, struct qdsp6_insn_info *insn_info)
 
   fputs(";; flags: (", file);
   first = true;
-  if(QDSP6_EMULATION_CALL_P (insn_info)){
+  if(HEXAGON_EMULATION_CALL_P (insn_info)){
     fputs("emulation_call", file);
     first = false;
   }
-  if(QDSP6_VOLATILE_P (insn_info)){
+  if(HEXAGON_VOLATILE_P (insn_info)){
     if(!first){
       fputs(", ", file);
     }
     fputs("volatile", file);
     first = false;
   }
-  if(QDSP6_MEM_P (insn_info)){
+  if(HEXAGON_MEM_P (insn_info)){
     if(!first){
       fputs(", ", file);
     }
     fputs("mem", file);
     first = false;
   }
-  if(QDSP6_NEW_GPR_P (insn_info)){
+  if(HEXAGON_NEW_GPR_P (insn_info)){
     if(!first){
       fputs(", ", file);
     }
@@ -7641,16 +7647,16 @@ qdsp6_print_insn_info(FILE *file, struct qdsp6_insn_info *insn_info)
 
 
 void
-qdsp6_debug_insn_info(struct qdsp6_insn_info *insn_info)
+hexagon_debug_insn_info(struct hexagon_insn_info *insn_info)
 {
-  qdsp6_print_insn_info(stderr, insn_info);
+  hexagon_print_insn_info(stderr, insn_info);
 }
 
 
 
 
 void
-qdsp6_print_packet(FILE *file, struct qdsp6_packet_info *packet)
+hexagon_print_packet(FILE *file, struct hexagon_packet_info *packet)
 {
   int i;
 
@@ -7660,8 +7666,8 @@ qdsp6_print_packet(FILE *file, struct qdsp6_packet_info *packet)
   }
 
   fputs(";; ==== BEGIN PACKET ====\n", file);
-  for(i = 0; i < packet->num_insns && i < QDSP6_MAX_INSNS_PER_PACKET; i++){
-    qdsp6_print_insn_info(file, packet->insns[i]);
+  for(i = 0; i < packet->num_insns && i < HEXAGON_MAX_INSNS_PER_PACKET; i++){
+    hexagon_print_insn_info(file, packet->insns[i]);
   }
   fputs(";; ==== END PACKET ====\n", file);
 }
@@ -7670,15 +7676,15 @@ qdsp6_print_packet(FILE *file, struct qdsp6_packet_info *packet)
 
 
 void
-qdsp6_print_packets(FILE *file, struct qdsp6_packet_info *packet)
+hexagon_print_packets(FILE *file, struct hexagon_packet_info *packet)
 {
   if(packet == NULL){
-    qdsp6_print_packet(file, packet);
+    hexagon_print_packet(file, packet);
     return;
   }
 
   do {
-    qdsp6_print_packet(file, packet);
+    hexagon_print_packet(file, packet);
     packet = packet->next;
   }while(packet);
 }
@@ -7687,14 +7693,14 @@ qdsp6_print_packets(FILE *file, struct qdsp6_packet_info *packet)
 
 
 void 
-qdsp6_debug_packets(void)
+hexagon_debug_packets(void)
 {
   basic_block bb;
   FOR_EACH_BB(bb)
   {
-    struct qdsp6_packet_info *packet;
+    struct hexagon_packet_info *packet;
     packet = BB_HEAD_PACKET(bb);
-    qdsp6_print_packets(stderr, packet);
+    hexagon_print_packets(stderr, packet);
   }
 }
 
@@ -7702,31 +7708,31 @@ qdsp6_debug_packets(void)
 
 
 void
-qdsp6_debug_packet(struct qdsp6_packet_info *packet)
+hexagon_debug_packet(struct hexagon_packet_info *packet)
 {
-  qdsp6_print_packet(stderr, packet);
+  hexagon_print_packet(stderr, packet);
 }
 
 
 
 
 void
-qdsp6_print_bb_packets(FILE *file, basic_block bb)
+hexagon_print_bb_packets(FILE *file, basic_block bb)
 {
-  struct qdsp6_packet_info *packet;
+  struct hexagon_packet_info *packet;
 
   dump_bb_info(bb, true, false, TDF_DETAILS, ";; ", file);
   packet = BB_HEAD_PACKET (bb);
   if(packet){
     fputs("\n;; sentinel packet:\n", file);
-    qdsp6_print_packet(file, packet->prev);
+    hexagon_print_packet(file, packet->prev);
   }
   fputc('\n', file);
   while(packet && packet != BB_END_PACKET (bb)){
-    qdsp6_print_packet(file, packet);
+    hexagon_print_packet(file, packet);
     packet = packet->next;
   }
-  qdsp6_print_packet(file, packet);
+  hexagon_print_packet(file, packet);
   dump_bb_info(bb, false, true, TDF_DETAILS, ";; ", file);
   fputs("\n\n", file);
 }
@@ -7735,21 +7741,21 @@ qdsp6_print_bb_packets(FILE *file, basic_block bb)
 
 
 void
-qdsp6_debug_bb_packets(basic_block bb)
+hexagon_debug_bb_packets(basic_block bb)
 {
-  qdsp6_print_bb_packets(stderr, bb);
+  hexagon_print_bb_packets(stderr, bb);
 }
 
 
 
 
 void
-qdsp6_debug_all_bb_packets(void)
+hexagon_debug_all_bb_packets(void)
 {
   basic_block bb;
 
   FOR_EACH_BB (bb){
-   qdsp6_debug_bb_packets(bb);
+   hexagon_debug_bb_packets(bb);
   }
 }
 
@@ -7757,7 +7763,7 @@ qdsp6_debug_all_bb_packets(void)
 
 
 static int
-qdsp6_get_flags(rtx insn)
+hexagon_get_flags(rtx insn)
 {
   int flags = 0;
   rtx pattern;
@@ -7778,7 +7784,7 @@ qdsp6_get_flags(rtx insn)
     test = XEXP (SET_SRC (pattern), 0);
 
     if(C_REG_P (XEXP (test, 0))){
-      flags |= QDSP6_ENDLOOP;
+      flags |= HEXAGON_ENDLOOP;
       test = NULL_RTX;
     }
   }
@@ -7789,25 +7795,25 @@ qdsp6_get_flags(rtx insn)
   if(test){
     if(P_REG_P (XEXP (test, 0))){
       flags |= REGNO (XEXP (test, 0)) - P0_REGNUM;
-      flags |= GET_CODE (test) == NE ? QDSP6_IF_TRUE : QDSP6_IF_FALSE;
+      flags |= GET_CODE (test) == NE ? HEXAGON_IF_TRUE : HEXAGON_IF_FALSE;
     }
     else {
-      flags |= QDSP6_GPR_CONDITION | QDSP6_UNCONDITIONAL;
+      flags |= HEXAGON_GPR_CONDITION | HEXAGON_UNCONDITIONAL;
     }
   }
   else {
-    flags |= QDSP6_UNCONDITIONAL;
+    flags |= HEXAGON_UNCONDITIONAL;
   }
 
   if ( INSN_CODE (insn) == CODE_FOR_compare_and_jump1 ||
        INSN_CODE (insn) == CODE_FOR_compare_and_jump2 )
   {
-    flags |= QDSP6_NEW_PREDICATE;
+    flags |= HEXAGON_NEW_PREDICATE;
   }
 
-  if(JUMP_P (insn) && !(flags & QDSP6_ENDLOOP) ){
+  if(JUMP_P (insn) && !(flags & HEXAGON_ENDLOOP) ){
     if(GET_CODE (pattern) == RETURN){
-      flags |= QDSP6_INDIRECT_JUMP;
+      flags |= HEXAGON_INDIRECT_JUMP;
     }
     else {
       gcc_assert(GET_CODE (pattern) == SET);
@@ -7817,10 +7823,10 @@ qdsp6_get_flags(rtx insn)
       }
 
       if(GET_CODE (target) == LABEL_REF){
-        flags |= QDSP6_DIRECT_JUMP;
+        flags |= HEXAGON_DIRECT_JUMP;
       }
       else {
-        flags |= QDSP6_INDIRECT_JUMP;
+        flags |= HEXAGON_INDIRECT_JUMP;
       }
     }
   }
@@ -7831,10 +7837,10 @@ qdsp6_get_flags(rtx insn)
 
     gcc_assert(GET_CODE (pattern) == CALL && MEM_P (XEXP (pattern, 0)));
     if(REG_P (XEXP (XEXP (pattern, 0), 0))){
-      flags |= QDSP6_INDIRECT_CALL;
+      flags |= HEXAGON_INDIRECT_CALL;
     }
     else {
-      flags |= QDSP6_DIRECT_CALL;
+      flags |= HEXAGON_DIRECT_CALL;
     }
   }
   /* Ignore instructions that do nothing */
@@ -7846,7 +7852,7 @@ qdsp6_get_flags(rtx insn)
       /* do nothing */
     }
   else if(get_attr_emulation_call(insn) == EMULATION_CALL_YES){
-    flags |= QDSP6_EMULATION_CALL;
+    flags |= HEXAGON_EMULATION_CALL;
   }
 
   return flags;
@@ -7855,10 +7861,10 @@ qdsp6_get_flags(rtx insn)
 
 
 
-static struct qdsp6_reg_access *
-qdsp6_add_reg_access(struct qdsp6_reg_access *accesses, rtx reg, int flags)
+static struct hexagon_reg_access *
+hexagon_add_reg_access(struct hexagon_reg_access *accesses, rtx reg, int flags)
 {
-  struct qdsp6_reg_access *access;
+  struct hexagon_reg_access *access;
   unsigned int regno;
   unsigned int next_hard_regno;
 
@@ -7872,7 +7878,7 @@ qdsp6_add_reg_access(struct qdsp6_reg_access *accesses, rtx reg, int flags)
   regno = REGNO (reg);
   next_hard_regno = regno + HARD_REGNO_NREGS (regno, GET_MODE (reg));
   for(; regno < next_hard_regno; regno++){
-    access = (struct qdsp6_reg_access *)ggc_alloc_cleared(sizeof(struct qdsp6_reg_access));
+    access = (struct hexagon_reg_access *)ggc_alloc_cleared(sizeof(struct hexagon_reg_access));
     access->reg = reg;
     access->regno = regno;
     access->flags = flags;
@@ -7885,10 +7891,10 @@ qdsp6_add_reg_access(struct qdsp6_reg_access *accesses, rtx reg, int flags)
 
 
 
-static struct qdsp6_mem_access *
-qdsp6_add_mem_access(struct qdsp6_mem_access *accesses, rtx mem, int flags)
+static struct hexagon_mem_access *
+hexagon_add_mem_access(struct hexagon_mem_access *accesses, rtx mem, int flags)
 {
-  struct qdsp6_mem_access *access;
+  struct hexagon_mem_access *access;
 
   /* Ignore duplicates. */
   for(access = accesses; access; access = access->next){
@@ -7897,7 +7903,7 @@ qdsp6_add_mem_access(struct qdsp6_mem_access *accesses, rtx mem, int flags)
     }
   }
 
-  access = (struct qdsp6_mem_access *)ggc_alloc_cleared(sizeof(struct qdsp6_mem_access));
+  access = (struct hexagon_mem_access *)ggc_alloc_cleared(sizeof(struct hexagon_mem_access));
   access->mem = mem;
   access->flags = flags;
   access->next = accesses;
@@ -7908,27 +7914,27 @@ qdsp6_add_mem_access(struct qdsp6_mem_access *accesses, rtx mem, int flags)
 
 
 static int
-qdsp6_record_writes(rtx *y, void *info)
+hexagon_record_writes(rtx *y, void *info)
 {
   rtx x;
-  struct qdsp6_insn_info *insn_info;
+  struct hexagon_insn_info *insn_info;
 
   x = *y;
-  insn_info = (struct qdsp6_insn_info *) info;
+  insn_info = (struct hexagon_insn_info *) info;
 
   switch(GET_CODE (x)){
     case MEM:
-      insn_info->stores = qdsp6_add_mem_access(insn_info->stores,
+      insn_info->stores = hexagon_add_mem_access(insn_info->stores,
                                                x,
                                                insn_info->flags);
-      insn_info->flags |= QDSP6_MEM;
+      insn_info->flags |= HEXAGON_MEM;
       if(MEM_VOLATILE_P (x)){
-        insn_info->flags |= QDSP6_VOLATILE;
+        insn_info->flags |= HEXAGON_VOLATILE;
       }
-      for_each_rtx(&XEXP (x, 0), qdsp6_record_reads, insn_info);
+      for_each_rtx(&XEXP (x, 0), hexagon_record_reads, insn_info);
       return -1;
     case REG:
-      insn_info->reg_writes = qdsp6_add_reg_access(insn_info->reg_writes,
+      insn_info->reg_writes = hexagon_add_reg_access(insn_info->reg_writes,
                                                    x,
                                                    insn_info->flags);
       return 0;
@@ -7941,22 +7947,22 @@ qdsp6_record_writes(rtx *y, void *info)
 
 
 static int
-qdsp6_record_reads(rtx *y, void *info)
+hexagon_record_reads(rtx *y, void *info)
 {
   rtx x;
-  struct qdsp6_insn_info *insn_info;
+  struct hexagon_insn_info *insn_info;
   int saved_flags;
 
   x = *y;
-  insn_info = (struct qdsp6_insn_info *) info;
+  insn_info = (struct hexagon_insn_info *) info;
 
   switch(GET_CODE (x)){
     case COND_EXEC:
       saved_flags = insn_info->flags;
-      insn_info->flags = QDSP6_UNCONDITIONAL;
-      for_each_rtx(&COND_EXEC_TEST (x), qdsp6_record_reads, insn_info);
+      insn_info->flags = HEXAGON_UNCONDITIONAL;
+      for_each_rtx(&COND_EXEC_TEST (x), hexagon_record_reads, insn_info);
       insn_info->flags = saved_flags;
-      for_each_rtx(&COND_EXEC_CODE (x), qdsp6_record_reads, insn_info);
+      for_each_rtx(&COND_EXEC_CODE (x), hexagon_record_reads, insn_info);
       return -1;
     case SET:
       /* V2/V3/V4 insert instruction is unusual in the way that it reads and
@@ -7964,43 +7970,43 @@ qdsp6_record_reads(rtx *y, void *info)
          as a special case.
          (set (zero_extract (...) (...) (...)) (...)) */
       if(XEXP (x, 0) && GET_CODE (XEXP (x, 0)) == ZERO_EXTRACT){
-          for_each_rtx(&XEXP (x, 0), qdsp6_record_reads, insn_info);
+          for_each_rtx(&XEXP (x, 0), hexagon_record_reads, insn_info);
       }
       /* fall through */
     case POST_MODIFY:
       if(GET_CODE (XEXP (x, 1)) != CALL){
-        for_each_rtx(&XEXP (x, 0), qdsp6_record_writes, insn_info);
+        for_each_rtx(&XEXP (x, 0), hexagon_record_writes, insn_info);
       }
-      for_each_rtx(&XEXP (x, 1), qdsp6_record_reads, insn_info);
+      for_each_rtx(&XEXP (x, 1), hexagon_record_reads, insn_info);
       return -1;
     case CALL:
       gcc_assert(MEM_P (XEXP (x, 0)));
-      for_each_rtx(&XEXP (XEXP (x, 0), 0), qdsp6_record_reads, insn_info);
+      for_each_rtx(&XEXP (XEXP (x, 0), 0), hexagon_record_reads, insn_info);
       return -1;
     case CLOBBER:
-      for_each_rtx(&XEXP (x, 0), qdsp6_record_writes, insn_info);
+      for_each_rtx(&XEXP (x, 0), hexagon_record_writes, insn_info);
       return -1;
     case POST_DEC:
     case POST_INC:
-      for_each_rtx(&XEXP (x, 0), qdsp6_record_writes, insn_info);
+      for_each_rtx(&XEXP (x, 0), hexagon_record_writes, insn_info);
       return 0;
     case MEM:
-      insn_info->loads = qdsp6_add_mem_access(insn_info->loads,
+      insn_info->loads = hexagon_add_mem_access(insn_info->loads,
                                               x,
                                               insn_info->flags);
-      insn_info->flags |= QDSP6_MEM;
+      insn_info->flags |= HEXAGON_MEM;
       if(MEM_VOLATILE_P (x)){
-        insn_info->flags |= QDSP6_VOLATILE;
+        insn_info->flags |= HEXAGON_VOLATILE;
       }
       return 0;
     case REG:
-      insn_info->reg_reads = qdsp6_add_reg_access(insn_info->reg_reads,
+      insn_info->reg_reads = hexagon_add_reg_access(insn_info->reg_reads,
                                                   x,
                                                   insn_info->flags);
       return 0;
     case RETURN:
-      if(!QDSP6_CALL_P (insn_info)){
-        insn_info->reg_reads = qdsp6_add_reg_access(insn_info->reg_reads,
+      if(!HEXAGON_CALL_P (insn_info)){
+        insn_info->reg_reads = hexagon_add_reg_access(insn_info->reg_reads,
                                                     gen_rtx_REG (word_mode,
                                                                  LINK_REGNUM),
                                                     insn_info->flags);
@@ -8014,18 +8020,18 @@ qdsp6_record_reads(rtx *y, void *info)
 
 
 
-static struct qdsp6_insn_info *
-qdsp6_get_insn_info(rtx insn)
+static struct hexagon_insn_info *
+hexagon_get_insn_info(rtx insn)
 {
-  struct qdsp6_insn_info *insn_info;
+  struct hexagon_insn_info *insn_info;
 
-  insn_info = (struct qdsp6_insn_info *)ggc_alloc_cleared(sizeof(struct qdsp6_insn_info));
+  insn_info = (struct hexagon_insn_info *)ggc_alloc_cleared(sizeof(struct hexagon_insn_info));
 
   insn_info->insn = insn;
-  insn_info->flags = qdsp6_get_flags(insn);
+  insn_info->flags = hexagon_get_flags(insn);
 
   /* Record accesses. */
-  for_each_rtx(&PATTERN (insn), qdsp6_record_reads, insn_info);
+  for_each_rtx(&PATTERN (insn), hexagon_record_reads, insn_info);
 
   /* Transfers of immediate values that cannot be encoded in a transfer
      immediate instruction are implemented as GP-relative loads. */
@@ -8038,7 +8044,7 @@ qdsp6_get_insn_info(rtx insn)
     }
   else if (get_attr_type(insn) == TYPE_LOAD)
     {
-      insn_info->flags |= QDSP6_MEM;
+      insn_info->flags |= HEXAGON_MEM;
     }
   
   return insn_info;
@@ -8060,7 +8066,7 @@ get_pair_reg(unsigned int regno)
    replace that element with replacement 
 */
 static void
-qdsp6_replace_transfer_map(VEC(rtx, gc)* transfer_source, unsigned orig_reg, 
+hexagon_replace_transfer_map(VEC(rtx, gc)* transfer_source, unsigned orig_reg, 
 			   rtx replacement)
 {
   unsigned int iter;
@@ -8086,7 +8092,7 @@ qdsp6_replace_transfer_map(VEC(rtx, gc)* transfer_source, unsigned orig_reg,
 /* Predicate that returns true if insn is a register-to-register or
    a register-to-immediate copy */
 static inline bool 
-qdsp6_register_copy_word_p (rtx insn)
+hexagon_register_copy_word_p (rtx insn)
 {
   rtx reg_copy;
   bool dest_reg, src_reg_imm;
@@ -8103,7 +8109,7 @@ qdsp6_register_copy_word_p (rtx insn)
 }
 
 /* Predicate that checks if REG is a lower component of a pair register */
-#define QDSP6_LOWER_PAIR(REG)         (!(REG & 0x1))
+#define HEXAGON_LOWER_PAIR(REG)         (!(REG & 0x1))
 
 
 /* 
@@ -8130,7 +8136,7 @@ qdsp6_register_copy_word_p (rtx insn)
    and invalidate the corresponding entry in the map
 */
 static void
-qdsp6_local_combine_pass(void) 
+hexagon_local_combine_pass(void) 
 {
   rtx insn;
   basic_block bb;
@@ -8159,16 +8165,16 @@ qdsp6_local_combine_pass(void)
       
       FOR_BB_INSNS (bb, insn)
 	{
-	  struct qdsp6_insn_info *insn_info;
-	  struct qdsp6_reg_access *read;
-	  struct qdsp6_reg_access *write;
+	  struct hexagon_insn_info *insn_info;
+	  struct hexagon_reg_access *read;
+	  struct hexagon_reg_access *write;
 
 	  /* Only process instructions */
 	  if (!INSN_P(insn)) 
 	    {
 	      continue;
 	    }
-	  insn_info = qdsp6_get_insn_info(insn);
+	  insn_info = hexagon_get_insn_info(insn);
 
 	  /* Process all instructions -- transfers and non-transfers. If the 
 	     instruction is reading the register. Remove from map. This condition
@@ -8184,7 +8190,7 @@ qdsp6_local_combine_pass(void)
 	    }
 	  
 
-	  if (qdsp6_register_copy_word_p (insn))
+	  if (hexagon_register_copy_word_p (insn))
 	    {
 	      rtx source;
 	      unsigned int dest_pair_regno;
@@ -8199,7 +8205,7 @@ qdsp6_local_combine_pass(void)
 	      /* A register has been defined. If that register is an element of
 		 transfer_source, we can no longer consider that transfer to be valid.
 		 Invalidate that element */
-	      qdsp6_replace_transfer_map (transfer_source, dest_regno, NULL_RTX);
+	      hexagon_replace_transfer_map (transfer_source, dest_regno, NULL_RTX);
 	      
 	      /* Get the pair register for dest_regno */
 	      dest_pair_regno = get_pair_reg(dest_regno);
@@ -8225,7 +8231,7 @@ qdsp6_local_combine_pass(void)
 		      
 		      /* Check if the current instruction defines the lower or the higher pair
 			 and create the appropriate combine instruction */
-		      if (QDSP6_LOWER_PAIR (dest_regno))
+		      if (HEXAGON_LOWER_PAIR (dest_regno))
 			{
 			  combine_insn = 
 			    emit_insn_after( gen_combinesi (dest_pair_rtx, 
@@ -8256,7 +8262,7 @@ qdsp6_local_combine_pass(void)
 		      insn = combine_insn;
 		    }
 		}
-	    } /* qdsp6_is_register_copy */
+	    } /* hexagon_is_register_copy */
 	  else 
 	    {
 	      /* For Call instructions we need to invalidate all caller-saved registers */
@@ -8269,7 +8275,7 @@ qdsp6_local_combine_pass(void)
 			VEC_replace(rtx, transfer_source, i, NULL_RTX); 
 			/* If any element of the vector contains a caller-save register
 			   invalidate that entry */
-			qdsp6_replace_transfer_map (transfer_source, i, NULL_RTX);
+			hexagon_replace_transfer_map (transfer_source, i, NULL_RTX);
 		      }
 		  }
 	      }
@@ -8286,7 +8292,7 @@ qdsp6_local_combine_pass(void)
 		     This can be made more efficient by maintaining a map of regno to 
 		     a list of indices in transfer_source that contain regno as an 
 		     element */
-		  qdsp6_replace_transfer_map(transfer_source, defined_reg, NULL_RTX); 
+		  hexagon_replace_transfer_map(transfer_source, defined_reg, NULL_RTX); 
 		}
 	    }
 	}
@@ -8294,22 +8300,22 @@ qdsp6_local_combine_pass(void)
 }
 
 
-static struct qdsp6_packet_info *
-qdsp6_start_new_packet(void)
+static struct hexagon_packet_info *
+hexagon_start_new_packet(void)
 {
-  struct qdsp6_packet_info *new_packet;
+  struct hexagon_packet_info *new_packet;
 
-  new_packet = (struct qdsp6_packet_info *)ggc_alloc_cleared(sizeof(struct qdsp6_packet_info));
+  new_packet = (struct hexagon_packet_info *)ggc_alloc_cleared(sizeof(struct hexagon_packet_info));
 
-  if(qdsp6_head_packet == NULL){
-    qdsp6_head_packet = new_packet;
+  if(hexagon_head_packet == NULL){
+    hexagon_head_packet = new_packet;
   }
   else {
-    gcc_assert(qdsp6_tail_packet);
-    qdsp6_tail_packet->next = new_packet;
-    new_packet->prev = qdsp6_tail_packet;
+    gcc_assert(hexagon_tail_packet);
+    hexagon_tail_packet->next = new_packet;
+    new_packet->prev = hexagon_tail_packet;
   }
-  qdsp6_tail_packet = new_packet;
+  hexagon_tail_packet = new_packet;
 
   return new_packet;
 }
@@ -8325,15 +8331,15 @@ qdsp6_start_new_packet(void)
    PACKET. */
 
 static void
-qdsp6_add_insn_to_packet(
-  struct qdsp6_packet_info *packet,
-  struct qdsp6_insn_info *insn_info,
+hexagon_add_insn_to_packet(
+  struct hexagon_packet_info *packet,
+  struct hexagon_insn_info *insn_info,
   bool add_to_beginning
 )
 {
   int i;
 
-  gcc_assert(packet->num_insns < QDSP6_MAX_INSNS_PER_PACKET);
+  gcc_assert(packet->num_insns < HEXAGON_MAX_INSNS_PER_PACKET);
 
   if(!packet->location){
     packet->location = insn_info->insn;
@@ -8341,9 +8347,9 @@ qdsp6_add_insn_to_packet(
 
   for(i = packet->num_insns;
       i > 0
-      && ((QDSP6_JUMP_P (packet->insns[i - 1])
-           && (!QDSP6_CONDITIONAL_P (packet->insns[i - 1])
-               || !QDSP6_CONTROL_P (insn_info)))
+      && ((HEXAGON_JUMP_P (packet->insns[i - 1])
+           && (!HEXAGON_CONDITIONAL_P (packet->insns[i - 1])
+               || !HEXAGON_CONTROL_P (insn_info)))
           || add_to_beginning);
       i--){
     packet->insns[i] = packet->insns[i - 1];
@@ -8356,9 +8362,9 @@ qdsp6_add_insn_to_packet(
 
 
 static void
-qdsp6_remove_insn_from_packet(
-  struct qdsp6_packet_info *packet,
-  struct qdsp6_insn_info *insn_info
+hexagon_remove_insn_from_packet(
+  struct hexagon_packet_info *packet,
+  struct hexagon_insn_info *insn_info
 )
 {
   int i;
@@ -8385,12 +8391,12 @@ qdsp6_remove_insn_from_packet(
 
 
 static bool
-qdsp6_can_speculate_p(struct qdsp6_insn_info *insn_info, basic_block bb)
+hexagon_can_speculate_p(struct hexagon_insn_info *insn_info, basic_block bb)
 {
-  struct qdsp6_reg_access *write;
+  struct hexagon_reg_access *write;
 
   /* Don't speculate any control insns, stores, or insns that might trap. */
-  if(QDSP6_CONTROL_P (insn_info)
+  if(HEXAGON_CONTROL_P (insn_info)
      || insn_info->stores
      || may_trap_or_fault_p(PATTERN (insn_info->insn))){
     return false;
@@ -8409,9 +8415,9 @@ qdsp6_can_speculate_p(struct qdsp6_insn_info *insn_info, basic_block bb)
 
 
 static void
-qdsp6_add_live_out(struct qdsp6_insn_info *insn_info, basic_block bb)
+hexagon_add_live_out(struct hexagon_insn_info *insn_info, basic_block bb)
 {
-  struct qdsp6_reg_access *write;
+  struct hexagon_reg_access *write;
 
   for(write = insn_info->reg_writes; write; write = write->next){
     SET_HARD_REG_BIT (BB_LIVE_OUT (bb), write->regno);
@@ -8422,7 +8428,7 @@ qdsp6_add_live_out(struct qdsp6_insn_info *insn_info, basic_block bb)
 
 
 static bool
-qdsp6_predicable_p(struct qdsp6_insn_info *insn_info)
+hexagon_predicable_p(struct hexagon_insn_info *insn_info)
 {
   rtx cond_exec;
 
@@ -8454,14 +8460,14 @@ qdsp6_predicable_p(struct qdsp6_insn_info *insn_info)
 
 
 
-static struct qdsp6_insn_info *
-qdsp6_predicate_insn(
-  struct qdsp6_insn_info *insn_info,
-  struct qdsp6_insn_info *jump_insn_info,
+static struct hexagon_insn_info *
+hexagon_predicate_insn(
+  struct hexagon_insn_info *insn_info,
+  struct hexagon_insn_info *jump_insn_info,
   bool invert_condition
 )
 {
-  struct qdsp6_insn_info *new_insn_info;
+  struct hexagon_insn_info *new_insn_info;
   rtx insn;
   rtx pattern;
   rtx test;
@@ -8499,17 +8505,17 @@ qdsp6_predicate_insn(
   insn = get_insns();
   end_sequence();
 
-  new_insn_info = qdsp6_get_insn_info(insn);
+  new_insn_info = hexagon_get_insn_info(insn);
   new_insn_info->stack = insn_info;
 
-  if(QDSP6_NEW_PREDICATE_P (insn_info)){
-    new_insn_info->flags |= QDSP6_NEW_PREDICATE;
+  if(HEXAGON_NEW_PREDICATE_P (insn_info)){
+    new_insn_info->flags |= HEXAGON_NEW_PREDICATE;
   }
-  if(QDSP6_NEW_GPR_P (insn_info)){
-    new_insn_info->flags |= QDSP6_NEW_GPR;
+  if(HEXAGON_NEW_GPR_P (insn_info)){
+    new_insn_info->flags |= HEXAGON_NEW_GPR;
   }
-  if(QDSP6_MOVED_P (insn_info)){
-    new_insn_info->flags |= QDSP6_MOVED;
+  if(HEXAGON_MOVED_P (insn_info)){
+    new_insn_info->flags |= HEXAGON_MOVED;
   }
   set_block_for_insn(new_insn_info->insn, BLOCK_FOR_INSN (insn_info->insn));
 
@@ -8518,10 +8524,10 @@ qdsp6_predicate_insn(
 
 
 static bool 
-qdsp6_can_be_new_value_p(
-  struct qdsp6_insn_info *producer, 
-  struct qdsp6_insn_info *consumer,
-  struct qdsp6_dependence *dependence
+hexagon_can_be_new_value_p(
+  struct hexagon_insn_info *producer, 
+  struct hexagon_insn_info *consumer,
+  struct hexagon_dependence *dependence
 )
 {
   rtx pattern;
@@ -8529,10 +8535,10 @@ qdsp6_can_be_new_value_p(
 
   /* If the producer is conditional, then consumer must have the same
      condition. */
-  if(QDSP6_CONDITIONAL_P (producer)
-     && (QDSP6_CONDITION (consumer) != QDSP6_CONDITION (producer)
-         || (QDSP6_NEW_PREDICATE_P (consumer)
-             && !QDSP6_NEW_PREDICATE_P (producer))))
+  if(HEXAGON_CONDITIONAL_P (producer)
+     && (HEXAGON_CONDITION (consumer) != HEXAGON_CONDITION (producer)
+         || (HEXAGON_NEW_PREDICATE_P (consumer)
+             && !HEXAGON_NEW_PREDICATE_P (producer))))
   {
     return false;
   }
@@ -8566,10 +8572,10 @@ qdsp6_can_be_new_value_p(
 
 
 static bool 
-qdsp6_can_be_new_value_store_p(
-  struct qdsp6_insn_info *producer, 
-  struct qdsp6_insn_info *consumer,
-  struct qdsp6_dependence *dependence
+hexagon_can_be_new_value_store_p(
+  struct hexagon_insn_info *producer, 
+  struct hexagon_insn_info *consumer,
+  struct hexagon_dependence *dependence
 )
 {
   if(!TARGET_NEW_VALUE_STORES)
@@ -8577,7 +8583,7 @@ qdsp6_can_be_new_value_store_p(
     return false;
   }
 
-  if (!qdsp6_can_be_new_value_p(producer, consumer, dependence))
+  if (!hexagon_can_be_new_value_p(producer, consumer, dependence))
   {
     return false;
   }
@@ -8586,9 +8592,9 @@ qdsp6_can_be_new_value_store_p(
 }
 
 static bool 
-qdsp6_can_be_new_value_jump_p(
-  struct qdsp6_insn_info *consumer,
-  struct qdsp6_dependence *dependence
+hexagon_can_be_new_value_jump_p(
+  struct hexagon_insn_info *consumer,
+  struct hexagon_dependence *dependence
 )
 {
 
@@ -8597,11 +8603,11 @@ qdsp6_can_be_new_value_jump_p(
     return false;
   }
 
-  if (QDSP6_DIRECT_JUMP_P(consumer) &&
+  if (HEXAGON_DIRECT_JUMP_P(consumer) &&
       (INSN_CODE(consumer->insn) == CODE_FOR_new_value_jump1 ||
        INSN_CODE(consumer->insn) == CODE_FOR_new_value_jump2 ||
        INSN_CODE(consumer->insn) == CODE_FOR_new_value_jump_tstbit) &&
-      qdsp6_nvj_new_gpr_p(consumer, dependence))
+      hexagon_nvj_new_gpr_p(consumer, dependence))
   {
     return true;
   }
@@ -8611,21 +8617,21 @@ qdsp6_can_be_new_value_jump_p(
 
 
 static bool
-qdsp6_gpr_dot_newable_p(
-  struct qdsp6_insn_info *producer,
-  struct qdsp6_insn_info *consumer,
-  struct qdsp6_dependence *dependence
+hexagon_gpr_dot_newable_p(
+  struct hexagon_insn_info *producer,
+  struct hexagon_insn_info *consumer,
+  struct hexagon_dependence *dependence
 )
 {
   rtx insn;
   rtx pattern;
 
-  if (qdsp6_can_be_new_value_jump_p( consumer, dependence))
+  if (hexagon_can_be_new_value_jump_p( consumer, dependence))
   {
     return true;
   }
 
-  if (!qdsp6_can_be_new_value_store_p( producer, consumer, dependence))
+  if (!hexagon_can_be_new_value_store_p( producer, consumer, dependence))
   {
      return false;
   }
@@ -8659,7 +8665,7 @@ qdsp6_gpr_dot_newable_p(
   /* get compare portion of the nvj*/
   /* get compare - cmp.XX(Ns.new, YY) */
 static rtx 
-qdsp6_nvj_get_compare(rtx nvj_insn, int elem_num)
+hexagon_nvj_get_compare(rtx nvj_insn, int elem_num)
 {
   rtx pattern; 
   rtx condition;
@@ -8685,7 +8691,7 @@ qdsp6_nvj_get_compare(rtx nvj_insn, int elem_num)
 }
 
 static rtx 
-qdsp6_nvj_get_operand( rtx insn, int op_count)
+hexagon_nvj_get_operand( rtx insn, int op_count)
 {
   return XEXP(insn, op_count-1);
 }
@@ -8695,21 +8701,21 @@ qdsp6_nvj_get_operand( rtx insn, int op_count)
    EQ, if yes, swap it and get the second element
    insn, and swap that as well */
 static rtx
-qdsp6_nvj_swap_operands( rtx insn )
+hexagon_nvj_swap_operands( rtx insn )
 {
   rtx compare;
   rtx operand1;
   rtx operand2;
 
   /*first element insn of nvj insn set*/
-  compare = qdsp6_nvj_get_compare(insn,0);
+  compare = hexagon_nvj_get_compare(insn,0);
 
   if (!(GET_CODE(compare) == EQ || 
         GET_CODE(compare) == NE ))
     return NULL;
 
-  operand1 = qdsp6_nvj_get_operand(compare, 1);
-  operand2 = qdsp6_nvj_get_operand(compare, 2);
+  operand1 = hexagon_nvj_get_operand(compare, 1);
+  operand2 = hexagon_nvj_get_operand(compare, 2);
 
   if ( GET_CODE(operand2) == UNSPEC &&  
        XINT(operand2,1) == UNSPEC_NEW_VALUE )
@@ -8723,9 +8729,9 @@ qdsp6_nvj_swap_operands( rtx insn )
       as well. .new property of the first 
       and the second instruction will always 
       be the same*/
-    compare = qdsp6_nvj_get_compare(insn,1);
-    operand1 = qdsp6_nvj_get_operand(compare, 1);
-    operand2 = qdsp6_nvj_get_operand(compare, 2);
+    compare = hexagon_nvj_get_compare(insn,1);
+    operand1 = hexagon_nvj_get_operand(compare, 1);
+    operand2 = hexagon_nvj_get_operand(compare, 2);
 
     XEXP(compare, 0)=operand2;
     XEXP(compare, 1)=operand1;
@@ -8735,13 +8741,13 @@ qdsp6_nvj_swap_operands( rtx insn )
 }
 
 
-static struct qdsp6_insn_info *
-qdsp6_dot_newify_gpr(
-  struct qdsp6_insn_info *insn_info,
-  struct qdsp6_dependence *dependence
+static struct hexagon_insn_info *
+hexagon_dot_newify_gpr(
+  struct hexagon_insn_info *insn_info,
+  struct hexagon_dependence *dependence
 )
 {
-  struct qdsp6_insn_info *new_insn_info;
+  struct hexagon_insn_info *new_insn_info;
   rtx insn;
   rtx pattern;
 
@@ -8774,13 +8780,13 @@ qdsp6_dot_newify_gpr(
      ) 
   {
     rtx original_insn = insn;
-    if ((insn = qdsp6_nvj_swap_operands(original_insn))==NULL);
+    if ((insn = hexagon_nvj_swap_operands(original_insn))==NULL);
       insn = original_insn;
   }
 
-  new_insn_info = qdsp6_get_insn_info(insn);
+  new_insn_info = hexagon_get_insn_info(insn);
   new_insn_info->stack = insn_info;
-  new_insn_info->flags |= QDSP6_NEW_GPR;
+  new_insn_info->flags |= HEXAGON_NEW_GPR;
 
 
   if (TARGET_NEW_VALUE_JUMP && 
@@ -8794,11 +8800,11 @@ qdsp6_dot_newify_gpr(
     JUMP_LABEL(insn) = JUMP_LABEL(insn_info->insn);
   }
 
-  if(QDSP6_NEW_PREDICATE_P (insn_info)){
-    new_insn_info->flags |= QDSP6_NEW_PREDICATE;
+  if(HEXAGON_NEW_PREDICATE_P (insn_info)){
+    new_insn_info->flags |= HEXAGON_NEW_PREDICATE;
   }
-  if(QDSP6_MOVED_P (insn_info)){
-    new_insn_info->flags |= QDSP6_MOVED;
+  if(HEXAGON_MOVED_P (insn_info)){
+    new_insn_info->flags |= HEXAGON_MOVED;
   }
   set_block_for_insn(new_insn_info->insn, BLOCK_FOR_INSN (insn_info->insn));
 
@@ -8809,7 +8815,7 @@ qdsp6_dot_newify_gpr(
 
 
 static int
-qdsp6_find_new_value(rtx *x, void *y)
+hexagon_find_new_value(rtx *x, void *y)
 {
   rtx *new_value = (rtx *) y;
   if(GET_CODE (*x) == UNSPEC && XINT (*x, 1) == UNSPEC_NEW_VALUE){
@@ -8823,7 +8829,7 @@ qdsp6_find_new_value(rtx *x, void *y)
 
 
 static void
-qdsp6_dot_oldify_gpr(struct qdsp6_insn_info *insn_info)
+hexagon_dot_oldify_gpr(struct hexagon_insn_info *insn_info)
 {
   rtx insn;
   rtx pattern;
@@ -8838,18 +8844,18 @@ qdsp6_dot_oldify_gpr(struct qdsp6_insn_info *insn_info)
     /* new value jump patterns have two instructions */
     /* eg. if (cmp.XX(r0.new,#-1)) jump; p0 = cmp.XX(r0.new, #-1) */
     /* one is the actual new value jump - get the .new new operand from the first one*/
-    for_each_rtx(&XVECEXP(pattern,0,0), qdsp6_find_new_value, &new_value);
+    for_each_rtx(&XVECEXP(pattern,0,0), hexagon_find_new_value, &new_value);
     XVECEXP(pattern,0,0) = replace_rtx(XVECEXP(pattern,0,0), new_value, XVECEXP (new_value, 0, 0));
 
     /* the other one is actually restricting the use of the predicate, in case we have to fall 
        out to the original jump (non new value jump) - get the .new new operand from the second one*/
-    for_each_rtx(&XVECEXP(pattern,0,1), qdsp6_find_new_value, &new_value);
+    for_each_rtx(&XVECEXP(pattern,0,1), hexagon_find_new_value, &new_value);
     XVECEXP(pattern,0,1) = replace_rtx(XVECEXP(pattern,0,1), new_value, XVECEXP (new_value, 0, 0));
 
   } else 
   {
     pattern = copy_rtx(PATTERN (insn_info->insn));
-    for_each_rtx(&pattern, qdsp6_find_new_value, &new_value);
+    for_each_rtx(&pattern, hexagon_find_new_value, &new_value);
     pattern = replace_rtx(pattern, new_value, XVECEXP (new_value, 0, 0));
   }
 
@@ -8877,7 +8883,7 @@ qdsp6_dot_oldify_gpr(struct qdsp6_insn_info *insn_info)
 
 
 static bool
-qdsp6_predicate_dot_newable_p(struct qdsp6_insn_info *insn_info)
+hexagon_predicate_dot_newable_p(struct hexagon_insn_info *insn_info)
 {
   rtx pattern;
   rtx address;
@@ -8888,16 +8894,16 @@ qdsp6_predicate_dot_newable_p(struct qdsp6_insn_info *insn_info)
 
   /* Insns must already be conditional on a predicate condition to be
      new-predicable. */
-  if(!QDSP6_CONDITIONAL_P (insn_info) || QDSP6_GPR_CONDITION_P (insn_info)){
+  if(!HEXAGON_CONDITIONAL_P (insn_info) || HEXAGON_GPR_CONDITION_P (insn_info)){
     return false;
   }
 
   /* Before V4, the only control insns that could be .new predicated were direct
      jumps. In V4, all control instructions can be .new predicated except calls
      and register-condition jumps. */
-  if(QDSP6_CONTROL_P (insn_info)
-     && (QDSP6_CALL_P (insn_info)
-         || (!TARGET_V4_FEATURES && !QDSP6_DIRECT_JUMP_P (insn_info)))){
+  if(HEXAGON_CONTROL_P (insn_info)
+     && (HEXAGON_CALL_P (insn_info)
+         || (!TARGET_V4_FEATURES && !HEXAGON_DIRECT_JUMP_P (insn_info)))){
     return false;
   }
 
@@ -8932,14 +8938,14 @@ qdsp6_predicate_dot_newable_p(struct qdsp6_insn_info *insn_info)
 
 
 
-static struct qdsp6_insn_info *
-qdsp6_dot_newify_predicate(struct qdsp6_insn_info *insn_info)
+static struct hexagon_insn_info *
+hexagon_dot_newify_predicate(struct hexagon_insn_info *insn_info)
 {
-  struct qdsp6_insn_info *new_insn_info;
-  new_insn_info = (struct qdsp6_insn_info *)ggc_alloc(sizeof(struct qdsp6_insn_info));
-  memcpy(new_insn_info, insn_info, sizeof(struct qdsp6_insn_info));
+  struct hexagon_insn_info *new_insn_info;
+  new_insn_info = (struct hexagon_insn_info *)ggc_alloc(sizeof(struct hexagon_insn_info));
+  memcpy(new_insn_info, insn_info, sizeof(struct hexagon_insn_info));
   new_insn_info->stack = insn_info;
-  new_insn_info->flags |= QDSP6_NEW_PREDICATE;
+  new_insn_info->flags |= HEXAGON_NEW_PREDICATE;
   return new_insn_info;
 }
 
@@ -8949,11 +8955,11 @@ qdsp6_dot_newify_predicate(struct qdsp6_insn_info *insn_info)
 /* Return true if INSN_INFO appears to be part of the prologue. */
 
 static bool
-qdsp6_prologue_insn_p(struct qdsp6_insn_info *insn_info)
+hexagon_prologue_insn_p(struct hexagon_insn_info *insn_info)
 {
-  struct qdsp6_reg_access *write;
-  struct qdsp6_reg_access *read;
-  struct qdsp6_mem_access *store;
+  struct hexagon_reg_access *write;
+  struct hexagon_reg_access *read;
+  struct hexagon_mem_access *store;
   rtx address;
   rtx reg;
 
@@ -8988,16 +8994,16 @@ qdsp6_prologue_insn_p(struct qdsp6_insn_info *insn_info)
 
 
 
-static struct qdsp6_dependence *
-qdsp6_add_dependence(
-  struct qdsp6_dependence *dependencies,
-  enum qdsp6_dependence_type type,
+static struct hexagon_dependence *
+hexagon_add_dependence(
+  struct hexagon_dependence *dependencies,
+  enum hexagon_dependence_type type,
   rtx set,
   rtx use
 )
 {
-  struct qdsp6_dependence *new_dependence;
-  new_dependence = (struct qdsp6_dependence *)ggc_alloc(sizeof(struct qdsp6_dependence));
+  struct hexagon_dependence *new_dependence;
+  new_dependence = (struct hexagon_dependence *)ggc_alloc(sizeof(struct hexagon_dependence));
   new_dependence->type = type;
   new_dependence->set = set;
   new_dependence->use = use;
@@ -9008,13 +9014,13 @@ qdsp6_add_dependence(
 
 
 
-static struct qdsp6_dependence *
-qdsp6_remove_dependence(
-  struct qdsp6_dependence *dependencies,
-  struct qdsp6_dependence *dependence
+static struct hexagon_dependence *
+hexagon_remove_dependence(
+  struct hexagon_dependence *dependencies,
+  struct hexagon_dependence *dependence
 )
 {
-  struct qdsp6_dependence *dep;
+  struct hexagon_dependence *dep;
 
   gcc_assert(dependence);
 
@@ -9034,13 +9040,13 @@ qdsp6_remove_dependence(
 
 
 
-static struct qdsp6_dependence *
-qdsp6_concat_dependencies(
-  struct qdsp6_dependence *a,
-  struct qdsp6_dependence *b
+static struct hexagon_dependence *
+hexagon_concat_dependencies(
+  struct hexagon_dependence *a,
+  struct hexagon_dependence *b
 )
 {
-  struct qdsp6_dependence *c;
+  struct hexagon_dependence *c;
   if(!a){
     return b;
   }
@@ -9052,55 +9058,55 @@ qdsp6_concat_dependencies(
 
 
 
-static struct qdsp6_dependence *
-qdsp6_control_dependencies(
-  struct qdsp6_insn_info *first,
-  struct qdsp6_insn_info *second
+static struct hexagon_dependence *
+hexagon_control_dependencies(
+  struct hexagon_insn_info *first,
+  struct hexagon_insn_info *second
 )
 {
-  struct qdsp6_dependence *dependencies = NULL;
+  struct hexagon_dependence *dependencies = NULL;
 
-  if(QDSP6_CONTROL_P (first)){
+  if(HEXAGON_CONTROL_P (first)){
     /* Allow dual jumps by not adding a control dependence between two jumps
        that are allowed to be in the same packet. */
     if(!((TARGET_V3_FEATURES
           /* The first jump must be conditional. */
-          && QDSP6_CONDITIONAL_P (first)
+          && HEXAGON_CONDITIONAL_P (first)
           /* Indirect jumps are not allowed to be dual jumps. */
-          && QDSP6_DIRECT_JUMP_P (first) && QDSP6_DIRECT_JUMP_P (second)
+          && HEXAGON_DIRECT_JUMP_P (first) && HEXAGON_DIRECT_JUMP_P (second)
           /* In V3, dot-new jumps are not allowed to be dual jumps. */
-          && !QDSP6_NEW_PREDICATE_P (second) && !QDSP6_NEW_PREDICATE_P (first)
+          && !HEXAGON_NEW_PREDICATE_P (second) && !HEXAGON_NEW_PREDICATE_P (first)
           /* Register-condition jumps are not allowed to be dual jumps. */
-          && !QDSP6_GPR_CONDITION_P (second) && !QDSP6_GPR_CONDITION_P (first))
+          && !HEXAGON_GPR_CONDITION_P (second) && !HEXAGON_GPR_CONDITION_P (first))
          || (TARGET_V4_FEATURES
              /* The first jump must be conditional. */
-             && QDSP6_CONDITIONAL_P (first)
+             && HEXAGON_CONDITIONAL_P (first)
              /* Indirect jumps are not allowed to be dual jumps. */
-             && (QDSP6_DIRECT_JUMP_P (first) || QDSP6_DIRECT_CALL_P (first))
-             && (QDSP6_DIRECT_JUMP_P (second) || QDSP6_DIRECT_CALL_P (second))
+             && (HEXAGON_DIRECT_JUMP_P (first) || HEXAGON_DIRECT_CALL_P (first))
+             && (HEXAGON_DIRECT_JUMP_P (second) || HEXAGON_DIRECT_CALL_P (second))
              /* Register-condition jumps are not allowed to be dual jumps. */
-             && !QDSP6_GPR_CONDITION_P (first)
-             && !QDSP6_GPR_CONDITION_P (second)))){
-      dependencies = qdsp6_add_dependence(dependencies,
-                                          QDSP6_DEP_CONTROL,
+             && !HEXAGON_GPR_CONDITION_P (first)
+             && !HEXAGON_GPR_CONDITION_P (second)))){
+      dependencies = hexagon_add_dependence(dependencies,
+                                          HEXAGON_DEP_CONTROL,
                                           first->insn,
                                           second->insn);
     }
   }
 
   /* Both insns are actually calls. */
-  if(QDSP6_EMULATION_CALL_P (first) && QDSP6_EMULATION_CALL_P (second)){
-    dependencies = qdsp6_add_dependence(dependencies,
-                                        QDSP6_DEP_CONTROL,
+  if(HEXAGON_EMULATION_CALL_P (first) && HEXAGON_EMULATION_CALL_P (second)){
+    dependencies = hexagon_add_dependence(dependencies,
+                                        HEXAGON_DEP_CONTROL,
                                         first->insn,
                                         second->insn);
   }
 
   /* When generating exception handling information, do not put a call in the
      same packet as a prologue insn. */
-  if(flag_exceptions && QDSP6_CALL_P (second) && qdsp6_prologue_insn_p(first)){
-    dependencies = qdsp6_add_dependence(dependencies,
-                                        QDSP6_DEP_CONTROL,
+  if(flag_exceptions && HEXAGON_CALL_P (second) && hexagon_prologue_insn_p(first)){
+    dependencies = hexagon_add_dependence(dependencies,
+                                        HEXAGON_DEP_CONTROL,
                                         first->insn,
                                         second->insn);
   }
@@ -9111,30 +9117,30 @@ qdsp6_control_dependencies(
 
 
 
-static struct qdsp6_dependence *
-qdsp6_true_dependencies(
-  struct qdsp6_insn_info *writer,
-  struct qdsp6_insn_info *reader
+static struct hexagon_dependence *
+hexagon_true_dependencies(
+  struct hexagon_insn_info *writer,
+  struct hexagon_insn_info *reader
 )
 {
-  struct qdsp6_dependence *dependencies;
-  struct qdsp6_mem_access *store;
-  struct qdsp6_mem_access *load;
-  struct qdsp6_reg_access *write;
-  struct qdsp6_reg_access *read;
+  struct hexagon_dependence *dependencies;
+  struct hexagon_mem_access *store;
+  struct hexagon_mem_access *load;
+  struct hexagon_reg_access *write;
+  struct hexagon_reg_access *read;
 
   dependencies = NULL;
 
-  if(QDSP6_EMULATION_CALL_P (writer)){
+  if(HEXAGON_EMULATION_CALL_P (writer)){
     /* For an emulation call followed by another insn, consider anti
        dependencies to be true dependencies since emulation calls do not read
        their inputs until after all results in the current packet have been
        written. */
-    dependencies = qdsp6_concat_dependencies(dependencies,
-                                             qdsp6_anti_dependencies(writer,
+    dependencies = hexagon_concat_dependencies(dependencies,
+                                             hexagon_anti_dependencies(writer,
                                                                      reader));
   }
-  else if(QDSP6_EMULATION_CALL_P (reader)){
+  else if(HEXAGON_EMULATION_CALL_P (reader)){
     /* For an emulation call following another insn, ignore true dependencies
        since emulation calls do not read their inputs until after all results in
        the current packet have been written. */
@@ -9144,10 +9150,10 @@ qdsp6_true_dependencies(
   if (!TARGET_V4_FEATURES || !TARGET_PACKETIZE_VOLATILES){
     /* If a memory access is volatile, then it should be the only memory access in
        a packet.  (not really a dependency, but oh well) */
-    if((QDSP6_VOLATILE_P (writer) || QDSP6_VOLATILE_P (reader))
-       && (QDSP6_MEM_P (writer) && QDSP6_MEM_P (reader))){
-      dependencies = qdsp6_add_dependence(dependencies,
-                                          QDSP6_DEP_VOLATILE,
+    if((HEXAGON_VOLATILE_P (writer) || HEXAGON_VOLATILE_P (reader))
+       && (HEXAGON_MEM_P (writer) && HEXAGON_MEM_P (reader))){
+      dependencies = hexagon_add_dependence(dependencies,
+                                          HEXAGON_DEP_VOLATILE,
                                           writer->insn,
                                           reader->insn);
     }
@@ -9156,12 +9162,12 @@ qdsp6_true_dependencies(
   /* Check for possible true memory dependencies. */
   for(store = writer->stores; store; store = store->next){
     for(load = reader->loads; load; load = load->next){
-      if((QDSP6_CONFLICT_P (store, load)
-          || (QDSP6_NEW_PREDICATE_P (reader)
-              && !QDSP6_NEW_PREDICATE_P (writer)))
+      if((HEXAGON_CONFLICT_P (store, load)
+          || (HEXAGON_NEW_PREDICATE_P (reader)
+              && !HEXAGON_NEW_PREDICATE_P (writer)))
          && true_dependence(store->mem, VOIDmode, load->mem, rtx_varies_p)){
-        dependencies = qdsp6_add_dependence(dependencies,
-                                            QDSP6_DEP_MEMORY,
+        dependencies = hexagon_add_dependence(dependencies,
+                                            HEXAGON_DEP_MEMORY,
                                             store->mem,
                                             load->mem);
       }
@@ -9171,12 +9177,12 @@ qdsp6_true_dependencies(
   /* Check for true register dependencies. */
   for(write = writer->reg_writes; write; write = write->next){
     for(read = reader->reg_reads; read; read = read->next){
-      if((QDSP6_CONFLICT_P (write, read)
-          || (QDSP6_NEW_PREDICATE_P (reader)
-              && !QDSP6_NEW_PREDICATE_P (writer)))
+      if((HEXAGON_CONFLICT_P (write, read)
+          || (HEXAGON_NEW_PREDICATE_P (reader)
+              && !HEXAGON_NEW_PREDICATE_P (writer)))
          && write->regno == read->regno){
-        dependencies = qdsp6_add_dependence(dependencies,
-                                            QDSP6_DEP_REGISTER,
+        dependencies = hexagon_add_dependence(dependencies,
+                                            HEXAGON_DEP_REGISTER,
                                             write->reg,
                                             read->reg);
       }
@@ -9189,17 +9195,17 @@ qdsp6_true_dependencies(
 
 
 
-static struct qdsp6_dependence *
-qdsp6_output_dependencies(
-  struct qdsp6_insn_info *insn0,
-  struct qdsp6_insn_info *insn1
+static struct hexagon_dependence *
+hexagon_output_dependencies(
+  struct hexagon_insn_info *insn0,
+  struct hexagon_insn_info *insn1
 )
 {
-  struct qdsp6_dependence *dependencies = NULL;
-  struct qdsp6_reg_access *write0;
-  struct qdsp6_reg_access *write1;
+  struct hexagon_dependence *dependencies = NULL;
+  struct hexagon_reg_access *write0;
+  struct hexagon_reg_access *write1;
 
-  if(QDSP6_EMULATION_CALL_P (insn1)){
+  if(HEXAGON_EMULATION_CALL_P (insn1)){
     /* For an emulation call following another insn, ignore output dependencies
        since emulation calls do not write their outputs until after all results
        in the current packet have been written.  The exception is LR, since it
@@ -9211,8 +9217,8 @@ qdsp6_output_dependencies(
           write1 = write1->next;
         }
         gcc_assert(write1);
-        dependencies = qdsp6_add_dependence(dependencies,
-                                            QDSP6_DEP_REGISTER,
+        dependencies = hexagon_add_dependence(dependencies,
+                                            HEXAGON_DEP_REGISTER,
                                             write0->reg,
                                             write1->reg);
       }
@@ -9223,12 +9229,12 @@ qdsp6_output_dependencies(
   /* Check for register output dependencies. */
   for(write0 = insn0->reg_writes; write0; write0 = write0->next){
     for(write1 = insn1->reg_writes; write1; write1 = write1->next){
-      if((QDSP6_CONFLICT_P (write0, write1)
-          || (QDSP6_NEW_PREDICATE_P (insn1)
-              && !QDSP6_NEW_PREDICATE_P (insn0)))
+      if((HEXAGON_CONFLICT_P (write0, write1)
+          || (HEXAGON_NEW_PREDICATE_P (insn1)
+              && !HEXAGON_NEW_PREDICATE_P (insn0)))
          && write0->regno == write1->regno){
-        dependencies = qdsp6_add_dependence(dependencies,
-                                            QDSP6_DEP_REGISTER,
+        dependencies = hexagon_add_dependence(dependencies,
+                                            HEXAGON_DEP_REGISTER,
                                             write0->reg,
                                             write1->reg);
       }
@@ -9241,22 +9247,22 @@ qdsp6_output_dependencies(
 
 
 
-static struct qdsp6_dependence *
-qdsp6_anti_dependencies(
-  struct qdsp6_insn_info *earlier,
-  struct qdsp6_insn_info *later
+static struct hexagon_dependence *
+hexagon_anti_dependencies(
+  struct hexagon_insn_info *earlier,
+  struct hexagon_insn_info *later
 )
 {
-  struct qdsp6_dependence *dependencies = NULL;
-  struct qdsp6_mem_access *mem;
-  struct qdsp6_mem_access *store;
-  struct qdsp6_reg_access *read;
-  struct qdsp6_reg_access *write;
+  struct hexagon_dependence *dependencies = NULL;
+  struct hexagon_mem_access *mem;
+  struct hexagon_mem_access *store;
+  struct hexagon_reg_access *read;
+  struct hexagon_reg_access *write;
 
   /* Don't allow insns to move across control insns and vice versa. */
-  if(QDSP6_CONTROL_P (earlier) ^ QDSP6_CONTROL_P (later)){
-    dependencies = qdsp6_add_dependence(dependencies,
-                                        QDSP6_DEP_CONTROL,
+  if(HEXAGON_CONTROL_P (earlier) ^ HEXAGON_CONTROL_P (later)){
+    dependencies = hexagon_add_dependence(dependencies,
+                                        HEXAGON_DEP_CONTROL,
                                         earlier->insn,
                                         later->insn);
   }
@@ -9265,20 +9271,20 @@ qdsp6_anti_dependencies(
   for(store = later->stores; store; store = store->next){
     /* load followed by a store */
     for(mem = earlier->loads; mem; mem = mem->next){
-      if(QDSP6_CONFLICT_P (mem, store)
+      if(HEXAGON_CONFLICT_P (mem, store)
          && anti_dependence(mem->mem, store->mem)){
-        dependencies = qdsp6_add_dependence(dependencies,
-                                            QDSP6_DEP_MEMORY,
+        dependencies = hexagon_add_dependence(dependencies,
+                                            HEXAGON_DEP_MEMORY,
                                             mem->mem,
                                             store->mem);
       }
     }
     /* store followed by a store */
     for(mem = earlier->stores; mem; mem = mem->next){
-      if(QDSP6_CONFLICT_P (mem, store)
+      if(HEXAGON_CONFLICT_P (mem, store)
          && output_dependence(mem->mem, store->mem)){
-        dependencies = qdsp6_add_dependence(dependencies,
-                                            QDSP6_DEP_MEMORY,
+        dependencies = hexagon_add_dependence(dependencies,
+                                            HEXAGON_DEP_MEMORY,
                                             mem->mem,
                                             store->mem);
       }
@@ -9288,9 +9294,9 @@ qdsp6_anti_dependencies(
   /* Check for register anti dependencies. */
   for(read = earlier->reg_reads; read; read = read->next){
     for(write = later->reg_writes; write; write = write->next){
-      if(QDSP6_CONFLICT_P (read, write) && read->regno == write->regno){
-        dependencies = qdsp6_add_dependence(dependencies,
-                                            QDSP6_DEP_REGISTER,
+      if(HEXAGON_CONFLICT_P (read, write) && read->regno == write->regno){
+        dependencies = hexagon_add_dependence(dependencies,
+                                            HEXAGON_DEP_REGISTER,
                                             read->reg,
                                             write->reg);
       }
@@ -9304,35 +9310,35 @@ qdsp6_anti_dependencies(
 
 
 static bool
-qdsp6_packet_insn_dependence_p(
-  struct qdsp6_packet_info *packet,
-  struct qdsp6_insn_info **insn_info,
+hexagon_packet_insn_dependence_p(
+  struct hexagon_packet_info *packet,
+  struct hexagon_insn_info **insn_info,
   bool ignore_jumps
 )
 {
-  struct qdsp6_insn_info *original_insn_info = *insn_info;
-  struct qdsp6_dependence *dependencies;
-  struct qdsp6_dependence *dep;
+  struct hexagon_insn_info *original_insn_info = *insn_info;
+  struct hexagon_dependence *dependencies;
+  struct hexagon_dependence *dep;
   int i;
 
   /* Check each insn in the packet in reverse order for dependencies. */
   for(i = packet->num_insns - 1; i >= 0; i--){
 
     /* We don't have any way to eliminate output dependencies. */
-    if(qdsp6_output_dependencies(packet->insns[i], *insn_info)){
+    if(hexagon_output_dependencies(packet->insns[i], *insn_info)){
       *insn_info = original_insn_info;
       return true;
     }
 
     /* Disallow anti-dependencies with jumps since INSN_INFO would be inserted
        before any jumps if it were added to the packet. */
-    if(QDSP6_JUMP_P (packet->insns[i])){
-      dependencies = qdsp6_anti_dependencies(packet->insns[i], *insn_info);
+    if(HEXAGON_JUMP_P (packet->insns[i])){
+      dependencies = hexagon_anti_dependencies(packet->insns[i], *insn_info);
       /* If IGNORE_JUMPS is true, ignore control dependencies from jumps. */
       if(ignore_jumps){
         for(dep = dependencies; dep; dep = dep->next){
-          if(dep->type == QDSP6_DEP_CONTROL){
-            dependencies = qdsp6_remove_dependence(dependencies, dep);
+          if(dep->type == HEXAGON_DEP_CONTROL){
+            dependencies = hexagon_remove_dependence(dependencies, dep);
           }
         }
       }
@@ -9341,40 +9347,40 @@ qdsp6_packet_insn_dependence_p(
       }
     }
 
-    dependencies = qdsp6_true_dependencies(packet->insns[i], *insn_info);
+    dependencies = hexagon_true_dependencies(packet->insns[i], *insn_info);
 
     /* If IGNORE_JUMPS is true, ignore control dependencies from jumps. */
-    if(! (ignore_jumps && QDSP6_JUMP_P (packet->insns[i]))){
+    if(! (ignore_jumps && HEXAGON_JUMP_P (packet->insns[i]))){
     dependencies = 
-      qdsp6_concat_dependencies(dependencies,
-                                qdsp6_control_dependencies(packet->insns[i],
+      hexagon_concat_dependencies(dependencies,
+                                hexagon_control_dependencies(packet->insns[i],
                                                            *insn_info));
     }
 
     for(dep = dependencies; dep; dep = dep->next){
 
-      if(dep->type == QDSP6_DEP_REGISTER
+      if(dep->type == HEXAGON_DEP_REGISTER
          && P_REG_P (dep->use)
-         && qdsp6_predicate_dot_newable_p(*insn_info)){
+         && hexagon_predicate_dot_newable_p(*insn_info)){
 
-        if(!QDSP6_NEW_PREDICATE_P (*insn_info)){
-          *insn_info = qdsp6_dot_newify_predicate(*insn_info);
+        if(!HEXAGON_NEW_PREDICATE_P (*insn_info)){
+          *insn_info = hexagon_dot_newify_predicate(*insn_info);
           (*insn_info)->transformed_at_packet = packet;
         }
-        dependencies = qdsp6_remove_dependence(dependencies, dep);
+        dependencies = hexagon_remove_dependence(dependencies, dep);
       }
 
       /* See if the consumer insn can use the newly generated value in the same
          packet. */
-      if(dep->type == QDSP6_DEP_REGISTER
+      if(dep->type == HEXAGON_DEP_REGISTER
          && G_REG_P (dep->use)
-         && qdsp6_gpr_dot_newable_p(packet->insns[i], *insn_info, dep)){
+         && hexagon_gpr_dot_newable_p(packet->insns[i], *insn_info, dep)){
 
-        if(!QDSP6_NEW_GPR_P (*insn_info)){
-          *insn_info = qdsp6_dot_newify_gpr(*insn_info, dep);
+        if(!HEXAGON_NEW_GPR_P (*insn_info)){
+          *insn_info = hexagon_dot_newify_gpr(*insn_info, dep);
           (*insn_info)->transformed_at_packet = packet;
         }
-        dependencies = qdsp6_remove_dependence(dependencies, dep);
+        dependencies = hexagon_remove_dependence(dependencies, dep);
       }
 
     }
@@ -9389,7 +9395,7 @@ qdsp6_packet_insn_dependence_p(
   /* Transforming the insn might have introduced a control dependence. */
   if(*insn_info != original_insn_info && !ignore_jumps){
     for(i = packet->num_insns - 1; i >= 0; i--){
-      if(qdsp6_control_dependencies(packet->insns[i], *insn_info)){
+      if(hexagon_control_dependencies(packet->insns[i], *insn_info)){
         *insn_info = original_insn_info;
         return true;
       }
@@ -9403,14 +9409,14 @@ qdsp6_packet_insn_dependence_p(
 
 
 static bool
-qdsp6_packet_insn_internal_dependence_p(
-  struct qdsp6_packet_info *packet,
-  struct qdsp6_insn_info *insn_info
+hexagon_packet_insn_internal_dependence_p(
+  struct hexagon_packet_info *packet,
+  struct hexagon_insn_info *insn_info
 )
 {
-  struct qdsp6_dependence *anti_dependencies;
-  struct qdsp6_dependence *true_dependencies, *control_dependencies;
-  struct qdsp6_dependence *dependencies;
+  struct hexagon_dependence *anti_dependencies;
+  struct hexagon_dependence *true_dependencies, *control_dependencies;
+  struct hexagon_dependence *dependencies;
   int num_insns;
   int i;
 
@@ -9424,19 +9430,19 @@ qdsp6_packet_insn_internal_dependence_p(
 
   for(i = num_insns - 1; i >= 0; i--){
 
-    anti_dependencies = qdsp6_anti_dependencies(packet->insns[i], insn_info);
+    anti_dependencies = hexagon_anti_dependencies(packet->insns[i], insn_info);
 
     /* We can have truly dependent insns in the same packet becasue of .new. */
-    true_dependencies = qdsp6_true_dependencies(packet->insns[i], insn_info);
-    control_dependencies = qdsp6_control_dependencies(packet->insns[i],
+    true_dependencies = hexagon_true_dependencies(packet->insns[i], insn_info);
+    control_dependencies = hexagon_control_dependencies(packet->insns[i],
                                                            insn_info);
 
-    dependencies = qdsp6_concat_dependencies(anti_dependencies,
+    dependencies = hexagon_concat_dependencies(anti_dependencies,
                                              true_dependencies);
 
     /* Ignore control dependencies from jumps. */
-    if(! QDSP6_JUMP_P (packet->insns[i])){
-      dependencies = qdsp6_concat_dependencies(dependencies,
+    if(! HEXAGON_JUMP_P (packet->insns[i])){
+      dependencies = hexagon_concat_dependencies(dependencies,
                                                control_dependencies);
     }
 
@@ -9452,9 +9458,9 @@ qdsp6_packet_insn_internal_dependence_p(
 
 
 static bool
-qdsp6_insn_fits_in_packet_p(
-  struct qdsp6_insn_info *insn,
-  struct qdsp6_packet_info *packet
+hexagon_insn_fits_in_packet_p(
+  struct hexagon_insn_info *insn,
+  struct hexagon_packet_info *packet
 )
 {
   state_t pipeline_state;
@@ -9473,19 +9479,19 @@ qdsp6_insn_fits_in_packet_p(
 
 
 static bool
-qdsp6_can_add_insn_to_packet_p(
-  struct qdsp6_insn_info **insn,
-  struct qdsp6_packet_info *packet
+hexagon_can_add_insn_to_packet_p(
+  struct hexagon_insn_info **insn,
+  struct hexagon_packet_info *packet
 )
 {
-  struct qdsp6_insn_info *original_insn = *insn;
+  struct hexagon_insn_info *original_insn = *insn;
 
   
-  if(qdsp6_packet_insn_dependence_p(packet, insn, false)){
+  if(hexagon_packet_insn_dependence_p(packet, insn, false)){
     gcc_assert(*insn == original_insn);
     return false;
   }
-  if(!qdsp6_insn_fits_in_packet_p(*insn, packet)){
+  if(!hexagon_insn_fits_in_packet_p(*insn, packet)){
     *insn = original_insn;
     return false;
   }
@@ -9496,7 +9502,7 @@ qdsp6_can_add_insn_to_packet_p(
 
 
 static rtx
-qdsp6_bb_real_head_insn(basic_block bb)
+hexagon_bb_real_head_insn(basic_block bb)
 {
   rtx insn;
   for(insn = BB_HEAD (bb);
@@ -9516,7 +9522,7 @@ qdsp6_bb_real_head_insn(basic_block bb)
 
 
 static rtx
-qdsp6_bb_real_end_insn(basic_block bb)
+hexagon_bb_real_end_insn(basic_block bb)
 {
   rtx insn;
   for(insn = BB_END (bb);
@@ -9533,15 +9539,15 @@ qdsp6_bb_real_end_insn(basic_block bb)
 }
 
 static void
-qdsp6_create_bb_sentinel_packet(struct qdsp6_packet_info *packet)
+hexagon_create_bb_sentinel_packet(struct hexagon_packet_info *packet)
 {
-  struct qdsp6_packet_info *sentinel_packet;
-  struct qdsp6_insn_info *sentinel_insn;
+  struct hexagon_packet_info *sentinel_packet;
+  struct hexagon_insn_info *sentinel_insn;
 
-  sentinel_packet = (struct qdsp6_packet_info *)
-    ggc_alloc_cleared(sizeof(struct qdsp6_packet_info));
-  sentinel_insn = (struct qdsp6_insn_info *)
-    ggc_alloc_cleared(sizeof(struct qdsp6_insn_info));
+  sentinel_packet = (struct hexagon_packet_info *)
+    ggc_alloc_cleared(sizeof(struct hexagon_packet_info));
+  sentinel_insn = (struct hexagon_insn_info *)
+    ggc_alloc_cleared(sizeof(struct hexagon_insn_info));
 
   sentinel_insn->insn = PREV_INSN (packet->insns[0]->insn);
   sentinel_packet->insns[0] = sentinel_insn;
@@ -9553,7 +9559,7 @@ qdsp6_create_bb_sentinel_packet(struct qdsp6_packet_info *packet)
     packet->prev->next = sentinel_packet;
   }
   else {
-    qdsp6_head_packet = sentinel_packet;
+    hexagon_head_packet = sentinel_packet;
   }
   packet->prev = sentinel_packet;
 }
@@ -9561,14 +9567,14 @@ qdsp6_create_bb_sentinel_packet(struct qdsp6_packet_info *packet)
 
 
 static void
-qdsp6_finalize_transformations(
-  struct qdsp6_packet_info *first,
-  struct qdsp6_packet_info *last
+hexagon_finalize_transformations(
+  struct hexagon_packet_info *first,
+  struct hexagon_packet_info *last
 )
 {
-  struct qdsp6_packet_info *packet;
-  struct qdsp6_insn_info *new_insn_info;
-  struct qdsp6_insn_info *old_insn_info;
+  struct hexagon_packet_info *packet;
+  struct hexagon_insn_info *new_insn_info;
+  struct hexagon_insn_info *old_insn_info;
   rtx prev_insn;
   rtx insn;
   int i;
@@ -9583,7 +9589,7 @@ qdsp6_finalize_transformations(
         new_insn_info->stack = new_insn_info->stack->stack;
       }
 
-      if(QDSP6_MOVED_P (new_insn_info) || new_insn_info->stack){
+      if(HEXAGON_MOVED_P (new_insn_info) || new_insn_info->stack){
         old_insn_info = new_insn_info;
 
         while(old_insn_info->stack){
@@ -9617,11 +9623,11 @@ qdsp6_finalize_transformations(
 
 
 static void
-qdsp6_pack_insns(bool need_bb_info)
+hexagon_pack_insns(bool need_bb_info)
 {
   basic_block bb = NULL;
-  struct qdsp6_packet_info *packet = NULL;
-  struct qdsp6_insn_info *insn_info;
+  struct hexagon_packet_info *packet = NULL;
+  struct hexagon_insn_info *insn_info;
   rtx insn;
   rtx bb_head_insn = NULL_RTX;
   rtx bb_end_insn  = NULL_RTX;
@@ -9633,8 +9639,8 @@ qdsp6_pack_insns(bool need_bb_info)
     bb = ENTRY_BLOCK_PTR->next_bb;
     do{
       if(bb){
-        bb_head_insn = qdsp6_bb_real_head_insn(bb);
-        bb_end_insn = qdsp6_bb_real_end_insn(bb);
+        bb_head_insn = hexagon_bb_real_head_insn(bb);
+        bb_end_insn = hexagon_bb_real_end_insn(bb);
         if(!(bb_head_insn && bb_end_insn)){
           bb = bb->next_bb;
         }
@@ -9677,20 +9683,20 @@ qdsp6_pack_insns(bool need_bb_info)
       }
     }
 
-    insn_info = qdsp6_get_insn_info(insn);
+    insn_info = hexagon_get_insn_info(insn);
 
-    if(start_packet || !qdsp6_can_add_insn_to_packet_p(&insn_info, packet)){
-      packet = qdsp6_start_new_packet();
+    if(start_packet || !hexagon_can_add_insn_to_packet_p(&insn_info, packet)){
+      packet = hexagon_start_new_packet();
     }
 
-    qdsp6_add_insn_to_packet(packet, insn_info, false);
+    hexagon_add_insn_to_packet(packet, insn_info, false);
 
     start_packet = false;
 
     if(need_bb_info){
       if(start_bb){
         BB_HEAD_PACKET (bb) = packet;
-        qdsp6_create_bb_sentinel_packet(packet);
+        hexagon_create_bb_sentinel_packet(packet);
       }
       if(end_bb){
         BB_END_PACKET (bb) = packet;
@@ -9701,8 +9707,8 @@ qdsp6_pack_insns(bool need_bb_info)
             bb_end_insn = NULL_RTX;
             break;
           }
-          bb_head_insn = qdsp6_bb_real_head_insn(bb);
-          bb_end_insn = qdsp6_bb_real_end_insn(bb);
+          bb_head_insn = hexagon_bb_real_head_insn(bb);
+          bb_end_insn = hexagon_bb_real_end_insn(bb);
         }while(!(bb_head_insn && bb_end_insn));
       }
       start_bb = false;
@@ -9711,23 +9717,23 @@ qdsp6_pack_insns(bool need_bb_info)
 
   }
 
-  qdsp6_finalize_transformations(qdsp6_head_packet, qdsp6_tail_packet);
+  hexagon_finalize_transformations(hexagon_head_packet, hexagon_tail_packet);
 }
 
 
 
 
 static int
-check_call_reorder_feasibility(struct qdsp6_insn_info *insn_info){
+check_call_reorder_feasibility(struct hexagon_insn_info *insn_info){
 
-  struct qdsp6_reg_access *write;
-  struct qdsp6_reg_access *read;
+  struct hexagon_reg_access *write;
+  struct hexagon_reg_access *read;
   char call_used_regs[] = CALL_USED_REGISTERS;
 
   gcc_assert(insn_info);
   /* If this is a call, I should assume it to alias with any memory access,
               but I might try to reason about calee-save registers */
-  if(QDSP6_MEM_P (insn_info)) return true;
+  if(HEXAGON_MEM_P (insn_info)) return true;
     for(write = insn_info->reg_writes; write; write = write->next){
       if(call_used_regs[write->regno] || (write->regno == LINK_REGNUM))
         return true;
@@ -9746,16 +9752,16 @@ check_call_reorder_feasibility(struct qdsp6_insn_info *insn_info){
    Looks at the relationship of two instructions
    and tries to establish their independenc.
    Conservative.
-   Shaped after qdsp6_true_dependencies(from,to); */
+   Shaped after hexagon_true_dependencies(from,to); */
 
 int
-qdsp6_instructions_dependent (rtx from,rtx to){
- struct qdsp6_insn_info *insn_info_from = NULL;
- struct qdsp6_insn_info *insn_info_to   = NULL;
- struct qdsp6_mem_access *store;
- struct qdsp6_mem_access *load;
- struct qdsp6_reg_access *write;
- struct qdsp6_reg_access *read;
+hexagon_instructions_dependent (rtx from,rtx to){
+ struct hexagon_insn_info *insn_info_from = NULL;
+ struct hexagon_insn_info *insn_info_to   = NULL;
+ struct hexagon_mem_access *store;
+ struct hexagon_mem_access *load;
+ struct hexagon_reg_access *write;
+ struct hexagon_reg_access *read;
 
 
   /* I know it is INSN_P for both cases, and it should not be a jump,
@@ -9770,31 +9776,31 @@ qdsp6_instructions_dependent (rtx from,rtx to){
     (GET_CODE (PATTERN (to)) == CLOBBER))
       return true;
 
-  insn_info_from = qdsp6_get_insn_info(from);
-  insn_info_to   = qdsp6_get_insn_info(to);
+  insn_info_from = hexagon_get_insn_info(from);
+  insn_info_to   = hexagon_get_insn_info(to);
 
-  if(QDSP6_JUMP_P(insn_info_from) || QDSP6_JUMP_P(insn_info_to))
+  if(HEXAGON_JUMP_P(insn_info_from) || HEXAGON_JUMP_P(insn_info_to))
     /* I really should not have jumps here... */
     return true;
 
-  if(QDSP6_EMULATION_CALL_P (insn_info_from) ||
-     QDSP6_EMULATION_CALL_P (insn_info_to))
+  if(HEXAGON_EMULATION_CALL_P (insn_info_from) ||
+     HEXAGON_EMULATION_CALL_P (insn_info_to))
     /* not handling these yet */
     return true;
 
   /* If this is a call, I should assume it to alias with any memory access,
                but I might try to reason about calee-save registers */
-  if(QDSP6_CALL_P (insn_info_from))
+  if(HEXAGON_CALL_P (insn_info_from))
     return check_call_reorder_feasibility(insn_info_to);
 
   /* If this is a call, I should assume it to alias with any memory access,
                but I might try to reason about calee-save registers */
-  if(QDSP6_CALL_P(insn_info_to))
+  if(HEXAGON_CALL_P(insn_info_to))
     return check_call_reorder_feasibility(insn_info_from);
 
   /* this will cover the case of memory output dependency   */
-  if((QDSP6_VOLATILE_P (insn_info_from) || QDSP6_VOLATILE_P (insn_info_to))
-  && (QDSP6_MEM_P (insn_info_from) && QDSP6_MEM_P (insn_info_to)))
+  if((HEXAGON_VOLATILE_P (insn_info_from) || HEXAGON_VOLATILE_P (insn_info_to))
+  && (HEXAGON_MEM_P (insn_info_from) && HEXAGON_MEM_P (insn_info_to)))
     return true;
 
   /* Check for possible true memory dependencies. */
@@ -9837,11 +9843,11 @@ qdsp6_instructions_dependent (rtx from,rtx to){
 
 
 static void
-qdsp6_move_insn(
-  struct qdsp6_insn_info *old_insn,
-  struct qdsp6_packet_info *from_packet,
-  struct qdsp6_insn_info *new_insn,
-  struct qdsp6_packet_info *to_packet,
+hexagon_move_insn(
+  struct hexagon_insn_info *old_insn,
+  struct hexagon_packet_info *from_packet,
+  struct hexagon_insn_info *new_insn,
+  struct hexagon_packet_info *to_packet,
   bool move_to_beginning
 )
 {
@@ -9850,8 +9856,8 @@ qdsp6_move_insn(
 
   gcc_assert(to_packet != from_packet);
 
-  qdsp6_remove_insn_from_packet(from_packet, old_insn);
-  qdsp6_add_insn_to_packet(to_packet, new_insn, move_to_beginning);
+  hexagon_remove_insn_from_packet(from_packet, old_insn);
+  hexagon_add_insn_to_packet(to_packet, new_insn, move_to_beginning);
 
   if(old_insn->insn == new_insn->insn){
     if(PREV_INSN (old_insn->insn)){
@@ -9931,11 +9937,11 @@ qdsp6_move_insn(
 
 
 static void
-qdsp6_sanity_check_cfg_packet_info(void)
+hexagon_sanity_check_cfg_packet_info(void)
 {
   basic_block bb;
-  struct qdsp6_packet_info *packet;
-  struct qdsp6_insn_info *insn;
+  struct hexagon_packet_info *packet;
+  struct hexagon_insn_info *insn;
   int i;
 
   FOR_EACH_BB (bb){
@@ -9952,7 +9958,7 @@ qdsp6_sanity_check_cfg_packet_info(void)
     }
   }
 
-  for(packet = qdsp6_head_packet; packet; packet = packet->next){
+  for(packet = hexagon_head_packet; packet; packet = packet->next){
     gcc_assert(packet->num_insns > 0
                && packet->insns[0]
                && packet->insns[0]->insn);
@@ -9993,7 +9999,7 @@ qdsp6_sanity_check_cfg_packet_info(void)
       }
     }
     if(!packet->next){
-      gcc_assert(packet == BB_END_PACKET (bb) && packet == qdsp6_tail_packet);
+      gcc_assert(packet == BB_END_PACKET (bb) && packet == hexagon_tail_packet);
     }
   }
 }
@@ -10004,22 +10010,22 @@ qdsp6_sanity_check_cfg_packet_info(void)
 #define SORTED_EDGE_LIST_SIZE 1024
 
 static void
-qdsp6_pull_up_insns(void)
+hexagon_pull_up_insns(void)
 {
   basic_block bb;
   basic_block successor_bb;
   edge e;
   edge_iterator ei;
   HARD_REG_SET prev_live_out;
-  struct qdsp6_packet_info *top_packet;
-  struct qdsp6_packet_info *forward_edge_packet;
-  struct qdsp6_packet_info *back_edge_packet;
-  struct qdsp6_packet_info *last_packet;
-  struct qdsp6_packet_info *packet;
-  struct qdsp6_packet_info *target_packet;
-  struct qdsp6_insn_info *insn;
-  struct qdsp6_insn_info *original_insn;
-  struct qdsp6_insn_info *edge_insn;
+  struct hexagon_packet_info *top_packet;
+  struct hexagon_packet_info *forward_edge_packet;
+  struct hexagon_packet_info *back_edge_packet;
+  struct hexagon_packet_info *last_packet;
+  struct hexagon_packet_info *packet;
+  struct hexagon_packet_info *target_packet;
+  struct hexagon_insn_info *insn;
+  struct hexagon_insn_info *original_insn;
+  struct hexagon_insn_info *edge_insn;
   bool start_at_the_next_packet;
   int i;
   int j;
@@ -10027,7 +10033,7 @@ qdsp6_pull_up_insns(void)
   /* This fixed way of book keeping will need to be updated */
   edge sorted_edge_list[SORTED_EDGE_LIST_SIZE];
 
-  qdsp6_sanity_check_cfg_packet_info();
+  hexagon_sanity_check_cfg_packet_info();
 
 #if 0
   verify_flow_info();
@@ -10099,19 +10105,19 @@ qdsp6_pull_up_insns(void)
             while (target_packet->num_insns == 0 && target_packet != back_edge_packet){
               target_packet = target_packet->prev;
             }
-            if(!qdsp6_can_add_insn_to_packet_p(&insn, target_packet)){
+            if(!hexagon_can_add_insn_to_packet_p(&insn, target_packet)){
               target_packet = target_packet->next;
               if(target_packet == packet){
                 break;
               }
             }		  
-            qdsp6_remove_insn_from_packet(packet, original_insn);
-            qdsp6_add_insn_to_packet(target_packet, insn, false);
+            hexagon_remove_insn_from_packet(packet, original_insn);
+            hexagon_add_insn_to_packet(target_packet, insn, false);
             break;
           }
 
           /* We can't pull up insns dependent on an insn in the same packet. */
-          if(qdsp6_packet_insn_internal_dependence_p(packet, insn)){
+          if(hexagon_packet_insn_internal_dependence_p(packet, insn)){
             continue;
           }
 
@@ -10122,22 +10128,22 @@ qdsp6_pull_up_insns(void)
             if(target_packet == back_edge_packet){
               target_packet = forward_edge_packet;
               edge_insn = target_packet->insns[target_packet->num_insns - 1];
-              gcc_assert(QDSP6_JUMP_P (edge_insn));
-              if(qdsp6_can_speculate_p(insn, bb)){
+              gcc_assert(HEXAGON_JUMP_P (edge_insn));
+              if(hexagon_can_speculate_p(insn, bb)){
                 /* speculate */
               }
-              else if(QDSP6_CONDITIONAL_P (edge_insn)
-                      && !QDSP6_GPR_CONDITION_P (edge_insn)
+              else if(HEXAGON_CONDITIONAL_P (edge_insn)
+                      && !HEXAGON_GPR_CONDITION_P (edge_insn)
                       && (e->flags & EDGE_FALLTHRU
-                          || QDSP6_DIRECT_JUMP_P (edge_insn))
-                      && qdsp6_predicable_p(insn)){
+                          || HEXAGON_DIRECT_JUMP_P (edge_insn))
+                      && hexagon_predicable_p(insn)){
                 /* predicate */
-                insn = qdsp6_predicate_insn(insn, edge_insn,
+                insn = hexagon_predicate_insn(insn, edge_insn,
                                             e->flags & EDGE_FALLTHRU);
                 insn->transformed_at_packet = target_packet;
               }
-              else if(!QDSP6_CONDITIONAL_P (edge_insn)
-                      && QDSP6_DIRECT_JUMP_P (edge_insn)){
+              else if(!HEXAGON_CONDITIONAL_P (edge_insn)
+                      && HEXAGON_DIRECT_JUMP_P (edge_insn)){
                 /* We can always move an insn across an uncodtional direct
                    jump. */
               }
@@ -10145,18 +10151,18 @@ qdsp6_pull_up_insns(void)
                 target_packet = back_edge_packet;
                 break;
               }
-              qdsp6_add_live_out(insn, bb);
+              hexagon_add_live_out(insn, bb);
             }
             else {
               target_packet = target_packet->prev;
             }
             /* dependent? */
-            if(qdsp6_packet_insn_dependence_p(target_packet, &insn, true)){
+            if(hexagon_packet_insn_dependence_p(target_packet, &insn, true)){
               start_at_the_next_packet = true;
               break;
             }
             /* anti-dependent? */
-            if(qdsp6_packet_insn_internal_dependence_p(target_packet, insn)){
+            if(hexagon_packet_insn_internal_dependence_p(target_packet, insn)){
               break;
             }
           }
@@ -10166,7 +10172,7 @@ qdsp6_pull_up_insns(void)
             goto try_the_next_packet;
           }
           while(target_packet != packet){
-            if(qdsp6_insn_fits_in_packet_p(insn, target_packet)){
+            if(hexagon_insn_fits_in_packet_p(insn, target_packet)){
               break;
             }
 
@@ -10185,7 +10191,7 @@ qdsp6_pull_up_insns(void)
           }
 
           if(target_packet != packet){
-            qdsp6_move_insn(original_insn, packet, insn, target_packet, false);
+            hexagon_move_insn(original_insn, packet, insn, target_packet, false);
             i--;
           }
           insn->stack = NULL;
@@ -10218,7 +10224,7 @@ qdsp6_pull_up_insns(void)
   if(dump_file){
     fputs("\n\n\n\nall basic blocks:\n\n", dump_file);
     FOR_EACH_BB (bb){
-      qdsp6_print_bb_packets(dump_file, bb);
+      hexagon_print_bb_packets(dump_file, bb);
     }
     fputs("\n\n\n\n", dump_file);
     FOR_EACH_BB (bb){
@@ -10245,15 +10251,15 @@ qdsp6_pull_up_insns(void)
 
 
 static void
-qdsp6_init_packing_info(bool need_bb_info)
+hexagon_init_packing_info(bool need_bb_info)
 {
   basic_block bb;
-  struct qdsp6_bb_aux_info *new_bb_aux;
+  struct hexagon_bb_aux_info *new_bb_aux;
 
   dfa_start();
 
-  qdsp6_head_packet = NULL;
-  qdsp6_tail_packet = NULL;
+  hexagon_head_packet = NULL;
+  hexagon_tail_packet = NULL;
 
   if(need_bb_info){
     df_set_flags(DF_LR_RUN_DCE);
@@ -10261,17 +10267,17 @@ qdsp6_init_packing_info(bool need_bb_info)
     df_analyze();
     df_set_flags(DF_DEFER_INSN_RESCAN);
 
-    qdsp6_head_bb_aux = NULL;
+    hexagon_head_bb_aux = NULL;
     new_bb_aux = NULL;
     FOR_EACH_BB (bb){
-      if(qdsp6_head_bb_aux == NULL){
-        qdsp6_head_bb_aux = (struct qdsp6_bb_aux_info *)
-            ggc_alloc_cleared(sizeof(struct qdsp6_bb_aux_info));
-        new_bb_aux = qdsp6_head_bb_aux;
+      if(hexagon_head_bb_aux == NULL){
+        hexagon_head_bb_aux = (struct hexagon_bb_aux_info *)
+            ggc_alloc_cleared(sizeof(struct hexagon_bb_aux_info));
+        new_bb_aux = hexagon_head_bb_aux;
       }
       else {
-        new_bb_aux->next = (struct qdsp6_bb_aux_info *)
-            ggc_alloc_cleared(sizeof(struct qdsp6_bb_aux_info));
+        new_bb_aux->next = (struct hexagon_bb_aux_info *)
+            ggc_alloc_cleared(sizeof(struct hexagon_bb_aux_info));
         new_bb_aux = new_bb_aux->next;
       }
       REG_SET_TO_HARD_REG_SET (new_bb_aux->live_out, df_get_live_out(bb));
@@ -10284,15 +10290,15 @@ qdsp6_init_packing_info(bool need_bb_info)
 
 
 static void
-qdsp6_remove_new_values(void)
+hexagon_remove_new_values(void)
 {
-  struct qdsp6_packet_info *packet;
+  struct hexagon_packet_info *packet;
   int i;
 
-  for(packet = qdsp6_head_packet; packet; packet = packet->next){
+  for(packet = hexagon_head_packet; packet; packet = packet->next){
     for(i = 0; i < packet->num_insns; i++){
-      if(QDSP6_NEW_GPR_P (packet->insns[i])){
-        qdsp6_dot_oldify_gpr(packet->insns[i]);
+      if(HEXAGON_NEW_GPR_P (packet->insns[i])){
+        hexagon_dot_oldify_gpr(packet->insns[i]);
       }
     }
   }
@@ -10302,23 +10308,23 @@ qdsp6_remove_new_values(void)
 
 
 static void
-qdsp6_free_packing_info(bool free_bb_info)
+hexagon_free_packing_info(bool free_bb_info)
 {
   basic_block bb;
 
   if(free_bb_info){
-    qdsp6_remove_new_values();
+    hexagon_remove_new_values();
 
     FOR_EACH_BB (bb){
       bb->aux = NULL;
     }
-    qdsp6_head_bb_aux = NULL;
+    hexagon_head_bb_aux = NULL;
 
     df_finish_pass(false);
   }
 
-  qdsp6_head_packet = NULL;
-  qdsp6_tail_packet = NULL;
+  hexagon_head_packet = NULL;
+  hexagon_tail_packet = NULL;
 
   dfa_finish();
 }
@@ -10330,9 +10336,9 @@ qdsp6_free_packing_info(bool free_bb_info)
 
 
 static bool
-qdsp6_nvj_new_gpr_p(
-  struct qdsp6_insn_info *consumer,
-  struct qdsp6_dependence *dependence
+hexagon_nvj_new_gpr_p(
+  struct hexagon_insn_info *consumer,
+  struct hexagon_dependence *dependence
 )
 {
 
@@ -10342,11 +10348,11 @@ qdsp6_nvj_new_gpr_p(
   /* get compare portion of the nvj, 
     from the first 1st elemenet of insn*/
   /* get compare - cmp.XX(Ns.new, YY) */
-  compare = qdsp6_nvj_get_compare(consumer->insn, 0);
+  compare = hexagon_nvj_get_compare(consumer->insn, 0);
 
   /*get the operands, Ns.new and YY*/
-  operand1 = qdsp6_nvj_get_operand(compare, 1);
-  operand2 = qdsp6_nvj_get_operand(compare, 2);
+  operand1 = hexagon_nvj_get_operand(compare, 1);
+  operand2 = hexagon_nvj_get_operand(compare, 2);
   
   if ( GET_CODE(operand1) == UNSPEC &&  
       XINT(operand1,1) == UNSPEC_NEW_VALUE && 
@@ -10372,14 +10378,14 @@ qdsp6_nvj_new_gpr_p(
  *Returns true if insn can be moved from from_packet to the to_packet
  */      
 static bool
-qdsp6_move_insn_across_packet_down(
-  struct qdsp6_packet_info *from,
-  struct qdsp6_packet_info *to, 
-  struct qdsp6_insn_info  *insn) 
+hexagon_move_insn_across_packet_down(
+  struct hexagon_packet_info *from,
+  struct hexagon_packet_info *to, 
+  struct hexagon_insn_info  *insn) 
 {
   while( from != to)
   {
-    if (!qdsp6_move_insn_down_p(insn, from, from->next)) 
+    if (!hexagon_move_insn_down_p(insn, from, from->next)) 
       return (false); 
     from = from->next;
   }
@@ -10387,9 +10393,9 @@ qdsp6_move_insn_across_packet_down(
 }
 
 static bool 
-qdsp6_move_all_insn_across_packet_down(
-  struct qdsp6_packet_info *from,
-  struct qdsp6_packet_info *to)
+hexagon_move_all_insn_across_packet_down(
+  struct hexagon_packet_info *from,
+  struct hexagon_packet_info *to)
 {
   int i; 
 
@@ -10403,7 +10409,7 @@ qdsp6_move_all_insn_across_packet_down(
   /* make sure you can move all the packets*/
   for(i = 0; i < from->num_insns; i++)
   {
-    if (!qdsp6_move_insn_across_packet_down(from, to, from->insns[i]))
+    if (!hexagon_move_insn_across_packet_down(from, to, from->insns[i]))
     {
       return false;
     }
@@ -10412,18 +10418,18 @@ qdsp6_move_all_insn_across_packet_down(
 }
 
 static bool 
-qdsp6_nvj_move_possible(
-  struct qdsp6_packet_info *candidate_packet,
-  struct qdsp6_packet_info *prev_packet,
-  struct qdsp6_insn_info *jump_insn_info, 
-  struct qdsp6_insn_info *comp_insn_info, 
+hexagon_nvj_move_possible(
+  struct hexagon_packet_info *candidate_packet,
+  struct hexagon_packet_info *prev_packet,
+  struct hexagon_insn_info *jump_insn_info, 
+  struct hexagon_insn_info *comp_insn_info, 
   rtx *oper, 
   rtx *pred,
   rtx *op1, 
   rtx *op2,
   rtx *b_lab,
-  struct qdsp6_packet_info **src_packet,
-  struct qdsp6_insn_info **src_insn,
+  struct hexagon_packet_info **src_packet,
+  struct hexagon_insn_info **src_insn,
   int *op_cnt
 )
 {
@@ -10434,7 +10440,7 @@ qdsp6_nvj_move_possible(
   bool move_possible = false;
   *src_insn = NULL;
   *src_packet = NULL;
-  struct qdsp6_reg_access *read;
+  struct hexagon_reg_access *read;
 
 
   for (read=comp_insn_info->reg_reads; read; read=read->next)
@@ -10449,7 +10455,7 @@ qdsp6_nvj_move_possible(
       feeder_reg = feeder_reg1;
 
 
-    *src_packet = qdsp6_get_source_packet(prev_packet, feeder_reg, comp_insn_info, src_insn);
+    *src_packet = hexagon_get_source_packet(prev_packet, feeder_reg, comp_insn_info, src_insn);
     if (!*src_packet || GET_MODE(XEXP(PATTERN((*src_insn)->insn),*op_cnt))!=SImode) 
     {
       /*reject everything that not SI - pattern won't support it */
@@ -10515,18 +10521,18 @@ qdsp6_nvj_move_possible(
     }
 
     nvj_insn_rtx = emit_jump_insn ( nvj_instruction );
-    resource_avail =  qdsp6_nvj_check_resources ( *src_insn, candidate_packet, comp_insn_info, jump_insn_info, nvj_insn_rtx);
+    resource_avail =  hexagon_nvj_check_resources ( *src_insn, candidate_packet, comp_insn_info, jump_insn_info, nvj_insn_rtx);
     end_sequence();
 
     if (resource_avail) 
     {
-      qdsp6_remove_insn_from_packet(candidate_packet, comp_insn_info);
-      move_possible = qdsp6_move_insn_across_packet_down(*src_packet, candidate_packet, *src_insn);
+      hexagon_remove_insn_from_packet(candidate_packet, comp_insn_info);
+      move_possible = hexagon_move_insn_across_packet_down(*src_packet, candidate_packet, *src_insn);
       /*Make a decision whether nvj should be created or not*/
       /*Don't create nvj, if the packet can not be removed*/
       if (move_possible && !optimize_size)
-        move_possible &= qdsp6_move_all_insn_across_packet_down(*src_packet, candidate_packet);
-      qdsp6_add_insn_to_packet(candidate_packet, comp_insn_info, false);
+        move_possible &= hexagon_move_all_insn_across_packet_down(*src_packet, candidate_packet);
+      hexagon_add_insn_to_packet(candidate_packet, comp_insn_info, false);
       if (move_possible) 
       {
         return true;
@@ -10546,19 +10552,19 @@ qdsp6_nvj_move_possible(
 }
 
 static int 
-qdsp6_get_writes_count(struct qdsp6_insn_info *insn_info) 
+hexagon_get_writes_count(struct hexagon_insn_info *insn_info) 
 {
   int cnt=0;
-  struct qdsp6_reg_access *write;
+  struct hexagon_reg_access *write;
   for (write=insn_info->reg_writes; write; write = write->next) cnt++;
   return (cnt);
 }
 
 static int 
-qdsp6_get_reads_count(struct qdsp6_insn_info *insn_info) 
+hexagon_get_reads_count(struct hexagon_insn_info *insn_info) 
 {
   int cnt=0;
-  struct qdsp6_reg_access *read;
+  struct hexagon_reg_access *read;
   for (read=insn_info->reg_reads; read; read = read->next) cnt++;
   return (cnt);
 }
@@ -10569,12 +10575,12 @@ qdsp6_get_reads_count(struct qdsp6_insn_info *insn_info)
 *  iterate over the prev packets, and find it's defination
 *  (src_insn) and return the packet which contains the def.
 */ 
-static struct qdsp6_packet_info * 
-qdsp6_get_source_packet( 
-              struct qdsp6_packet_info *prev_packet,
+static struct hexagon_packet_info * 
+hexagon_get_source_packet( 
+              struct hexagon_packet_info *prev_packet,
               rtx feeder_reg, 
-              struct qdsp6_insn_info *d_insn, 
-              struct qdsp6_insn_info **s_insn) 
+              struct hexagon_insn_info *d_insn, 
+              struct hexagon_insn_info **s_insn) 
 {
  int i;
  basic_block bb = BLOCK_FOR_INSN(d_insn->insn);
@@ -10606,7 +10612,7 @@ qdsp6_get_source_packet(
 
 
 static bool
-qdsp6_nvj_compare_p(rtx insn) 
+hexagon_nvj_compare_p(rtx insn) 
 { 
   enum rtx_code code;
   enum machine_mode mode;
@@ -10704,16 +10710,16 @@ qdsp6_nvj_compare_p(rtx insn)
 /* 
 * Validate that predicate is used only for jump and nothing else
 */
-static struct qdsp6_insn_info *
-qdsp6_nvj_query_compare(struct qdsp6_packet_info *packet, struct qdsp6_insn_info *jump_p_insn_info)
+static struct hexagon_insn_info *
+hexagon_nvj_query_compare(struct hexagon_packet_info *packet, struct hexagon_insn_info *jump_p_insn_info)
 {
-  struct qdsp6_insn_info *compare_insn = NULL;
+  struct hexagon_insn_info *compare_insn = NULL;
   int i, auto_anding_chk = 0;
   //unsigned int pred_no = (*jump_p_insn_info)->reg_reads->regno;
   unsigned int pred_no = jump_p_insn_info->reg_reads->regno;
   for( i = 0; i < packet->num_insns; i++ ) 
   {
-    struct qdsp6_insn_info *pred_insn = packet->insns[i];
+    struct hexagon_insn_info *pred_insn = packet->insns[i];
     /*while we are at it, get the compare instruction*/
 
     /*this avoids cases like { r3 = r2; r2 = r1 } generated by combinesi_v4*/
@@ -10721,19 +10727,19 @@ qdsp6_nvj_query_compare(struct qdsp6_packet_info *packet, struct qdsp6_insn_info
     if (GET_CODE(PATTERN(pred_insn->insn)) == PARALLEL)
       continue;
 
-    if ( QDSP6_NEW_PREDICATE_P(pred_insn) &&
-        !QDSP6_DIRECT_JUMP_P (pred_insn)  && 
-        ( qdsp6_predicate_use_DImode(pred_insn)      || 
-          qdsp6_register_defined(pred_insn, pred_no) ||
-          qdsp6_register_used(pred_insn, pred_no))) 
+    if ( HEXAGON_NEW_PREDICATE_P(pred_insn) &&
+        !HEXAGON_DIRECT_JUMP_P (pred_insn)  && 
+        ( hexagon_predicate_use_DImode(pred_insn)      || 
+          hexagon_register_defined(pred_insn, pred_no) ||
+          hexagon_register_used(pred_insn, pred_no))) 
     {
       /*there is another use/def of the predicate in this packet */
       return NULL;
     }
     
-    if ( qdsp6_nvj_compare_p(pred_insn->insn) )
+    if ( hexagon_nvj_compare_p(pred_insn->insn) )
     {
-      if ( qdsp6_register_defined(pred_insn, pred_no) )
+      if ( hexagon_register_defined(pred_insn, pred_no) )
       {
         compare_insn = pred_insn;
         /*auto anding also multiple register definitions*/
@@ -10753,20 +10759,20 @@ qdsp6_nvj_query_compare(struct qdsp6_packet_info *packet, struct qdsp6_insn_info
 * in the packet. 
 */
 static bool
-qdsp6_nvj_check_resources ( 
-     struct qdsp6_insn_info *q_insn, 
-     struct qdsp6_packet_info *nvj_packet, 
-     struct qdsp6_insn_info *comp_insn,
-     struct qdsp6_insn_info *jump_insn, 
+hexagon_nvj_check_resources ( 
+     struct hexagon_insn_info *q_insn, 
+     struct hexagon_packet_info *nvj_packet, 
+     struct hexagon_insn_info *comp_insn,
+     struct hexagon_insn_info *jump_insn, 
      rtx nvj_insn_rtx )
       
 
 {
-  struct qdsp6_packet_info *d_packet;
-  struct qdsp6_insn_info *src_insn;
+  struct hexagon_packet_info *d_packet;
+  struct hexagon_insn_info *src_insn;
   int i=0;
 
-  d_packet = (struct qdsp6_packet_info *) ggc_alloc_cleared(sizeof(struct qdsp6_packet_info));
+  d_packet = (struct hexagon_packet_info *) ggc_alloc_cleared(sizeof(struct hexagon_packet_info));
 
   /*first copy all the non-jump/non-compare instructions*/
   for (i=0; i < nvj_packet->num_insns; i++ )
@@ -10774,13 +10780,13 @@ qdsp6_nvj_check_resources (
     if ( (nvj_packet->insns[i] != comp_insn) &&
          (nvj_packet->insns[i] != jump_insn))
     {
-      qdsp6_add_insn_to_packet(d_packet, nvj_packet->insns[i], false); 
+      hexagon_add_insn_to_packet(d_packet, nvj_packet->insns[i], false); 
     }
   }
 
   /* see if nvj can be put in the packet */
-  src_insn = qdsp6_get_insn_info(nvj_insn_rtx);
-  if (!qdsp6_insn_fits_in_packet_p(src_insn, d_packet)) 
+  src_insn = hexagon_get_insn_info(nvj_insn_rtx);
+  if (!hexagon_insn_fits_in_packet_p(src_insn, d_packet)) 
   {
     return false;
   }
@@ -10788,8 +10794,8 @@ qdsp6_nvj_check_resources (
   /*if nvj can be put, check to see if its source (.new) 
     can be put in the same packet, 
     and at the start of the packet - */
-  qdsp6_add_insn_to_packet(d_packet, src_insn, false); 
-  return (qdsp6_insn_fits_in_packet_p(q_insn, d_packet)); 
+  hexagon_add_insn_to_packet(d_packet, src_insn, false); 
+  return (hexagon_insn_fits_in_packet_p(q_insn, d_packet)); 
 }
 
 
@@ -10797,7 +10803,7 @@ qdsp6_nvj_check_resources (
 *    true if compare uses combine registers
 */
 static bool
-qdsp6_predicate_use_DImode( struct qdsp6_insn_info *insn_info)
+hexagon_predicate_use_DImode( struct hexagon_insn_info *insn_info)
 {
   rtx pattern = PATTERN(insn_info->insn);
   rtx uses = XEXP(pattern,1);
@@ -10814,20 +10820,20 @@ qdsp6_predicate_use_DImode( struct qdsp6_insn_info *insn_info)
 
 /* reject if the operands of the compare instruction is def' in the packet */
 static bool
-qdsp6_used_operands( struct qdsp6_packet_info *packet, 
-                     struct qdsp6_insn_info *jump_insn_info,
-                     struct qdsp6_insn_info *comp_insn_info)
+hexagon_used_operands( struct hexagon_packet_info *packet, 
+                     struct hexagon_insn_info *jump_insn_info,
+                     struct hexagon_insn_info *comp_insn_info)
 {
-  int i, j, reads_cnt = qdsp6_get_reads_count(comp_insn_info);
+  int i, j, reads_cnt = hexagon_get_reads_count(comp_insn_info);
   for( i = 0; i < packet->num_insns; i++ ) 
   {
     if ( packet->insns[i] != jump_insn_info &&
          packet->insns[i] != comp_insn_info )
     {
-      for (j=0; j<qdsp6_get_writes_count(packet->insns[i]); j++)
+      for (j=0; j<hexagon_get_writes_count(packet->insns[i]); j++)
       {
         unsigned int reg_no = comp_insn_info->reg_reads->regno;
-        if (qdsp6_register_defined(packet->insns[i], reg_no))
+        if (hexagon_register_defined(packet->insns[i], reg_no))
         {
           return (true);
         }
@@ -10835,7 +10841,7 @@ qdsp6_used_operands( struct qdsp6_packet_info *packet,
         if (reads_cnt > 1)
         {
           reg_no = (comp_insn_info)->reg_reads->next->regno;
-          if (qdsp6_register_defined(packet->insns[i], reg_no))
+          if (hexagon_register_defined(packet->insns[i], reg_no))
           {
             return (true);
           }
@@ -10851,9 +10857,9 @@ qdsp6_used_operands( struct qdsp6_packet_info *packet,
 *    if it defines/loads the register reg_no  
 */
 static bool
-qdsp6_register_defined(struct qdsp6_insn_info *insn_info, unsigned int reg_no) 
+hexagon_register_defined(struct hexagon_insn_info *insn_info, unsigned int reg_no) 
 {
-  struct qdsp6_reg_access *write = insn_info->reg_writes;
+  struct hexagon_reg_access *write = insn_info->reg_writes;
   while(write) 
   {
     if (write->regno == reg_no) 
@@ -10870,9 +10876,9 @@ qdsp6_register_defined(struct qdsp6_insn_info *insn_info, unsigned int reg_no)
 *     if it uses the register reg_no
 */
 static bool
-qdsp6_register_used(struct qdsp6_insn_info *insn_info, unsigned int reg_no) 
+hexagon_register_used(struct hexagon_insn_info *insn_info, unsigned int reg_no) 
 {
-  struct qdsp6_reg_access *read = insn_info->reg_reads;
+  struct hexagon_reg_access *read = insn_info->reg_reads;
   while(read) 
   {
     if (read->regno == reg_no) 
@@ -10886,9 +10892,9 @@ qdsp6_register_used(struct qdsp6_insn_info *insn_info, unsigned int reg_no)
 
 
 static bool
-qdsp6_in_bb_live_out( basic_block bb, struct qdsp6_insn_info *q_insn)
+hexagon_in_bb_live_out( basic_block bb, struct hexagon_insn_info *q_insn)
 {
-  struct qdsp6_reg_access *write;
+  struct hexagon_reg_access *write;
 
   for(write = q_insn->reg_reads; write; write = write->next)
   {
@@ -10911,21 +10917,21 @@ qdsp6_in_bb_live_out( basic_block bb, struct qdsp6_insn_info *q_insn)
  *    modifies the second element of rtx with the jmp if it's the second jump and can be
             converted into the compound new value jump (dual jump & copacket)
  */
-static struct qdsp6_insn_info *
-qdsp6_nvj_query_jump( 
-  struct qdsp6_packet_info *packet, 
+static struct hexagon_insn_info *
+hexagon_nvj_query_jump( 
+  struct hexagon_packet_info *packet, 
   bool   *dot_new_predicate,
   basic_block bb) 
 
 {
   int i, nvj_count = 0;
-  struct qdsp6_insn_info *jump_insn;
+  struct hexagon_insn_info *jump_insn;
   for( i = 0; i < packet->num_insns; i++ ) 
   {
-    struct qdsp6_insn_info *insn_info = packet->insns[i];
-    if ( QDSP6_DIRECT_JUMP_P(insn_info) && 
-         QDSP6_CONDITIONAL_P(insn_info) && 
-         !qdsp6_in_bb_live_out(bb, insn_info)
+    struct hexagon_insn_info *insn_info = packet->insns[i];
+    if ( HEXAGON_DIRECT_JUMP_P(insn_info) && 
+         HEXAGON_CONDITIONAL_P(insn_info) && 
+         !hexagon_in_bb_live_out(bb, insn_info)
        ) 
     {
     
@@ -10933,7 +10939,7 @@ qdsp6_nvj_query_jump(
     jump_insn=insn_info;
 
     /*if dot new predicate*/
-    if (QDSP6_NEW_PREDICATE_P(insn_info))
+    if (HEXAGON_NEW_PREDICATE_P(insn_info))
       *dot_new_predicate = true;
     else 
       *dot_new_predicate = false; /*this is just for the breakpoint - don't need it */
@@ -10950,7 +10956,7 @@ qdsp6_nvj_query_jump(
  
 
 static void 
-qdsp6_new_value_jump(void)
+hexagon_new_value_jump(void)
 {
  /* 
  * 1. Scan the packets from the bottom of the basic looking for predicated 
@@ -10986,9 +10992,9 @@ qdsp6_new_value_jump(void)
 
   FOR_EACH_BB(bb)
   {
-    struct qdsp6_packet_info  *packet, *nvj_packet;
-    struct qdsp6_insn_info    *compare_insn_info = NULL;
-    struct qdsp6_insn_info    *jump_p_insn_info = NULL;
+    struct hexagon_packet_info  *packet, *nvj_packet;
+    struct hexagon_insn_info    *compare_insn_info = NULL;
+    struct hexagon_insn_info    *jump_p_insn_info = NULL;
     bool                      dot_new_predicate = false;
     rtx                       nvj_insn;
     rtx                       nvj_instruction;
@@ -10999,28 +11005,28 @@ qdsp6_new_value_jump(void)
            packet->prev->num_insns &&
            BLOCK_FOR_INSN(packet->prev->insns[0]->insn) == bb) 
     {
-      if ( !(jump_p_insn_info=qdsp6_nvj_query_jump(packet, &dot_new_predicate, bb)))
+      if ( !(jump_p_insn_info=hexagon_nvj_query_jump(packet, &dot_new_predicate, bb)))
       {
         continue;
       }
       else /* single jumps */
       {
-        struct qdsp6_insn_info *src_insn;
-        struct qdsp6_packet_info *src_packet;
+        struct hexagon_insn_info *src_insn;
+        struct hexagon_packet_info *src_packet;
         rtx comp_operator, p_reg, operand1, operand2, branch_label; 
         int op_cnt = 0;
-        struct qdsp6_insn_info *new_insn; 
+        struct hexagon_insn_info *new_insn; 
 
         nvj_packet = packet;
         if (dot_new_predicate)  /* predicate is generated in the same packet, two packets */
         {
-          if (!(compare_insn_info = qdsp6_nvj_query_compare(nvj_packet, jump_p_insn_info)))
+          if (!(compare_insn_info = hexagon_nvj_query_compare(nvj_packet, jump_p_insn_info)))
           {
           /*predicate is used, other than for jump insn*/
              continue;
           }
 
-          if (qdsp6_used_operands(nvj_packet, jump_p_insn_info, compare_insn_info))
+          if (hexagon_used_operands(nvj_packet, jump_p_insn_info, compare_insn_info))
           {
             /*one of operands of the compare is defined in the same packet*/
             continue;
@@ -11029,9 +11035,9 @@ qdsp6_new_value_jump(void)
 
           /* get the feeder to the compare and search in the prev packets 
            * of the bb 
-          op_cnt = qdsp6_get_reads_count(compare_insn_info);
+          op_cnt = hexagon_get_reads_count(compare_insn_info);
            */
-          if (!qdsp6_nvj_move_possible(nvj_packet, packet->prev, jump_p_insn_info, 
+          if (!hexagon_nvj_move_possible(nvj_packet, packet->prev, jump_p_insn_info, 
                                        compare_insn_info, &comp_operator, &p_reg, 
                                        &operand1, &operand2, &branch_label, &src_packet, 
                                        &src_insn,  &op_cnt)) 
@@ -11039,9 +11045,9 @@ qdsp6_new_value_jump(void)
             continue;
           }
 
-          qdsp6_move_insn(src_insn, src_packet, src_insn, nvj_packet, true);
+          hexagon_move_insn(src_insn, src_packet, src_insn, nvj_packet, true);
 
-          /*now call the qdsp6 genroutine to get the actual instruction */
+          /*now call the hexagon genroutine to get the actual instruction */
           /*if the compare is a tstbit, only first operand can be .new  */
           if (GET_CODE(XEXP(SET_SRC(PATTERN(compare_insn_info->insn)),0)) == ZERO_EXTRACT)
           {
@@ -11072,20 +11078,20 @@ qdsp6_new_value_jump(void)
           /* assign the block number for the instruction*/
           set_block_for_insn(nvj_insn, BLOCK_FOR_INSN(jump_p_insn_info->insn));
 
-          qdsp6_remove_insn_from_packet(nvj_packet, jump_p_insn_info);
+          hexagon_remove_insn_from_packet(nvj_packet, jump_p_insn_info);
           delete_insn(jump_p_insn_info->insn);
 
-          qdsp6_remove_insn_from_packet(nvj_packet, compare_insn_info);
+          hexagon_remove_insn_from_packet(nvj_packet, compare_insn_info);
           delete_insn(compare_insn_info->insn);
 
-          new_insn = qdsp6_get_insn_info(nvj_insn);
-          new_insn->flags |= QDSP6_NEW_GPR;
-          qdsp6_add_insn_to_packet(nvj_packet, new_insn, false);
+          new_insn = hexagon_get_insn_info(nvj_insn);
+          new_insn->flags |= HEXAGON_NEW_GPR;
+          hexagon_add_insn_to_packet(nvj_packet, new_insn, false);
 
           if (src_packet->num_insns == 0 ) 
           {
             /* remove empty packet */
-            qdsp6_remove_empty_packet(bb, src_packet);
+            hexagon_remove_empty_packet(bb, src_packet);
           }
         } 
         else  /* three packets */
@@ -11100,13 +11106,13 @@ qdsp6_new_value_jump(void)
     }   /* packet is not a candidate */ 
   }     /* iterated over all the basic blocks in proc*/
 
-}       /* end of qdsp6_new_value_jump */
+}       /* end of hexagon_new_value_jump */
 
 
 static void
-qdsp6_remove_empty_packet( 
+hexagon_remove_empty_packet( 
               basic_block bb,
-              struct qdsp6_packet_info *packet)
+              struct hexagon_packet_info *packet)
 {
   /* There is always a sentinal packet */
   if (BB_HEAD_PACKET(bb) == packet) 
@@ -11132,7 +11138,7 @@ qdsp6_remove_empty_packet(
 
 
 static void
-qdsp6_packet_optimizations(void)
+hexagon_packet_optimizations(void)
 {
   if(!TARGET_PACKETS){
     return;
@@ -11140,31 +11146,31 @@ qdsp6_packet_optimizations(void)
 
   shorten_branches(get_insns());
 
-  qdsp6_init_packing_info(true);
-  qdsp6_pack_insns(true);
+  hexagon_init_packing_info(true);
+  hexagon_pack_insns(true);
 
   if (TARGET_V4_FEATURES && TARGET_NEW_VALUE_JUMP)
-    qdsp6_new_value_jump();
+    hexagon_new_value_jump();
 
   if (TARGET_PULLUP)
-    qdsp6_pull_up_insns();
+    hexagon_pull_up_insns();
 
-  qdsp6_free_packing_info(true);
+  hexagon_free_packing_info(true);
 }
 
 static void
-qdsp6_final_pack_insns(void)
+hexagon_final_pack_insns(void)
 {
   if(!TARGET_PACKETS){
     return;
   }
 
-  qdsp6_init_packing_info(false);
-  qdsp6_pack_insns(false);
+  hexagon_init_packing_info(false);
+  hexagon_pack_insns(false);
 
   if(TARGET_V4_FEATURES && TARGET_DUPLEX_SCHEDULING) 
     {
-      qdsp6_pack_duplex_insns();
+      hexagon_pack_duplex_insns();
     }
 
   shorten_branches(get_insns());
@@ -11184,13 +11190,13 @@ enum duplex_move_direction {
   BOTH
 };
 
-/* qdsp6_duplex_register_p()
+/* hexagon_duplex_register_p()
    Predicate that checks if the given register can be used in a duplex 
    instruction. This will identify instructions that are not 
    sub-instructions as sub-instructions. However, refining this function
    to be more accurate does not result in codesize reductions in AMSS */
 static bool
-qdsp6_duplex_register_p(int regno)
+hexagon_duplex_register_p(int regno)
 {
   return (regno == DUPLEX_PRED_REG || 
           regno == SP_REGNUM ||
@@ -11203,15 +11209,15 @@ qdsp6_duplex_register_p(int regno)
 }
 
 /*
-  qdsp6_duplex_insn_p()
+  hexagon_duplex_insn_p()
   Given: an instruction insn
   Returns true if the instruction is a duplex instruction
 */
 static bool
-qdsp6_duplex_insn_p(struct qdsp6_insn_info* insn)
+hexagon_duplex_insn_p(struct hexagon_insn_info* insn)
 {
-  struct qdsp6_reg_access *read;
-  struct qdsp6_reg_access *write;
+  struct hexagon_reg_access *read;
+  struct hexagon_reg_access *write;
 
   if (get_attr_duplex(insn->insn) != DUPLEX_YES)
     {
@@ -11220,7 +11226,7 @@ qdsp6_duplex_insn_p(struct qdsp6_insn_info* insn)
 
   for(read = insn->reg_reads; read; read = read->next) 
     {
-      if (!qdsp6_duplex_register_p (read->regno))
+      if (!hexagon_duplex_register_p (read->regno))
         {
           return (false);
         }
@@ -11228,7 +11234,7 @@ qdsp6_duplex_insn_p(struct qdsp6_insn_info* insn)
 
   for(write = insn->reg_writes; write; write = write->next)
     {
-      if (!qdsp6_duplex_register_p (write->regno))
+      if (!hexagon_duplex_register_p (write->regno))
         {
           return (false);
         }
@@ -11238,19 +11244,19 @@ qdsp6_duplex_insn_p(struct qdsp6_insn_info* insn)
 
 
 /*
-  qdsp6_move_insn_up_p()
+  hexagon_move_insn_up_p()
   Given: an instruction insn
          a packet containing insn: succ_packet
          the previous packet: pred_packet
   Returns true if insn can be moved from succ_packet to pred_packet
 */
 static bool
-qdsp6_move_insn_up_p(struct qdsp6_insn_info* insn, 
-                     struct qdsp6_packet_info* pred_packet, 
-                     struct qdsp6_packet_info* succ_packet)
+hexagon_move_insn_up_p(struct hexagon_insn_info* insn, 
+                     struct hexagon_packet_info* pred_packet, 
+                     struct hexagon_packet_info* succ_packet)
 {
   int i;
-  struct qdsp6_dependence *dependencies = NULL, *dep = NULL;
+  struct hexagon_dependence *dependencies = NULL, *dep = NULL;
 
   /* The following types of dependences prevent an instruction I from succ_packet
      from being moved into pred_packet: 
@@ -11268,7 +11274,7 @@ qdsp6_move_insn_up_p(struct qdsp6_insn_info* insn,
   */
 
   /* Case 1 */
-  if (QDSP6_CONTROL_P (insn))
+  if (HEXAGON_CONTROL_P (insn))
     {
       return false;
     }
@@ -11277,22 +11283,22 @@ qdsp6_move_insn_up_p(struct qdsp6_insn_info* insn,
   /* First, iterate over pred_packet and check for cases 2, 3, and 4 */
   for (i = 0; i < pred_packet->num_insns; ++i)
     {
-      struct qdsp6_insn_info *pred_insn = pred_packet->insns[i];
+      struct hexagon_insn_info *pred_insn = pred_packet->insns[i];
       
       /* Check for control instructions in pred_packet */
-      dependencies = qdsp6_control_dependencies(pred_insn, insn);
+      dependencies = hexagon_control_dependencies(pred_insn, insn);
       if (dependencies != NULL) 
         {
           return false;
         }
       
-      dependencies = qdsp6_true_dependencies(pred_insn, insn);
+      dependencies = hexagon_true_dependencies(pred_insn, insn);
       if (dependencies != NULL) 
         {
           return false;
         }
       
-      dependencies = qdsp6_output_dependencies(pred_insn, insn);
+      dependencies = hexagon_output_dependencies(pred_insn, insn);
       if (dependencies != NULL) 
         {
           return false;
@@ -11303,7 +11309,7 @@ qdsp6_move_insn_up_p(struct qdsp6_insn_info* insn,
   /* Then, iterate over succ_packet and check for cases 5, 6, and 7 */
   for (i = 0; i < succ_packet->num_insns; ++i)
     {
-      struct qdsp6_insn_info *succ_insn = succ_packet->insns[i];
+      struct hexagon_insn_info *succ_insn = succ_packet->insns[i];
       
       /* Don't compute dependences of insn with itself */
       if (insn == succ_insn)
@@ -11312,13 +11318,13 @@ qdsp6_move_insn_up_p(struct qdsp6_insn_info* insn,
         }
 
       /* Case 5 */
-      dependencies = qdsp6_true_dependencies(succ_insn, insn);
+      dependencies = hexagon_true_dependencies(succ_insn, insn);
       for(dep = dependencies; dep; dep = dep->next)
         {
-         if (dep->type == QDSP6_DEP_REGISTER) 
+         if (dep->type == HEXAGON_DEP_REGISTER) 
            {
              /* Check for dependence due to p.new */
-             if (QDSP6_NEW_PREDICATE_P (insn) && P_REGNO_P (REGNO (dep->use)))
+             if (HEXAGON_NEW_PREDICATE_P (insn) && P_REGNO_P (REGNO (dep->use)))
                {
                  return false;
                }
@@ -11326,7 +11332,7 @@ qdsp6_move_insn_up_p(struct qdsp6_insn_info* insn,
         }
       
       /* Cases 6 and 7 */
-      dependencies = qdsp6_true_dependencies(insn, succ_insn);
+      dependencies = hexagon_true_dependencies(insn, succ_insn);
       if (dependencies != NULL)
         {
           return false;
@@ -11338,19 +11344,19 @@ qdsp6_move_insn_up_p(struct qdsp6_insn_info* insn,
 
 
 /*
-  qdsp6_move_insn_down_p():
+  hexagon_move_insn_down_p():
   Given: an instruction insn
          a packet containing insn: pred_packet
          the next packet: succ_packet
   Returns true if insn can be moved from pred_packet to succ_packet
 */
 static bool
-qdsp6_move_insn_down_p(struct qdsp6_insn_info* insn, 
-                       struct qdsp6_packet_info* pred_packet, 
-                       struct qdsp6_packet_info* succ_packet)
+hexagon_move_insn_down_p(struct hexagon_insn_info* insn, 
+                       struct hexagon_packet_info* pred_packet, 
+                       struct hexagon_packet_info* succ_packet)
 {
   int i;
-  struct qdsp6_dependence *dependencies = NULL, *dep = NULL;
+  struct hexagon_dependence *dependencies = NULL, *dep = NULL;
 
   /* The following types of dependences prevent an instruction I from pred_packet
      from being moved into succ_packet:
@@ -11365,7 +11371,7 @@ qdsp6_move_insn_down_p(struct qdsp6_insn_info* insn,
   */
 
    /* Case 1 */
-  if (QDSP6_CONTROL_P (insn) && (succ_packet->num_insns > 0))
+  if (HEXAGON_CONTROL_P (insn) && (succ_packet->num_insns > 0))
     {
       return false;
     }
@@ -11373,7 +11379,7 @@ qdsp6_move_insn_down_p(struct qdsp6_insn_info* insn,
   /* First, iterate over pred_packet and check for cases 2, 3, and 4 */
   for (i = 0; i < pred_packet->num_insns; ++i)
     {
-      struct qdsp6_insn_info *pred_insn = pred_packet->insns[i];
+      struct hexagon_insn_info *pred_insn = pred_packet->insns[i];
       
       /* Don't compute dependences of insn with itself */
       if (pred_insn == insn) 
@@ -11382,14 +11388,14 @@ qdsp6_move_insn_down_p(struct qdsp6_insn_info* insn,
         }
       
       /* Check for control instructions in pred_packet */
-      if (QDSP6_JUMP_P (pred_insn) || QDSP6_CALL_P (pred_insn) || 
-          QDSP6_EMULATION_CALL_P (pred_insn))
+      if (HEXAGON_JUMP_P (pred_insn) || HEXAGON_CALL_P (pred_insn) || 
+          HEXAGON_EMULATION_CALL_P (pred_insn))
         {
           return false;
         }
 
       /* Check for an anti-dependence in pred_packet */
-      dependencies = qdsp6_anti_dependencies(insn, pred_insn);
+      dependencies = hexagon_anti_dependencies(insn, pred_insn);
       if (dependencies != NULL)
         {
           return false;
@@ -11400,21 +11406,21 @@ qdsp6_move_insn_down_p(struct qdsp6_insn_info* insn,
          1. I produces a predicate that is consumed by a p.new consumer
          2. I produces a gpr that is consumed by a new-value store 
       */
-      dependencies = qdsp6_true_dependencies(insn, pred_insn);
+      dependencies = hexagon_true_dependencies(insn, pred_insn);
       for(dep = dependencies; dep; dep = dep->next)
         {
-          if (dep->type == QDSP6_DEP_REGISTER) {
+          if (dep->type == HEXAGON_DEP_REGISTER) {
             /* Check for dependence due to p.new */
-            if (QDSP6_NEW_PREDICATE_P (pred_insn) && P_REGNO_P(REGNO(dep->use)))
+            if (HEXAGON_NEW_PREDICATE_P (pred_insn) && P_REGNO_P(REGNO(dep->use)))
               {
                 return false;
               }
             /* Check for dependence due to r.new */
-            if (QDSP6_NEW_GPR_P (pred_insn))
+            if (HEXAGON_NEW_GPR_P (pred_insn))
               {
                 rtx pattern, new_value;
                 pattern = copy_rtx(PATTERN (pred_insn->insn));
-                for_each_rtx(&pattern, qdsp6_find_new_value, &new_value);
+                for_each_rtx(&pattern, hexagon_find_new_value, &new_value);
                 /* new_value is wrapped in an unspec; hence look 
                    at XVECEXP(new_value, 0, 0) */
                 if (XVECEXP(new_value, 0, 0) == dep->use)
@@ -11427,7 +11433,7 @@ qdsp6_move_insn_down_p(struct qdsp6_insn_info* insn,
     }
 
   /* Case 5 */
-  if (QDSP6_NEW_PREDICATE_P (insn))
+  if (HEXAGON_NEW_PREDICATE_P (insn))
     {
       return false;
     }
@@ -11435,14 +11441,14 @@ qdsp6_move_insn_down_p(struct qdsp6_insn_info* insn,
   /* Then, iterate over succ_packet and check for cases 6 and 7 */
   for (i = 0; i < succ_packet->num_insns; ++i)
     {
-      struct qdsp6_insn_info *succ_insn = succ_packet->insns[i];
+      struct hexagon_insn_info *succ_insn = succ_packet->insns[i];
 
-      dependencies = qdsp6_true_dependencies(insn, succ_insn);
+      dependencies = hexagon_true_dependencies(insn, succ_insn);
       if (dependencies != NULL) 
         {
           return false;
         }
-      dependencies = qdsp6_output_dependencies(insn, succ_insn);
+      dependencies = hexagon_output_dependencies(insn, succ_insn);
       if (dependencies != NULL) 
         {
           return false;
@@ -11457,8 +11463,8 @@ qdsp6_move_insn_down_p(struct qdsp6_insn_info* insn,
   to move instructions, check if we can create a duplex by moving
   from one of these packets to another */
 static bool
-qdsp6_pair_duplex_insn(struct qdsp6_packet_info* pred_packet, 
-                       struct qdsp6_packet_info* succ_packet,
+hexagon_pair_duplex_insn(struct hexagon_packet_info* pred_packet, 
+                       struct hexagon_packet_info* succ_packet,
                        enum duplex_move_direction dir)
 {
   int i;
@@ -11474,12 +11480,12 @@ qdsp6_pair_duplex_insn(struct qdsp6_packet_info* pred_packet,
       */ 
       for(i = 0; i < pred_packet->num_insns; ++i)
         {
-          struct qdsp6_insn_info *insn = pred_packet->insns[i];
-          if (qdsp6_duplex_insn_p(insn) && 
-              qdsp6_insn_fits_in_packet_p(insn, succ_packet) &&
-              qdsp6_move_insn_down_p(insn, pred_packet, succ_packet))
+          struct hexagon_insn_info *insn = pred_packet->insns[i];
+          if (hexagon_duplex_insn_p(insn) && 
+              hexagon_insn_fits_in_packet_p(insn, succ_packet) &&
+              hexagon_move_insn_down_p(insn, pred_packet, succ_packet))
             {
-              qdsp6_move_insn(insn, pred_packet, insn, succ_packet, true);
+              hexagon_move_insn(insn, pred_packet, insn, succ_packet, true);
               return (true);
             }
         }
@@ -11496,12 +11502,12 @@ qdsp6_pair_duplex_insn(struct qdsp6_packet_info* pred_packet,
       */
       for(i = 0; i < succ_packet->num_insns; ++i)
         {
-          struct qdsp6_insn_info *insn = succ_packet->insns[i];
-          if (qdsp6_duplex_insn_p (insn) &&
-              qdsp6_insn_fits_in_packet_p(insn, pred_packet) &&
-              qdsp6_move_insn_up_p(insn, pred_packet, succ_packet))
+          struct hexagon_insn_info *insn = succ_packet->insns[i];
+          if (hexagon_duplex_insn_p (insn) &&
+              hexagon_insn_fits_in_packet_p(insn, pred_packet) &&
+              hexagon_move_insn_up_p(insn, pred_packet, succ_packet))
             {
-              qdsp6_move_insn(insn, succ_packet, insn, pred_packet, false);
+              hexagon_move_insn(insn, succ_packet, insn, pred_packet, false);
               return (true);
             }
         }
@@ -11520,35 +11526,35 @@ qdsp6_pair_duplex_insn(struct qdsp6_packet_info* pred_packet,
 }
 
 static int
-qdsp6_count_duplex_insns(struct qdsp6_packet_info *packet)
+hexagon_count_duplex_insns(struct hexagon_packet_info *packet)
 {
   int i, count = 0;
   for(i = 0; i < packet->num_insns; i++)
     {
-      struct qdsp6_insn_info *insn = packet->insns[i];
+      struct hexagon_insn_info *insn = packet->insns[i];
       if (NOTE_P(insn->insn)) 
         {
           continue;
         }
-      count += (qdsp6_duplex_insn_p (insn));
+      count += (hexagon_duplex_insn_p (insn));
     }
   return(count);
 }
 
 static void 
-compute_pipeline_state (struct qdsp6_packet_info *packet, bool count_duplexes, 
+compute_pipeline_state (struct hexagon_packet_info *packet, bool count_duplexes, 
                              state_t* pipeline_state)
 {
   int i;
   for(i = 0; i < packet->num_insns; i++)
     {
-      struct qdsp6_insn_info *insn = packet->insns[i];
+      struct hexagon_insn_info *insn = packet->insns[i];
       if (NOTE_P(insn->insn)) 
         {
           continue;
         }
 
-      if (!count_duplexes && qdsp6_duplex_insn_p(insn)) {
+      if (!count_duplexes && hexagon_duplex_insn_p(insn)) {
         continue;
       }
       
@@ -11561,7 +11567,7 @@ compute_pipeline_state (struct qdsp6_packet_info *packet, bool count_duplexes,
   slot 0 and 1 are both occupied by instructions in that packet 
 */
 static bool 
-slot0and1_occupied_p(struct qdsp6_packet_info *packet, bool count_duplexes)
+slot0and1_occupied_p(struct hexagon_packet_info *packet, bool count_duplexes)
 {
   state_t pipeline_state;
   rtx slot0or1_insn;
@@ -11581,7 +11587,7 @@ slot0and1_occupied_p(struct qdsp6_packet_info *packet, bool count_duplexes)
   either slot 0 or slot 1 is occupied by instructions in that packet 
 */
 static bool 
-slot0or1_occupied_p(struct qdsp6_packet_info *packet, bool count_duplexes)
+slot0or1_occupied_p(struct hexagon_packet_info *packet, bool count_duplexes)
 {
   state_t pipeline_state;
   rtx slot0or1_insn;
@@ -11598,23 +11604,23 @@ slot0or1_occupied_p(struct qdsp6_packet_info *packet, bool count_duplexes)
 
 
 /* 
-   qdsp6_pack_duplex_insns(): Operates after instructions have been packetized.
+   hexagon_pack_duplex_insns(): Operates after instructions have been packetized.
    Look for duplex opportunities across packets. Move instructions across 
    packets to create more duplexes. Currently moves instructions between 
    adjacent packets.
 */
-static void qdsp6_pack_duplex_insns(void)
+static void hexagon_pack_duplex_insns(void)
 {
-  struct qdsp6_packet_info *packet;
+  struct hexagon_packet_info *packet;
   int i;
 
-  packet = qdsp6_head_packet; 
+  packet = hexagon_head_packet; 
   while(packet && packet->next)
         {
-          struct qdsp6_packet_info *this_packet = packet;
-          struct qdsp6_packet_info *next_packet = packet->next;
-          int duplex_this_packet = qdsp6_count_duplex_insns(packet);
-          int duplex_next_packet = qdsp6_count_duplex_insns(packet->next);
+          struct hexagon_packet_info *this_packet = packet;
+          struct hexagon_packet_info *next_packet = packet->next;
+          int duplex_this_packet = hexagon_count_duplex_insns(packet);
+          int duplex_next_packet = hexagon_count_duplex_insns(packet->next);
           
           /* Check if neither packet has any duplex instructions */
           if ((this_packet->num_insns == 0) || (next_packet->num_insns == 0))
@@ -11647,16 +11653,16 @@ static void qdsp6_pack_duplex_insns(void)
             {
               /* Create a new packet and choose instructions to move to that
                  packet */
-              struct qdsp6_packet_info *new_packet = 
-                (struct qdsp6_packet_info *)ggc_alloc_cleared(sizeof(struct qdsp6_packet_info));
-              struct qdsp6_insn_info *movable_insns[2];
+              struct hexagon_packet_info *new_packet = 
+                (struct hexagon_packet_info *)ggc_alloc_cleared(sizeof(struct hexagon_packet_info));
+              struct hexagon_insn_info *movable_insns[2];
               int num_movable_insns = 0;
 
               for (i = 0; (i < this_packet->num_insns) && 
                      (num_movable_insns < 2); ++i)
                 {
-                  if (qdsp6_duplex_insn_p (packet->insns[i]) && 
-                      qdsp6_move_insn_down_p(packet->insns[i], this_packet, 
+                  if (hexagon_duplex_insn_p (packet->insns[i]) && 
+                      hexagon_move_insn_down_p(packet->insns[i], this_packet, 
                                              new_packet))
                     {
                       movable_insns[num_movable_insns++] = packet->insns[i];
@@ -11666,7 +11672,7 @@ static void qdsp6_pack_duplex_insns(void)
               /* Can we move at least two instructions to a new packet */
               if (num_movable_insns >= 2)
                 {
-                  struct qdsp6_insn_info *third_insn = movable_insns[0],
+                  struct hexagon_insn_info *third_insn = movable_insns[0],
                     *fourth_insn = movable_insns[1];
                   
                   /* Splice new packet in between this_packet and next_packet */
@@ -11675,8 +11681,8 @@ static void qdsp6_pack_duplex_insns(void)
                   new_packet->prev = this_packet;
                   next_packet->prev = new_packet;
                   
-                  qdsp6_move_insn(third_insn, this_packet, third_insn, new_packet, false);
-                  qdsp6_move_insn(fourth_insn, this_packet, fourth_insn, new_packet, false);
+                  hexagon_move_insn(third_insn, this_packet, third_insn, new_packet, false);
+                  hexagon_move_insn(fourth_insn, this_packet, fourth_insn, new_packet, false);
                   packet = new_packet;
                   continue;
                 }
@@ -11755,7 +11761,7 @@ static void qdsp6_pack_duplex_insns(void)
 
                   if (can_move)
                     {
-                      qdsp6_pair_duplex_insn(this_packet, next_packet, dir);
+                      hexagon_pair_duplex_insn(this_packet, next_packet, dir);
                     }
                 }
             }
@@ -11774,7 +11780,7 @@ static void qdsp6_pack_duplex_insns(void)
 /*------------------------------
 Functions for fast math
 -------------------------------*/
-void qdsp6_fast_math_libfunc(rtx operand)
+void hexagon_fast_math_libfunc(rtx operand)
 {
   if (GET_CODE (XEXP (operand, 0)) == SYMBOL_REF) {
     const char *name = XSTR (XEXP (operand, 0), 0); 
@@ -11789,4 +11795,4 @@ void qdsp6_fast_math_libfunc(rtx operand)
 
 
 /* Should be at the end of the file */
-#include "gt-qdsp6.h"
+#include "gt-hexagon.h"

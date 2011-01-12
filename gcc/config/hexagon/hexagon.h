@@ -1,4 +1,4 @@
-/* Definitions of QDSP6 target
+/* Definitions of HEXAGON target
    Copyright (C) 1998, 1999, 2000, 2001, 2002 Free Software Foundation, Inc.
 
 This file is part of GCC.
@@ -25,8 +25,8 @@ versions of GCC.  This macro and some includes in the machine description
 are used to switch between the two implementations.
 -----------------------------------------------------------------------*/
 
-#ifndef GCC_QDSP6_H
-#define GCC_QDSP6_H
+#ifndef GCC_HEXAGON_H
+#define GCC_HEXAGON_H
 
 
 /*--------------------------------------------------------
@@ -41,10 +41,10 @@ Controlling the Compilation Driver, gcc
 
 /* Make the -mv* options aliases for the corresponding -march= option. */
 #define TARGET_OPTION_TRANSLATE_TABLE \
-  {"-mv1", "-march=qdsp6v1"}, \
-  {"-mv2", "-march=qdsp6v2"}, \
-  {"-mv3", "-march=qdsp6v3"}, \
-  {"-mv4", "-march=qdsp6v4"}
+  {"-mv1", "-march=hexagonv1"}, \
+  {"-mv2", "-march=hexagonv2"}, \
+  {"-mv3", "-march=hexagonv3"}, \
+  {"-mv4", "-march=hexagonv4"}
 
 /* As specified by the ABI, plain bitfields are unsigned.  This is a hack to
    compensate for the lack of a target hook for specifying this aspect of the
@@ -60,41 +60,42 @@ Controlling the Compilation Driver, gcc
 Run-time Target Specification
 ---------------------------*/
 
-/* Define qdsp6 and __QDSP6_<architecture>__ */
+/* Define hexagon and __HEXAGON_<architecture>__ */
 #define TARGET_CPU_CPP_BUILTINS() \
   do { \
-    switch(qdsp6_arch){ \
-      case QDSP6_ARCH_V1: \
-        builtin_define_std ("__QDSP6_V1__"); \
-        builtin_define_std ("__QDSP6_ARCH__=1"); \
+    switch(hexagon_arch){ \
+      case HEXAGON_ARCH_V1: \
+        builtin_define_std ("__HEXAGON_V1__"); \
+        builtin_define_std ("__HEXAGON_ARCH__=1"); \
         break; \
-      case QDSP6_ARCH_V2: \
-        builtin_define_std ("__QDSP6_V2__"); \
-        builtin_define_std ("__QDSP6_ARCH__=2"); \
+      case HEXAGON_ARCH_V2: \
+        builtin_define_std ("__HEXAGON_V2__"); \
+        builtin_define_std ("__HEXAGON_ARCH__=2"); \
         break; \
-      case QDSP6_ARCH_V3: \
-        builtin_define_std ("__QDSP6_V3__"); \
-        builtin_define_std ("__QDSP6_ARCH__=3"); \
+      case HEXAGON_ARCH_V3: \
+        builtin_define_std ("__HEXAGON_V3__"); \
+        builtin_define_std ("__HEXAGON_ARCH__=3"); \
         break; \
-      case QDSP6_ARCH_V4: \
-        builtin_define_std ("__QDSP6_V4__"); \
-        builtin_define_std ("__QDSP6_ARCH__=4"); \
+      case HEXAGON_ARCH_V4: \
+        builtin_define_std ("__HEXAGON_V4__"); \
+        builtin_define_std ("__HEXAGON_ARCH__=4"); \
         break; \
       default: \
         abort(); \
     } \
-    builtin_define_std ("qdsp6"); \
-    builtin_assert ("machine=qdsp6"); \
+    builtin_define_std ("hexagon"); \
+    QDSP6_COMPAT_MACROS \
+    builtin_assert ("machine=hexagon"); \
   }while(0)
 
-/* Append (qdsp6) to the version string. */
-#define TARGET_VERSION fprintf(stderr, " (qdsp6)");
+/* Append (hexagon) to the version string. */
+#define TARGET_VERSION fprintf(stderr, " (hexagon)");
 
 #define OVERRIDE_OPTIONS \
-  qdsp6_override_options()
+  hexagon_override_options()
 
 #define OPTIMIZATION_OPTIONS(LEVEL, SIZE) \
-  qdsp6_optimization_options(LEVEL, SIZE)
+  hexagon_optimization_options(LEVEL, SIZE)
 
 #define CAN_DEBUG_WITHOUT_FP 1
 
@@ -104,32 +105,32 @@ Defining data structures for per-function information
 ---------------------------------------------------*/
 
 #define INIT_EXPANDERS \
-  qdsp6_init_expanders()
+  hexagon_init_expanders()
 
 
 /*------------
 Storage Layout
 ------------*/
 
-/* QDSP6 is little endian. */
+/* HEXAGON is little endian. */
 #define BITS_BIG_ENDIAN 0
 
 #define BYTES_BIG_ENDIAN 0
 
 #define WORDS_BIG_ENDIAN 0
 
-/* Bytes (units) are 8 bits on QDSP6. */
+/* Bytes (units) are 8 bits on HEXAGON. */
 
-/* QDSP6 general purpose registers each hold 4 bytes (32 bits). */
+/* HEXAGON general purpose registers each hold 4 bytes (32 bits). */
 #define UNITS_PER_WORD 4
 
-/* QDSP6 can operate on doubleword vectors, i.e. 8 units. */
+/* HEXAGON can operate on doubleword vectors, i.e. 8 units. */
 #define UNITS_PER_SIMD_WORD(MODE)   \
   (((MODE) == DFmode || (MODE) == SFmode) ? 8 : 8)
 
-/* Pointers on QDSP6 are 32 bits (word sized). */
+/* Pointers on HEXAGON are 32 bits (word sized). */
 
-/* Most QDSP6 instructions operate on words. */
+/* Most HEXAGON instructions operate on words. */
 #define PROMOTE_MODE(MODE, UNSIGNEDP, TYPE) \
   if(GET_MODE_CLASS (MODE) == MODE_INT \
      && GET_MODE_SIZE (MODE) < GET_MODE_SIZE (SImode)){ \
@@ -168,7 +169,7 @@ Storage Layout
    platforms function pointers can be odd, and so this doesn't work. In that 
    case, we use the low-order bit of the delta field, and shift the remainder 
    of the delta field to the left. 
-   On QDSP6 use of delta field is not _needed_ but produces a better code for 
+   On HEXAGON use of delta field is not _needed_ but produces a better code for 
    several scenarios. Particularly for an empty class with function 
    definitions:
 
@@ -200,16 +201,16 @@ Storage Layout
    other scalable method of bookkeeping */ 
 #define MAX_NUM_EDGES_IN_BB	1024
 
-/* QDSP6 has byte-sized stores. */
+/* HEXAGON has byte-sized stores. */
 
 #define DATA_ALIGNMENT(TYPE, ALIGN) \
-  qdsp6_data_alignment(TYPE, ALIGN)
+  hexagon_data_alignment(TYPE, ALIGN)
 
 #define CONSTANT_ALIGNMENT(CONSTANT, ALIGN) \
-  qdsp6_constant_alignment(CONSTANT, ALIGN)
+  hexagon_constant_alignment(CONSTANT, ALIGN)
 
 #define LOCAL_ALIGNMENT(TYPE, ALIGN) \
-  qdsp6_local_alignment(TYPE, ALIGN)
+  hexagon_local_alignment(TYPE, ALIGN)
 
 /* Mis-aligned accesses are exceptions. */
 #define STRICT_ALIGNMENT 1
@@ -219,7 +220,7 @@ Storage Layout
   Also, bitfields do not cross the alignment boundaries of their type. */
 #define PCC_BITFIELD_TYPE_MATTERS 1
 
-/* QDSP6 emulates IEEE floating point. */
+/* HEXAGON emulates IEEE floating point. */
 
 /* The prevailing floating point rounding mode is round towards nearest. */
 
@@ -228,7 +229,7 @@ Storage Layout
 Layout of Source Language Data Types
 ----------------------------------*/
 
-/* On QDSP6,
+/* On HEXAGON,
    ints         are word sized,
    shorts       are half-word sized,
    longs        are word sized,
@@ -262,7 +263,7 @@ Layout of Source Language Data Types
    platforms function pointers can be odd, and so this doesn't work. In that 
    case, we use the low-order bit of the delta field, and shift the remainder 
    of the delta field to the left. 
-   On QDSP6 use of delta field is not _needed_ but produces a better code for 
+   On HEXAGON use of delta field is not _needed_ but produces a better code for 
    several scenarios. Particularly for an empty class with function 
    definitions:
 
@@ -320,7 +321,7 @@ Basic Characteristics of Registers
   }
 
 #define CONDITIONAL_REGISTER_USAGE \
-  qdsp6_conditional_register_usage();
+  hexagon_conditional_register_usage();
 
 
 /*-------------------------
@@ -333,7 +334,7 @@ How Values Fit in Registers
   (P_REGNO_P (REGNO) ? 1 \
    : ((GET_MODE_SIZE (MODE) + UNITS_PER_WORD - 1) / UNITS_PER_WORD))
 
-/* For QDSP6, register pairs must start on an even numbered register. */
+/* For HEXAGON, register pairs must start on an even numbered register. */
 #define HARD_REGNO_MODE_OK(REGNO, MODE) \
   (P_REGNO_P (REGNO) \
    ? ((MODE) == BImode || (MODE) == QImode) \
@@ -356,14 +357,14 @@ How Values Fit in Registers
 Handling Leaf Functions
 ---------------------*/
 
-/* QDSP6 does not have register windows. */
+/* HEXAGON does not have register windows. */
 
 
 /*-------------------------
 Registers That Form a Stack
 -------------------------*/
 
-/* QDSP6 does not have any stack-like registers. */
+/* HEXAGON does not have any stack-like registers. */
 
 
 /*--------------
@@ -424,7 +425,7 @@ enum reg_class {
   ((TARGET_V4_FEATURES && TARGET_BASE_PLUS_INDEX) ? GENERAL_REGS : NO_REGS)
 
 #define CANNOT_CHANGE_MODE_CLASS(FROM, TO, CLASS) \
-  qdsp6_cannot_change_mode_class(FROM, TO, CLASS)
+  hexagon_cannot_change_mode_class(FROM, TO, CLASS)
 
 /* The following macro defines cover classes for Integrated Register
    Allocator.  Cover classes is a set of non-intersected register
@@ -449,7 +450,7 @@ enum reg_class {
   : DEFAULT_CONSTRAINT_LEN(CHAR, STR))
 
 /* used by CONSTRAINT_LEN
-   See qdsp6_const_ok_for_constraint_p for meanings. */
+   See hexagon_const_ok_for_constraint_p for meanings. */
 #define CONSTRAINT_LEN_FOR_I(CHAR, STR) \
   ( (   (STR)[1] == 's' \
      || (STR)[1] == 'u' \
@@ -459,7 +460,7 @@ enum reg_class {
   : DEFAULT_CONSTRAINT_LEN(CHAR, STR))
 
 /* used by CONSTRAINT_LEN
-   See qdsp6_const_ok_for_constraint_p for meanings. */
+   See hexagon_const_ok_for_constraint_p for meanings. */
 #define CONSTRAINT_LEN_FOR_J(CHAR, STR) \
   ( (   (STR)[1] == 's' \
      || (STR)[1] == 'u' \
@@ -472,49 +473,49 @@ enum reg_class {
   : DEFAULT_CONSTRAINT_LEN(CHAR, STR))
 
 /* does not check the first letter in STR */
-#define QDSP6_CONSTRAINT_P(STR, CONSTRAINT) \
+#define HEXAGON_CONSTRAINT_P(STR, CONSTRAINT) \
   (!strncmp(&(STR)[1], #CONSTRAINT, strlen(#CONSTRAINT)))
 
 /* Gotta love preprocessing. */
-#define QDSP6_CONSTRAINT_LEN(STR, CONSTRAINT) \
-  QDSP6_CONSTRAINT_P(STR, CONSTRAINT) ? (signed) strlen(#CONSTRAINT) + 1 :
+#define HEXAGON_CONSTRAINT_LEN(STR, CONSTRAINT) \
+  HEXAGON_CONSTRAINT_P(STR, CONSTRAINT) ? (signed) strlen(#CONSTRAINT) + 1 :
 
-/* See qdsp6_const_ok_for_constraint_p for meanings. */
-#define QDSP6_KOOKY_KONSTANT_LENS(STR) \
-  QDSP6_CONSTRAINT_LEN(STR, -1) \
-  QDSP6_CONSTRAINT_LEN(STR, 01) \
-  QDSP6_CONSTRAINT_LEN(STR, 16) \
-  QDSP6_CONSTRAINT_LEN(STR, 32) \
-  QDSP6_CONSTRAINT_LEN(STR, u7p1) \
-  QDSP6_CONSTRAINT_LEN(STR, s8p1) \
-  QDSP6_CONSTRAINT_LEN(STR, u5_3p8) \
-  QDSP6_CONSTRAINT_LEN(STR, u9p1) \
-  QDSP6_CONSTRAINT_LEN(STR, s10p1) \
-  QDSP6_CONSTRAINT_LEN(STR, s8s8) \
-  QDSP6_CONSTRAINT_LEN(STR, onehot32) \
-  QDSP6_CONSTRAINT_LEN(STR, onenot32)
+/* See hexagon_const_ok_for_constraint_p for meanings. */
+#define HEXAGON_KOOKY_KONSTANT_LENS(STR) \
+  HEXAGON_CONSTRAINT_LEN(STR, -1) \
+  HEXAGON_CONSTRAINT_LEN(STR, 01) \
+  HEXAGON_CONSTRAINT_LEN(STR, 16) \
+  HEXAGON_CONSTRAINT_LEN(STR, 32) \
+  HEXAGON_CONSTRAINT_LEN(STR, u7p1) \
+  HEXAGON_CONSTRAINT_LEN(STR, s8p1) \
+  HEXAGON_CONSTRAINT_LEN(STR, u5_3p8) \
+  HEXAGON_CONSTRAINT_LEN(STR, u9p1) \
+  HEXAGON_CONSTRAINT_LEN(STR, s10p1) \
+  HEXAGON_CONSTRAINT_LEN(STR, s8s8) \
+  HEXAGON_CONSTRAINT_LEN(STR, onehot32) \
+  HEXAGON_CONSTRAINT_LEN(STR, onenot32)
 
 /* used by CONSTRAINT_LEN */
 #define CONSTRAINT_LEN_FOR_K(CHAR, STR) \
-  (QDSP6_KOOKY_KONSTANT_LENS(STR) DEFAULT_CONSTRAINT_LEN(CHAR, STR))
+  (HEXAGON_KOOKY_KONSTANT_LENS(STR) DEFAULT_CONSTRAINT_LEN(CHAR, STR))
 
-/* See qdsp6_legitimate_address_p for meanings. */
-#define QDSP6_MEM_TYPE_LENS(STR) \
-  QDSP6_CONSTRAINT_LEN(STR, noext) \
-  QDSP6_CONSTRAINT_LEN(STR, cond) \
-  QDSP6_CONSTRAINT_LEN(STR, econd) \
-  QDSP6_CONSTRAINT_LEN(STR, si) \
-  QDSP6_CONSTRAINT_LEN(STR, csi) \
-  QDSP6_CONSTRAINT_LEN(STR, memop) \
-  QDSP6_CONSTRAINT_LEN(STR, ememop) \
-  QDSP6_CONSTRAINT_LEN(STR, dm3)    \
-  QDSP6_CONSTRAINT_LEN(STR, dm4)    \
-  QDSP6_CONSTRAINT_LEN(STR, dmsp5)  \
-  QDSP6_CONSTRAINT_LEN(STR, dmsp6)
+/* See hexagon_legitimate_address_p for meanings. */
+#define HEXAGON_MEM_TYPE_LENS(STR) \
+  HEXAGON_CONSTRAINT_LEN(STR, noext) \
+  HEXAGON_CONSTRAINT_LEN(STR, cond) \
+  HEXAGON_CONSTRAINT_LEN(STR, econd) \
+  HEXAGON_CONSTRAINT_LEN(STR, si) \
+  HEXAGON_CONSTRAINT_LEN(STR, csi) \
+  HEXAGON_CONSTRAINT_LEN(STR, memop) \
+  HEXAGON_CONSTRAINT_LEN(STR, ememop) \
+  HEXAGON_CONSTRAINT_LEN(STR, dm3)    \
+  HEXAGON_CONSTRAINT_LEN(STR, dm4)    \
+  HEXAGON_CONSTRAINT_LEN(STR, dmsp5)  \
+  HEXAGON_CONSTRAINT_LEN(STR, dmsp6)
 
 /* used by CONSTRAINT_LEN */
 #define CONSTRAINT_LEN_FOR_A(CHAR, STR) \
-  (QDSP6_MEM_TYPE_LENS(STR) DEFAULT_CONSTRAINT_LEN(CHAR, STR))
+  (HEXAGON_MEM_TYPE_LENS(STR) DEFAULT_CONSTRAINT_LEN(CHAR, STR))
 
 #define CONSTRAINT_LEN(CHAR, STR) \
   ( (CHAR) == 'R' ? CONSTRAINT_LEN_FOR_R(CHAR, STR) \
@@ -537,7 +538,7 @@ enum reg_class {
 /* In base+offset addressing, the base must be a general purpose register. */
 #define REGNO_OK_FOR_BASE_P(NUM) ((NUM) < 32)
 
-/* QDSP6 does not have base+index addressing. */
+/* HEXAGON does not have base+index addressing. */
 #define REGNO_OK_FOR_INDEX_P(NUM) 0
 
 #define PREFERRED_RELOAD_CLASS(X, CLASS) CLASS
@@ -549,7 +550,7 @@ enum reg_class {
 #define CLASS_MAX_NREGS(CLASS, MODE) HARD_REGNO_NREGS (0, MODE)
 
 #define CONST_OK_FOR_CONSTRAINT_P(VALUE, C, STR) \
-  qdsp6_const_ok_for_constraint_p(VALUE, C, STR)
+  hexagon_const_ok_for_constraint_p(VALUE, C, STR)
 
 /* used by CONST_DOUBLE_OK_FOR_LETTER_P */
 /* true for 0 */
@@ -573,50 +574,50 @@ enum reg_class {
 /* used by EXTRA_CONSTRAINT */
 #define EXTRA_CONSTRAINT_FOR_A(VALUE, CONSTRAINT) \
   (GET_CODE (VALUE) == MEM \
-   && qdsp6_legitimate_address_p(GET_MODE (VALUE), XEXP (VALUE, 0), \
+   && hexagon_legitimate_address_p(GET_MODE (VALUE), XEXP (VALUE, 0), \
                                  REG_OK_STRICT_P, #CONSTRAINT))
 
 /* Don't use 'E'-'P' 'V' 'X' 'g' 'i' 'm' 'n' 'o' 'p' 'r' 's' for the initial
    character.
 
    Q  is for a symbol or label.
-   A* is for MEMs with reduced addressing modes.  See qdsp6_legitimate_address_p
+   A* is for MEMs with reduced addressing modes.  See hexagon_legitimate_address_p
       for meanings. */
 #define EXTRA_CONSTRAINT_STR(VALUE, C, STR) \
   ( (C) == 'Q' ? EXTRA_CONSTRAINT_FOR_Q(VALUE) \
   : (C) == 'A' ? \
-      QDSP6_CONSTRAINT_P (STR, noext)  ? EXTRA_CONSTRAINT_FOR_A(VALUE, noext) \
-    : QDSP6_CONSTRAINT_P (STR, cond)   ? EXTRA_CONSTRAINT_FOR_A(VALUE, cond) \
-    : QDSP6_CONSTRAINT_P (STR, econd)  ? EXTRA_CONSTRAINT_FOR_A(VALUE, econd) \
-    : QDSP6_CONSTRAINT_P (STR, si)     ? EXTRA_CONSTRAINT_FOR_A(VALUE, si) \
-    : QDSP6_CONSTRAINT_P (STR, csi)    ? EXTRA_CONSTRAINT_FOR_A(VALUE, csi) \
-    : QDSP6_CONSTRAINT_P (STR, memop)  ? EXTRA_CONSTRAINT_FOR_A(VALUE, memop) \
-    : QDSP6_CONSTRAINT_P (STR, ememop) ? EXTRA_CONSTRAINT_FOR_A(VALUE, ememop) \
-    : QDSP6_CONSTRAINT_P (STR, dm3)     ? EXTRA_CONSTRAINT_FOR_A(VALUE, dm3) \
-    : QDSP6_CONSTRAINT_P (STR, dm4)     ? EXTRA_CONSTRAINT_FOR_A(VALUE, dm4) \
-    : QDSP6_CONSTRAINT_P (STR, dmsp5)     ? EXTRA_CONSTRAINT_FOR_A(VALUE, dmsp5) \
-    : QDSP6_CONSTRAINT_P (STR, dmsp6)     ? EXTRA_CONSTRAINT_FOR_A(VALUE, dmsp6) \
+      HEXAGON_CONSTRAINT_P (STR, noext)  ? EXTRA_CONSTRAINT_FOR_A(VALUE, noext) \
+    : HEXAGON_CONSTRAINT_P (STR, cond)   ? EXTRA_CONSTRAINT_FOR_A(VALUE, cond) \
+    : HEXAGON_CONSTRAINT_P (STR, econd)  ? EXTRA_CONSTRAINT_FOR_A(VALUE, econd) \
+    : HEXAGON_CONSTRAINT_P (STR, si)     ? EXTRA_CONSTRAINT_FOR_A(VALUE, si) \
+    : HEXAGON_CONSTRAINT_P (STR, csi)    ? EXTRA_CONSTRAINT_FOR_A(VALUE, csi) \
+    : HEXAGON_CONSTRAINT_P (STR, memop)  ? EXTRA_CONSTRAINT_FOR_A(VALUE, memop) \
+    : HEXAGON_CONSTRAINT_P (STR, ememop) ? EXTRA_CONSTRAINT_FOR_A(VALUE, ememop) \
+    : HEXAGON_CONSTRAINT_P (STR, dm3)     ? EXTRA_CONSTRAINT_FOR_A(VALUE, dm3) \
+    : HEXAGON_CONSTRAINT_P (STR, dm4)     ? EXTRA_CONSTRAINT_FOR_A(VALUE, dm4) \
+    : HEXAGON_CONSTRAINT_P (STR, dmsp5)     ? EXTRA_CONSTRAINT_FOR_A(VALUE, dmsp5) \
+    : HEXAGON_CONSTRAINT_P (STR, dmsp6)     ? EXTRA_CONSTRAINT_FOR_A(VALUE, dmsp6) \
     : 0 \
   : 0)
 
 #define EXTRA_MEMORY_CONSTRAINT(C, STR) \
   ((C) == 'A' \
-   && (   QDSP6_CONSTRAINT_P (STR, noext) \
-       || QDSP6_CONSTRAINT_P (STR, cond) \
-       || QDSP6_CONSTRAINT_P (STR, econd) \
-       || QDSP6_CONSTRAINT_P (STR, si) \
-       || QDSP6_CONSTRAINT_P (STR, csi) \
-       || QDSP6_CONSTRAINT_P (STR, memop) \
-       || QDSP6_CONSTRAINT_P (STR, ememop) \
-       || QDSP6_CONSTRAINT_P (STR, dm)))
+   && (   HEXAGON_CONSTRAINT_P (STR, noext) \
+       || HEXAGON_CONSTRAINT_P (STR, cond) \
+       || HEXAGON_CONSTRAINT_P (STR, econd) \
+       || HEXAGON_CONSTRAINT_P (STR, si) \
+       || HEXAGON_CONSTRAINT_P (STR, csi) \
+       || HEXAGON_CONSTRAINT_P (STR, memop) \
+       || HEXAGON_CONSTRAINT_P (STR, ememop) \
+       || HEXAGON_CONSTRAINT_P (STR, dm)))
 
 
 /*----------------
 Basic Stack Layout
 ----------------*/
 
-/* See the comment in qdsp6.c containing "QDSP6 stack frames look like:" for a
-   diagram of stack frames on QDSP6. */
+/* See the comment in hexagon.c containing "HEXAGON stack frames look like:" for a
+   diagram of stack frames on HEXAGON. */
 #define STACK_GROWS_DOWNWARD 1
 #define FRAME_GROWS_DOWNWARD 1
 
@@ -627,7 +628,7 @@ Basic Stack Layout
 #define FIRST_PARM_OFFSET(FUNDECL) 0
 
 #define RETURN_ADDR_RTX(COUNT, FRAMEADDR) \
-  qdsp6_return_addr_rtx(COUNT, FRAMEADDR)
+  hexagon_return_addr_rtx(COUNT, FRAMEADDR)
 
 #define INCOMING_RETURN_ADDR_RTX gen_rtx_REG (Pmode, LINK_REGNUM)
 
@@ -639,7 +640,7 @@ Exception Handling Support
 ------------------------*/
 
 #define EH_RETURN_DATA_REGNO(N) \
-  ((N) < 4 ? (N) + (qdsp6_abi != QDSP6_ABI_1 ? 0 : 20) : INVALID_REGNUM)
+  ((N) < 4 ? (N) + (hexagon_abi != HEXAGON_ABI_1 ? 0 : 20) : INVALID_REGNUM)
 
 #define EH_RETURN_STACKADJ_RTX gen_rtx_REG (Pmode, 28)
 
@@ -685,7 +686,7 @@ Registers That Address the Stack Frame
   }
 
 #define INITIAL_ELIMINATION_OFFSET(FROM, TO, OFFSET) \
-  (OFFSET) = qdsp6_initial_elimination_offset(FROM, TO)
+  (OFFSET) = hexagon_initial_elimination_offset(FROM, TO)
 
 
 /*-------------------------------------
@@ -710,9 +711,9 @@ Passing Arguments in Registers
 ----------------------------*/
 
 #define FUNCTION_ARG(CUM, MODE, TYPE, NAMED) \
-  qdsp6_function_arg(CUM, MODE, TYPE, NAMED)
+  hexagon_function_arg(CUM, MODE, TYPE, NAMED)
 
-/* On the QDSP6 this value is an accumulating count of the number of argument
+/* On the HEXAGON this value is an accumulating count of the number of argument
    registers that have been filled with argument values or skipped. */
 #define CUMULATIVE_ARGS int
 
@@ -720,7 +721,7 @@ Passing Arguments in Registers
   (CUM) = 0
 
 #define FUNCTION_ARG_ADVANCE(CUM, MODE, TYPE, NAMED) \
-  (CUM) = qdsp6_function_arg_advance(CUM, MODE, TYPE, NAMED)
+  (CUM) = hexagon_function_arg_advance(CUM, MODE, TYPE, NAMED)
 
 /* Align stack arguments to the minimum of PARM_BOUNDARY and the alignment of
    the type. */
@@ -735,7 +736,7 @@ Passing Arguments in Registers
 
 #define FUNCTION_ARG_REGNO_P(REGNO) \
   (IN_RANGE ((REGNO), FIRST_ARG_REGNUM, \
-                      FIRST_ARG_REGNUM + QDSP6_NUM_ARG_REGS - 1))
+                      FIRST_ARG_REGNUM + HEXAGON_NUM_ARG_REGS - 1))
 
 
 /*-------------------------------------
@@ -812,7 +813,7 @@ Addressing Modes
 /*#define CONSTANT_ADDRESS_P(X) (GET_CODE (X) == LABEL_REF)*/
 #define CONSTANT_ADDRESS_P(X) CONSTANT_P (X)
 
-/* QDSP6 V4 and later has base + index addressing. */
+/* HEXAGON V4 and later has base + index addressing. */
 #define MAX_REGS_PER_ADDRESS 2
 
 #ifdef REG_OK_STRICT
@@ -822,7 +823,7 @@ Addressing Modes
 #endif
 
 #define GO_IF_LEGITIMATE_ADDRESS(MODE, X, LABEL) \
-  if(qdsp6_legitimate_address_p(MODE, X, REG_OK_STRICT_P, "m")){ \
+  if(hexagon_legitimate_address_p(MODE, X, REG_OK_STRICT_P, "m")){ \
     goto LABEL; \
   }
 
@@ -832,7 +833,7 @@ extern int label_mentioned_p (rtx x);
 #define PIC_OFFSET_TABLE_REGNUM (flag_pic ? 24 : INVALID_REGNUM)
 
 #define LEGITIMATE_PIC_OPERAND_P(X)   \
-  qdsp6_legitimate_pic_operand_p(X)
+  hexagon_legitimate_pic_operand_p(X)
 
 #define GO_IF_MODE_DEPENDENT_ADDRESS(ADDR, LABEL) \
   if(GET_CODE (ADDR) == POST_INC || GET_CODE (ADDR) == POST_DEC){ \
@@ -865,10 +866,10 @@ Describing Relative Costs of Operations
                              : TO == PREDICATE_REGS ? 6  \
                              :     /*CONTROL_REGS*/   6))
 
-/* Loads and stores are cheap on QDSP6.  Yay, IMT. */
+/* Loads and stores are cheap on HEXAGON.  Yay, IMT. */
 #define MEMORY_MOVE_COST(MODE, CLASS, IN) 4
 
-/* Branches are very cheap on QDSP6, but they restrict scheduling. */
+/* Branches are very cheap on HEXAGON, but they restrict scheduling. */
 #define BRANCH_COST(speed_p, predictable_p) (speed_p ? (predictable_p ? 1 : 3) : (predictable_p ? 1 : 3))
 
 /* Load and store cycles are independent of access size. */
@@ -877,7 +878,7 @@ Describing Relative Costs of Operations
 /* V4's store-immediate instructions allow efficient copying of constant
    strings. */
 #define STORE_BY_PIECES_P(SIZE, ALIGNMENT) \
-  qdsp6_store_by_pieces_p(SIZE, ALIGNMENT)
+  hexagon_store_by_pieces_p(SIZE, ALIGNMENT)
 
 /* Direct calls can be executed on more slots than indirect calls. */
 #define NO_FUNCTION_CSE 1
@@ -914,10 +915,10 @@ Output of Uninitialized Variables
 -------------------------------*/
 
 #define ASM_OUTPUT_ALIGNED_DECL_COMMON(STREAM, DECL, NAME, SIZE, ALIGNMENT) \
-  qdsp6_asm_output_aligned_decl_common(STREAM, DECL, NAME, SIZE, ALIGNMENT)
+  hexagon_asm_output_aligned_decl_common(STREAM, DECL, NAME, SIZE, ALIGNMENT)
 
 #define ASM_OUTPUT_ALIGNED_DECL_LOCAL(STREAM, DECL, NAME, SIZE, ALIGNMENT) \
-  qdsp6_asm_output_aligned_decl_local(STREAM, DECL, NAME, SIZE, ALIGNMENT)
+  hexagon_asm_output_aligned_decl_local(STREAM, DECL, NAME, SIZE, ALIGNMENT)
 
 
 /*-----------------------------
@@ -954,16 +955,16 @@ Output of Assembler Instructions
   }
 
 #define ASM_OUTPUT_OPCODE(STREAM, PTR) \
-   (PTR) = qdsp6_asm_output_opcode(STREAM, PTR)
+   (PTR) = hexagon_asm_output_opcode(STREAM, PTR)
 
 #define FINAL_PRESCAN_INSN(INSN, OPVEC, NOPERANDS) \
-  qdsp6_final_prescan_insn(INSN, OPVEC, NOPERANDS)
+  hexagon_final_prescan_insn(INSN, OPVEC, NOPERANDS)
 
 #define PRINT_OPERAND(STREAM, X, CODE) \
-  qdsp6_print_operand(STREAM, X, CODE)
+  hexagon_print_operand(STREAM, X, CODE)
 
 #define PRINT_OPERAND_ADDRESS(STREAM, X) \
-  qdsp6_print_operand_address(STREAM, X)
+  hexagon_print_operand_address(STREAM, X)
 
 
 /*-----------------------
@@ -1027,95 +1028,95 @@ Miscellaneous Parameters
 
 
 /*------------
-QDSP6 specific
+HEXAGON specific
 ------------*/
 
 /* Don't include this section in code that is not part of GCC. */
 #ifndef USED_FOR_TARGET
 
-/* wrapper for QDSP6 specific changes outside the back-end */
-#define TARGET_QDSP6
+/* wrapper for HEXAGON specific changes outside the back-end */
+#define TARGET_HEXAGON
 
 /* option handling code */
-enum qdsp6_architecture {
-  QDSP6_ARCH_V1,
-  QDSP6_ARCH_V2,
-  QDSP6_ARCH_V3,
-  QDSP6_ARCH_V4,
-  NUM_QDSP6_ARCH,
-  QDSP6_ARCH_UNSPECIFIED
+enum hexagon_architecture {
+  HEXAGON_ARCH_V1,
+  HEXAGON_ARCH_V2,
+  HEXAGON_ARCH_V3,
+  HEXAGON_ARCH_V4,
+  NUM_HEXAGON_ARCH,
+  HEXAGON_ARCH_UNSPECIFIED
 };
 
-extern enum qdsp6_architecture qdsp6_arch;
+extern enum hexagon_architecture hexagon_arch;
 
-#define QDSP6_FEAT_V1 (1 << QDSP6_ARCH_V1)
-#define QDSP6_FEAT_V2 (1 << QDSP6_ARCH_V2)
-#define QDSP6_FEAT_V3 (1 << QDSP6_ARCH_V3)
-#define QDSP6_FEAT_V4 (1 << QDSP6_ARCH_V4)
+#define HEXAGON_FEAT_V1 (1 << HEXAGON_ARCH_V1)
+#define HEXAGON_FEAT_V2 (1 << HEXAGON_ARCH_V2)
+#define HEXAGON_FEAT_V3 (1 << HEXAGON_ARCH_V3)
+#define HEXAGON_FEAT_V4 (1 << HEXAGON_ARCH_V4)
 
-extern int qdsp6_features;
+extern int hexagon_features;
 
-#define TARGET_V1_FEATURES ((qdsp6_features & QDSP6_FEAT_V1) != 0)
-#define TARGET_V2_FEATURES ((qdsp6_features & QDSP6_FEAT_V2) != 0)
-#define TARGET_V3_FEATURES ((qdsp6_features & QDSP6_FEAT_V3) != 0)
-#define TARGET_V4_FEATURES ((qdsp6_features & QDSP6_FEAT_V4) != 0)
+#define TARGET_V1_FEATURES ((hexagon_features & HEXAGON_FEAT_V1) != 0)
+#define TARGET_V2_FEATURES ((hexagon_features & HEXAGON_FEAT_V2) != 0)
+#define TARGET_V3_FEATURES ((hexagon_features & HEXAGON_FEAT_V3) != 0)
+#define TARGET_V4_FEATURES ((hexagon_features & HEXAGON_FEAT_V4) != 0)
 
-struct qdsp6_arch_table_entry {
+struct hexagon_arch_table_entry {
   const char *const name;
-  const enum qdsp6_architecture arch;
+  const enum hexagon_architecture arch;
   const int features;
 };
 
-#define QDSP6_ARCH_TABLE_INITIALIZER \
+#define HEXAGON_ARCH_TABLE_INITIALIZER \
   { \
-    {"qdsp6v1", QDSP6_ARCH_V1,   QDSP6_FEAT_V1}, \
-    {"qdsp6v2", QDSP6_ARCH_V2,   QDSP6_FEAT_V1 \
-                               | QDSP6_FEAT_V2}, \
-    {"qdsp6v3", QDSP6_ARCH_V3,   QDSP6_FEAT_V1 \
-                               | QDSP6_FEAT_V2 \
-                               | QDSP6_FEAT_V3}, \
-    {"qdsp6v4", QDSP6_ARCH_V4,   QDSP6_FEAT_V1 \
-                               | QDSP6_FEAT_V2 \
-                               | QDSP6_FEAT_V3 \
-                               | QDSP6_FEAT_V4} \
+    {"hexagonv1", HEXAGON_ARCH_V1,   HEXAGON_FEAT_V1}, \
+    {"hexagonv2", HEXAGON_ARCH_V2,   HEXAGON_FEAT_V1 \
+                               | HEXAGON_FEAT_V2}, \
+    {"hexagonv3", HEXAGON_ARCH_V3,   HEXAGON_FEAT_V1 \
+                               | HEXAGON_FEAT_V2 \
+                               | HEXAGON_FEAT_V3}, \
+    {"hexagonv4", HEXAGON_ARCH_V4,   HEXAGON_FEAT_V1 \
+                               | HEXAGON_FEAT_V2 \
+                               | HEXAGON_FEAT_V3 \
+                               | HEXAGON_FEAT_V4} \
   }
 
-#define QDSP6_ARCH_TABLE_DEFAULT_INDEX QDSP6_ARCH_V2
+#define HEXAGON_ARCH_TABLE_DEFAULT_INDEX HEXAGON_ARCH_V2
 
-enum qdsp6_abi {
-  QDSP6_ABI_1,
-  QDSP6_ABI_2,
-  QDSP6_ABI_LINUX,
-  NUM_QDSP6_ABI,
-  QDSP6_ABI_UNSPECIFIED
+enum hexagon_abi {
+  HEXAGON_ABI_1,
+  HEXAGON_ABI_2,
+  HEXAGON_ABI_LINUX,
+  NUM_HEXAGON_ABI,
+  HEXAGON_ABI_UNSPECIFIED
 };
 
-extern enum qdsp6_abi qdsp6_abi;
+extern enum hexagon_abi hexagon_abi;
 
-struct qdsp6_abi_table_entry {
+struct hexagon_abi_table_entry {
   const char *const name;
-  const enum qdsp6_abi abi;
+  const enum hexagon_abi abi;
 };
 
-#define QDSP6_ABI_TABLE_INITIALIZER \
+#define HEXAGON_ABI_TABLE_INITIALIZER \
   { \
-    {"abi1", QDSP6_ABI_1}, \
-    {"abi2", QDSP6_ABI_2}, \
-    {"linux", QDSP6_ABI_LINUX} \
+    {"abi1", HEXAGON_ABI_1}, \
+    {"abi2", HEXAGON_ABI_2}, \
+    {"linux", HEXAGON_ABI_LINUX} \
   }
 
-#define QDSP6_ABI_TABLE_DEFAULT_INDEX \
-  (TARGET_V3_FEATURES ? QDSP6_ABI_2 : QDSP6_ABI_1)
+#define HEXAGON_ABI_TABLE_DEFAULT_INDEX \
+  (TARGET_V3_FEATURES ? HEXAGON_ABI_2 : HEXAGON_ABI_1)
 
-enum qdsp6_falign {
-  QDSP6_NO_FALIGN,
-  QDSP6_FALIGN_LOOPS,
-  QDSP6_FALIGN_LABELS,
-  QDSP6_FALIGN_ALL,
-  QDSP6_FALIGN_UNSPECIFIED
+enum hexagon_falign {
+  HEXAGON_NO_FALIGN,
+  HEXAGON_FALIGN_LOOPS,
+  HEXAGON_FALIGN_LABELS,
+  HEXAGON_FALIGN_ALL,
+  HEXAGON_FALIGN_UNSPECIFIED
 };
 
-extern bool qdsp6_dual_memory_accesses;
+extern bool hexagon_dual_memory_accesses;
 
 #define TARGET_CONST32 (TARGET_LITERAL_POOL && g_switch_value >= 4)
 #define TARGET_CONST64 (TARGET_LITERAL_POOL && g_switch_value >= 8)
@@ -1143,30 +1144,30 @@ extern bool qdsp6_dual_memory_accesses;
 #define FIRST_ARG_REGNUM 0
 
 /* The number of register assigned to holding function arguments. */
-#define QDSP6_NUM_ARG_REGS 6
+#define HEXAGON_NUM_ARG_REGS 6
 
 /* The maximum number of instructions allowed in a packet */
-#define QDSP6_MAX_INSNS_PER_PACKET 6
+#define HEXAGON_MAX_INSNS_PER_PACKET 6
 
 /* If cross-compiling, don't require stdio.h etc to build libgcc.a. */
 #if defined CROSS_COMPILE && ! defined inhibit_libc
 #define inhibit_libc
 #endif
 
-enum qdsp6_builtins {
-#define BUILTIN_INFO(TAG, TYPE, NARGS) QDSP6_BUILTIN_##TAG,
-#define BUILTIN_INFO_NONCONST(TAG, TYPE, NARGS) QDSP6_BUILTIN_##TAG,
+enum hexagon_builtins {
+#define BUILTIN_INFO(TAG, TYPE, NARGS) HEXAGON_BUILTIN_##TAG,
+#define BUILTIN_INFO_NONCONST(TAG, TYPE, NARGS) HEXAGON_BUILTIN_##TAG,
 #include "builtins.def"
 #include "manual_builtins.def"
 #undef BUILTIN_INFO
 #undef BUILTIN_INFO_NONCONST
-  QDSP6_BUILTIN_NONEXISTANT_THING_TO_SHUT_UP_GCC_WARNING
+  HEXAGON_BUILTIN_NONEXISTANT_THING_TO_SHUT_UP_GCC_WARNING
 };
 
-/* Structure to be filled in by qdsp6_compute_frame_info() with sizes of various
+/* Structure to be filled in by hexagon_compute_frame_info() with sizes of various
    parts of the stack frame and which registers need to be saved in the prologue
    and restored in the epilogue for the current function. */
-struct GTY(()) qdsp6_frame_info {
+struct GTY(()) hexagon_frame_info {
   unsigned HOST_WIDE_INT total_size; /* # bytes in the entire frame */
   unsigned HOST_WIDE_INT frame_size; /* # bytes in the frame excluding LR:FP */
   unsigned HOST_WIDE_INT var_size;   /* # bytes for locals and spills */
@@ -1211,7 +1212,7 @@ struct GTY(()) qdsp6_frame_info {
   bool computed;  /* true if frame info has already been computed */
 };
 
-struct GTY(()) qdsp6_final_info {
+struct GTY(()) hexagon_final_info {
   /* the operands of the current instruction */
   rtx * GTY ((skip)) insn_ops;
   /* whether the current insn starts a packet */
@@ -1238,134 +1239,160 @@ struct GTY(()) qdsp6_final_info {
 };
 
 struct GTY(()) machine_function {
-  struct qdsp6_frame_info frame_info;
-  struct qdsp6_final_info final_info;
+  struct hexagon_frame_info frame_info;
+  struct hexagon_final_info final_info;
   rtx compare_op0;
   rtx compare_op1;
   int calls_builtin_return_address;
   int has_hardware_loops;
 };
 
-struct GTY((chain_next ("%h.next"))) qdsp6_reg_access {
+struct GTY((chain_next ("%h.next"))) hexagon_reg_access {
   rtx reg;
   unsigned int regno;
   int flags;
-  struct qdsp6_reg_access *next;
+  struct hexagon_reg_access *next;
 };
 
-struct GTY((chain_next ("%h.next"))) qdsp6_mem_access {
+struct GTY((chain_next ("%h.next"))) hexagon_mem_access {
   rtx mem;
   int flags;
-  struct qdsp6_mem_access *next;
+  struct hexagon_mem_access *next;
 };
 
-struct GTY((chain_next ("%h.stack"))) qdsp6_insn_info {
+struct GTY((chain_next ("%h.stack"))) hexagon_insn_info {
   rtx insn;
-  struct qdsp6_reg_access *reg_reads;
-  struct qdsp6_reg_access *reg_writes;
-  struct qdsp6_mem_access *loads;
-  struct qdsp6_mem_access *stores;
+  struct hexagon_reg_access *reg_reads;
+  struct hexagon_reg_access *reg_writes;
+  struct hexagon_mem_access *loads;
+  struct hexagon_mem_access *stores;
   int flags;
-  struct qdsp6_insn_info *stack;
-  struct qdsp6_packet_info *transformed_at_packet;
+  struct hexagon_insn_info *stack;
+  struct hexagon_packet_info *transformed_at_packet;
 };
 
-struct GTY((chain_prev ("%h.prev"), chain_next ("%h.next"))) qdsp6_packet_info {
-  struct qdsp6_insn_info *insns[QDSP6_MAX_INSNS_PER_PACKET];
+struct GTY((chain_prev ("%h.prev"), chain_next ("%h.next"))) hexagon_packet_info {
+  struct hexagon_insn_info *insns[HEXAGON_MAX_INSNS_PER_PACKET];
   int num_insns;
   rtx location;
-  struct qdsp6_packet_info *prev;
-  struct qdsp6_packet_info *next;
+  struct hexagon_packet_info *prev;
+  struct hexagon_packet_info *next;
 };
 
 #include "hard-reg-set.h"
 
 
-struct qdsp6_bb_aux_info {
+struct hexagon_bb_aux_info {
   HARD_REG_SET live_out;
-  struct qdsp6_packet_info *head_packet;
-  struct qdsp6_packet_info *end_packet;
-  struct qdsp6_bb_aux_info *next;
+  struct hexagon_packet_info *head_packet;
+  struct hexagon_packet_info *end_packet;
+  struct hexagon_bb_aux_info *next;
 };
 
-#define QDSP6_BB_AUX(BB) ((struct qdsp6_bb_aux_info *) (BB->aux))
-#define BB_LIVE_OUT(BB) (QDSP6_BB_AUX (BB)->live_out)
-#define BB_HEAD_PACKET(BB) (QDSP6_BB_AUX (BB)->head_packet)
-#define BB_END_PACKET(BB) (QDSP6_BB_AUX (BB)->end_packet)
+#define HEXAGON_BB_AUX(BB) ((struct hexagon_bb_aux_info *) (BB->aux))
+#define BB_LIVE_OUT(BB) (HEXAGON_BB_AUX (BB)->live_out)
+#define BB_HEAD_PACKET(BB) (HEXAGON_BB_AUX (BB)->head_packet)
+#define BB_END_PACKET(BB) (HEXAGON_BB_AUX (BB)->end_packet)
 
-enum qdsp6_dependence_type {
-  QDSP6_DEP_REGISTER,
-  QDSP6_DEP_MEMORY,
-  QDSP6_DEP_CONTROL,
-  QDSP6_DEP_VOLATILE
+enum hexagon_dependence_type {
+  HEXAGON_DEP_REGISTER,
+  HEXAGON_DEP_MEMORY,
+  HEXAGON_DEP_CONTROL,
+  HEXAGON_DEP_VOLATILE
 };
 
-struct GTY((chain_next ("%h.next"))) qdsp6_dependence {
-  enum qdsp6_dependence_type type;
+struct GTY((chain_next ("%h.next"))) hexagon_dependence {
+  enum hexagon_dependence_type type;
   rtx set;
   rtx use;
-  struct qdsp6_dependence *next;
+  struct hexagon_dependence *next;
 };
 
 
 
 
-#define QDSP6_MASK(WIDTH, LOW) (((1 << (WIDTH)) - 1) << (LOW))
+#define HEXAGON_MASK(WIDTH, LOW) (((1 << (WIDTH)) - 1) << (LOW))
 
-#define QDSP6_PREDICATE_MASK QDSP6_MASK(2, 0)
-#define QDSP6_IF_TRUE        QDSP6_MASK(1, 2)
-#define QDSP6_IF_FALSE       QDSP6_MASK(1, 3)
-#define QDSP6_GPR_CONDITION  QDSP6_MASK(1, 4)
-#define QDSP6_SENSE_MASK     (QDSP6_IF_TRUE | QDSP6_IF_FALSE)
-#define QDSP6_UNCONDITIONAL  QDSP6_SENSE_MASK
-#define QDSP6_CONDITION_MASK \
-  (QDSP6_GPR_CONDITION | QDSP6_SENSE_MASK | QDSP6_PREDICATE_MASK)
+#define HEXAGON_PREDICATE_MASK HEXAGON_MASK(2, 0)
+#define HEXAGON_IF_TRUE        HEXAGON_MASK(1, 2)
+#define HEXAGON_IF_FALSE       HEXAGON_MASK(1, 3)
+#define HEXAGON_GPR_CONDITION  HEXAGON_MASK(1, 4)
+#define HEXAGON_SENSE_MASK     (HEXAGON_IF_TRUE | HEXAGON_IF_FALSE)
+#define HEXAGON_UNCONDITIONAL  HEXAGON_SENSE_MASK
+#define HEXAGON_CONDITION_MASK \
+  (HEXAGON_GPR_CONDITION | HEXAGON_SENSE_MASK | HEXAGON_PREDICATE_MASK)
 
-#define QDSP6_DIRECT_JUMP    QDSP6_MASK(1, 5)
-#define QDSP6_INDIRECT_JUMP  QDSP6_MASK(1, 6)
-#define QDSP6_ENDLOOP        QDSP6_MASK(1, 7)
-#define QDSP6_DIRECT_CALL    QDSP6_MASK(1, 8)
-#define QDSP6_INDIRECT_CALL  QDSP6_MASK(1, 9)
-#define QDSP6_EMULATION_CALL QDSP6_MASK(1, 10)
-#define QDSP6_JUMP \
-  (QDSP6_DIRECT_JUMP | QDSP6_INDIRECT_JUMP | QDSP6_ENDLOOP)
-#define QDSP6_CALL           (QDSP6_DIRECT_CALL | QDSP6_INDIRECT_CALL)
-#define QDSP6_CONTROL        (QDSP6_CALL | QDSP6_JUMP)
+#define HEXAGON_DIRECT_JUMP    HEXAGON_MASK(1, 5)
+#define HEXAGON_INDIRECT_JUMP  HEXAGON_MASK(1, 6)
+#define HEXAGON_ENDLOOP        HEXAGON_MASK(1, 7)
+#define HEXAGON_DIRECT_CALL    HEXAGON_MASK(1, 8)
+#define HEXAGON_INDIRECT_CALL  HEXAGON_MASK(1, 9)
+#define HEXAGON_EMULATION_CALL HEXAGON_MASK(1, 10)
+#define HEXAGON_JUMP \
+  (HEXAGON_DIRECT_JUMP | HEXAGON_INDIRECT_JUMP | HEXAGON_ENDLOOP)
+#define HEXAGON_CALL           (HEXAGON_DIRECT_CALL | HEXAGON_INDIRECT_CALL)
+#define HEXAGON_CONTROL        (HEXAGON_CALL | HEXAGON_JUMP)
 
-#define QDSP6_MEM            QDSP6_MASK(1, 11)
-#define QDSP6_VOLATILE       QDSP6_MASK(1, 12)
-#define QDSP6_NEW_PREDICATE  QDSP6_MASK(1, 13)
-#define QDSP6_NEW_GPR        QDSP6_MASK(1, 14)
+#define HEXAGON_MEM            HEXAGON_MASK(1, 11)
+#define HEXAGON_VOLATILE       HEXAGON_MASK(1, 12)
+#define HEXAGON_NEW_PREDICATE  HEXAGON_MASK(1, 13)
+#define HEXAGON_NEW_GPR        HEXAGON_MASK(1, 14)
 
-#define QDSP6_MOVED          QDSP6_MASK(1, 15)
+#define HEXAGON_MOVED          HEXAGON_MASK(1, 15)
 
-#define QDSP6_CONDITION(INSN)       ((INSN)->flags & QDSP6_CONDITION_MASK)
-#define QDSP6_PREDICATE(INSN)       ((INSN)->flags & QDSP6_PREDICATE_MASK)
-#define QDSP6_SENSE(INSN)           ((INSN)->flags & QDSP6_SENSE_MASK)
-#define QDSP6_GPR_CONDITION_P(INSN) (((INSN)->flags & QDSP6_GPR_CONDITION) != 0)
-#define QDSP6_CONFLICT_P(ACCESS0, ACCESS1) \
-  (QDSP6_SENSE (ACCESS0) & QDSP6_SENSE (ACCESS1) \
-   || QDSP6_PREDICATE (ACCESS0) != QDSP6_PREDICATE (ACCESS1))
-#define QDSP6_CONDITIONAL_P(INSN) \
-  (QDSP6_SENSE (INSN) != QDSP6_UNCONDITIONAL || QDSP6_GPR_CONDITION_P (INSN))
+#define HEXAGON_CONDITION(INSN)       ((INSN)->flags & HEXAGON_CONDITION_MASK)
+#define HEXAGON_PREDICATE(INSN)       ((INSN)->flags & HEXAGON_PREDICATE_MASK)
+#define HEXAGON_SENSE(INSN)           ((INSN)->flags & HEXAGON_SENSE_MASK)
+#define HEXAGON_GPR_CONDITION_P(INSN) (((INSN)->flags & HEXAGON_GPR_CONDITION) != 0)
+#define HEXAGON_CONFLICT_P(ACCESS0, ACCESS1) \
+  (HEXAGON_SENSE (ACCESS0) & HEXAGON_SENSE (ACCESS1) \
+   || HEXAGON_PREDICATE (ACCESS0) != HEXAGON_PREDICATE (ACCESS1))
+#define HEXAGON_CONDITIONAL_P(INSN) \
+  (HEXAGON_SENSE (INSN) != HEXAGON_UNCONDITIONAL || HEXAGON_GPR_CONDITION_P (INSN))
 
-#define QDSP6_DIRECT_JUMP_P(INSN)    (((INSN)->flags & QDSP6_DIRECT_JUMP) != 0)
-#define QDSP6_INDIRECT_JUMP_P(INSN)  (((INSN)->flags & QDSP6_INDIRECT_JUMP) != 0)
-#define QDSP6_ENDLOOP_P(INSN)        (((INSN)->flags & QDSP6_ENDLOOP) != 0)
-#define QDSP6_DIRECT_CALL_P(INSN)    (((INSN)->flags & QDSP6_DIRECT_CALL) != 0)
-#define QDSP6_INDIRECT_CALL_P(INSN)  (((INSN)->flags & QDSP6_INDIRECT_CALL) != 0)
-#define QDSP6_EMULATION_CALL_P(INSN) (((INSN)->flags & QDSP6_EMULATION_CALL) != 0)
-#define QDSP6_JUMP_P(INSN)           (((INSN)->flags & QDSP6_JUMP) != 0)
-#define QDSP6_CALL_P(INSN)           (((INSN)->flags & QDSP6_CALL) != 0)
-#define QDSP6_CONTROL_P(INSN)        (((INSN)->flags & QDSP6_CONTROL) != 0)
+#define HEXAGON_DIRECT_JUMP_P(INSN)    (((INSN)->flags & HEXAGON_DIRECT_JUMP) != 0)
+#define HEXAGON_INDIRECT_JUMP_P(INSN)  (((INSN)->flags & HEXAGON_INDIRECT_JUMP) != 0)
+#define HEXAGON_ENDLOOP_P(INSN)        (((INSN)->flags & HEXAGON_ENDLOOP) != 0)
+#define HEXAGON_DIRECT_CALL_P(INSN)    (((INSN)->flags & HEXAGON_DIRECT_CALL) != 0)
+#define HEXAGON_INDIRECT_CALL_P(INSN)  (((INSN)->flags & HEXAGON_INDIRECT_CALL) != 0)
+#define HEXAGON_EMULATION_CALL_P(INSN) (((INSN)->flags & HEXAGON_EMULATION_CALL) != 0)
+#define HEXAGON_JUMP_P(INSN)           (((INSN)->flags & HEXAGON_JUMP) != 0)
+#define HEXAGON_CALL_P(INSN)           (((INSN)->flags & HEXAGON_CALL) != 0)
+#define HEXAGON_CONTROL_P(INSN)        (((INSN)->flags & HEXAGON_CONTROL) != 0)
 
-#define QDSP6_MEM_P(INSN)           (((INSN)->flags & QDSP6_MEM) != 0)
-#define QDSP6_VOLATILE_P(INSN)      (((INSN)->flags & QDSP6_VOLATILE) != 0)
-#define QDSP6_NEW_PREDICATE_P(INSN) (((INSN)->flags & QDSP6_NEW_PREDICATE) != 0)
-#define QDSP6_NEW_GPR_P(INSN)       (((INSN)->flags & QDSP6_NEW_GPR) != 0)
+#define HEXAGON_MEM_P(INSN)           (((INSN)->flags & HEXAGON_MEM) != 0)
+#define HEXAGON_VOLATILE_P(INSN)      (((INSN)->flags & HEXAGON_VOLATILE) != 0)
+#define HEXAGON_NEW_PREDICATE_P(INSN) (((INSN)->flags & HEXAGON_NEW_PREDICATE) != 0)
+#define HEXAGON_NEW_GPR_P(INSN)       (((INSN)->flags & HEXAGON_NEW_GPR) != 0)
 
-#define QDSP6_MOVED_P(INSN)  (((INSN)->flags & QDSP6_MOVED) != 0)
+#define HEXAGON_MOVED_P(INSN)  (((INSN)->flags & HEXAGON_MOVED) != 0)
+
+#define QDSP6_COMPAT_MACROS \
+    if (hexagon_qdsp6_compat){ \
+      switch(hexagon_arch){ \
+        case HEXAGON_ARCH_V1: \
+          builtin_define_std ("__QDSP6_V1__"); \
+          builtin_define_std ("__QDSP6_ARCH__=1"); \
+          break; \
+        case HEXAGON_ARCH_V2: \
+          builtin_define_std ("__QDSP6_V2__"); \
+          builtin_define_std ("__QDSP6_ARCH__=2"); \
+          break; \
+        case HEXAGON_ARCH_V3: \
+          builtin_define_std ("__QDSP6_V3__"); \
+          builtin_define_std ("__QDSP6_ARCH__=3"); \
+          break; \
+        case HEXAGON_ARCH_V4: \
+          builtin_define_std ("__QDSP6_V4__"); \
+          builtin_define_std ("__QDSP6_ARCH__=4"); \
+          break; \
+        default: \
+          abort(); \
+      } \
+      builtin_define_std ("__qdsp6__"); \
+      builtin_define_std ("qdsp6"); \
+    };
 
 #endif /* !USED_FOR_TARGET */
 
-#endif /* !GCC_QDSP6_H */
+#endif /* !GCC_HEXAGON_H */

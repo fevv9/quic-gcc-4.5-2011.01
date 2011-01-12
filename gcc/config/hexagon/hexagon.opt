@@ -1,23 +1,23 @@
 
 march=
 Target Report RejectNegative Joined
-Generate code for a given architecture (default qdsp6v2)
+Generate code for a given architecture (default hexagonv2)
 
 mv1
 Target RejectNegative
-alias for -march=qdsp6v1
+alias for -march=hexagonv1
 
 mv2
 Target RejectNegative
-alias for -march=qdsp6v2
+alias for -march=hexagonv2
 
 mv3
 Target RejectNegative
-alias for -march=qdsp6v3
+alias for -march=hexagonv3
 
 mv4
 Target RejectNegative
-alias for -march=qdsp6v4
+alias for -march=hexagonv4
 
 mcpu=
 Target Report RejectNegative Joined
@@ -118,6 +118,10 @@ Force intrinsics to mean the corresponding instruction, not just the correspondi
 mv1-v2-uncached-data
 Target Report Undocumented Mask(UNCACHED_DATA)
 Limit the number of memory accesses in a packet to one
+
+mqdsp6-compat
+Target Report Undocumented Mask(QDSP6_COMPAT)
+Accept code written for legacy QDSP6 compiler
 
 mlocal-combine
 Target Report Mask(LOCAL_COMBINE) Optimization

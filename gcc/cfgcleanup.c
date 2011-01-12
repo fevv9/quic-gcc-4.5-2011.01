@@ -1073,7 +1073,7 @@ long_distance_search_and_reorder(int mode,rtx prev_i,rtx i1,rtx *i2,basic_block 
 			/* Now go back and see if the switch is possible. No reordering unless we know it is possible */ 
 			current_intervening_instruction = get_next_real_instruction(current_search,in_this_bb); 
 			while(get_next_real_instruction(*i2,in_this_bb) != current_intervening_instruction){
-				if(!qdsp6_instructions_dependent(current_intervening_instruction, current_search))
+				if(!hexagon_instructions_dependent(current_intervening_instruction, current_search))
 					current_intervening_instruction = get_next_real_instruction(current_intervening_instruction,in_this_bb); 
 				/* If there is a dependency bethween these two instructions, and reorder is impossible,
 				there is no point to continue searching upwards sice any other matching instruction by definition will 
@@ -1172,8 +1172,8 @@ flow_find_cross_jump (int mode ATTRIBUTE_UNUSED, basic_block bb1,
               (prev_i2 != BB_HEAD (bb2)) && 
                old_insns_match_p (mode, prev_i1, prev_i2))
              {
-              if(!qdsp6_instructions_dependent(prev_i1, i1) && 
-                 !qdsp6_instructions_dependent(prev_i2, i2))
+              if(!hexagon_instructions_dependent(prev_i1, i1) && 
+                 !hexagon_instructions_dependent(prev_i2, i2))
                  { /* independent */ 
                     reorder_insns(prev_i1,prev_i1,i1); 
                     reorder_insns(prev_i2,prev_i2,i2); 
@@ -1185,7 +1185,7 @@ flow_find_cross_jump (int mode ATTRIBUTE_UNUSED, basic_block bb1,
            else if((prev_i2 != BB_HEAD (bb2)) && 
                     old_insns_match_p (mode, i1, prev_i2))
              { /* Simple asymmetric match */
-                if(!qdsp6_instructions_dependent(prev_i2, i2))
+                if(!hexagon_instructions_dependent(prev_i2, i2))
                  { /* independent */
                     reorder_insns(prev_i2,prev_i2,i2); 
                     i2 = prev_i2; 
@@ -1195,7 +1195,7 @@ flow_find_cross_jump (int mode ATTRIBUTE_UNUSED, basic_block bb1,
            else if((prev_i1 != BB_HEAD (bb1)) && 
                     old_insns_match_p (mode, i2, prev_i1))
              { /* Simple asymmetric match */
-                if(!qdsp6_instructions_dependent(prev_i1, i1))
+                if(!hexagon_instructions_dependent(prev_i1, i1))
                  { /* independent */
                     reorder_insns(prev_i1,prev_i1,i1); 
                     i1 = prev_i1; 

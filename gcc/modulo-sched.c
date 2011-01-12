@@ -903,7 +903,7 @@ setup_sched_infos (void)
 }
 
 
-extern void qdsp6_duplicate_doloop_begin(basic_block, struct loop *);
+extern void hexagon_duplicate_doloop_begin(basic_block, struct loop *);
 
 /* Probability in % that the sms-ed loop rolls enough so that optimized
    version may be entered.  Just a guess.  */
@@ -1302,7 +1302,7 @@ sms_schedule (void)
                                                      duplicate loop
 
 
-  For architectures like qdsp6, the doloop_begin operation (loop0 & loop1)
+  For architectures like hexagon, the doloop_begin operation (loop0 & loop1)
   is used to setup the loop count and the loop back address.
   These operations are located in the "preheader" BB, which is not part of
   the loop body. loop_version only duplicates the body of the loop.
@@ -1325,7 +1325,7 @@ sms_schedule (void)
 
           /* TODO: must replace the function call below to a architecture independent version
            */
-          qdsp6_duplicate_doloop_begin(condition_bb, loop);
+          hexagon_duplicate_doloop_begin(condition_bb, loop);
  
 #endif
 	     }

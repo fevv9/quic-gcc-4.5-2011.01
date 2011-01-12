@@ -11,13 +11,13 @@ if [ "$1" != "" ]; then
 else
   PLATFORM=`uname`
   if [ "${PLATFORM}" = "CYGWIN_NT-5.1" ]; then
-    PREFIX=/usr/local/qdsp6
+    PREFIX=/usr/local/hexagon
   else
   	if [ "${PLATFORM}" = "MINGW32_NT-5.1" ]; then
-   	 PREFIX=/usr/local/qdsp6
+   	 PREFIX=/usr/local/hexagon
   	else
    	 if [ "${PLATFORM}" = "Linux" ]; then
-   	   PREFIX=${HOME}/qdsp6
+   	   PREFIX=${HOME}/hexagon
    	 else
    	   echo platform ${PLATFORM} not supported
    	   exit 1
@@ -28,8 +28,8 @@ fi
 
 bash `dirname $0`/configure \
   --prefix=${PREFIX} \
-  --target=qdsp6 \
-  --program-prefix=qdsp6- \
+  --target=hexagon \
+  --program-prefix=hexagon- \
   --program-suffix=45 \
   --enable-checking=assert,misc,tree,gc,rtlflag,runtime,df \
   --enable-languages=c,c++ \

@@ -499,6 +499,11 @@ qdsp6-*-elf*)
 qdsp6-*-linux*)
 	extra_parts="crtbegin.o crtbeginT.o crtend.o"
 	;;
+hexagon-*-elf*)
+	;;
+hexagon-*-linux*)
+	extra_parts="crtbegin.o crtbeginT.o crtend.o"
+	;;
 rs6000-ibm-aix4.[12]* | powerpc-ibm-aix4.[12]*)
 	;;
 rs6000-ibm-aix4.[3456789]* | powerpc-ibm-aix4.[3456789]*)

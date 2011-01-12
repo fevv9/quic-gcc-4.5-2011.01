@@ -1,7 +1,7 @@
 # If any special flags are necessary when building libgcc2 put them here.
 TARGET_LIBGCC2_CFLAGS =
 
-LIB1ASMSRC    = qdsp6/lib1funcs.asm
+LIB1ASMSRC    = hexagon/lib1funcs.asm
 LIB1ASMFUNCS  = _udivmodsi4 _udivsi3 _umodsi3 _divsi3 _modsi3 \
                 _udivmoddi4 _udivdi3 _umoddi3 _divdi3 _moddi3 \
                 _common_prologue_epilogue
@@ -26,12 +26,12 @@ dp-bit.c: $(srcdir)/config/fp-bit.c
 # See gcc/genmultilib, gcc/gcc.texi and gcc/tm.texi for a
 # description of the options and their values.
 
-MULTILIB_OPTIONS    = march=qdsp6v3/march=qdsp6v4 mG0lib
+MULTILIB_OPTIONS    = march=hexagonv3/march=hexagonv4 mG0lib
 MULTILIB_DIRNAMES   = v3 v4 G0
 MULTILIB_MATCHES    =
 MULTILIB_EXCEPTIONS =
 MULTILIB_EXTRA_OPTS = mbuilding-multilib
 
 ifneq (,$(with_newlib))
-gt-qdsp6.h: s-gtype ; @true
+gt-hexagon.h: s-gtype ; @true
 endif

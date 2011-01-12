@@ -21,7 +21,7 @@ export CXXFLAGS="-O0 -g -DUSING_NEWLIB"
 
 bash `dirname $0`/configure \
   --prefix=${PREFIX} \
-  --target=qdsp6 \
+  --target=hexagon \
   --enable-checking=assert,misc,tree,gc,rtlflag,runtime,df \
   --enable-languages=c,c++ \
   --enable-lto \
@@ -33,4 +33,4 @@ bash `dirname $0`/configure \
   --disable-shared \
   --with-newlib 
 
-#--program-prefix=qdsp6- \
+#--program-prefix=hexagon- \
