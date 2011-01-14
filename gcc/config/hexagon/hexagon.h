@@ -1049,6 +1049,9 @@ enum hexagon_architecture {
 
 extern enum hexagon_architecture hexagon_arch;
 
+/* Used for qdsp6 backward compat */
+extern int hexagon_qdsp6_compat;
+
 #define HEXAGON_FEAT_V1 (1 << HEXAGON_ARCH_V1)
 #define HEXAGON_FEAT_V2 (1 << HEXAGON_ARCH_V2)
 #define HEXAGON_FEAT_V3 (1 << HEXAGON_ARCH_V3)
