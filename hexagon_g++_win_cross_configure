@@ -49,4 +49,3 @@ CC_FOR_BUILD=gcc \
   --disable-libssp \
   ${EXP_FLAGS} \
   --with-dinkumware
-
